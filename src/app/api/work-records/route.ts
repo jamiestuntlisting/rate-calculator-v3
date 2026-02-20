@@ -21,7 +21,7 @@ export async function GET(request: NextRequest) {
     const recordStatus = searchParams.get("recordStatus");
 
     const filter: Record<string, unknown> = {
-      ...userFilter(auth.session),
+      ...(await userFilter(auth.session)),
     };
     if (status && status !== "all") {
       filter.paymentStatus = status;

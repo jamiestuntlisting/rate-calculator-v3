@@ -15,7 +15,7 @@ export async function GET(
     const { id } = await params;
     const record = await WorkRecord.findOne({
       _id: id,
-      ...userFilter(auth.session),
+      ...(await userFilter(auth.session)),
     }).lean();
 
     if (!record) {
@@ -54,7 +54,7 @@ export async function PUT(
     delete data.userId;
 
     const record = await WorkRecord.findOneAndUpdate(
-      { _id: id, ...userFilter(auth.session) },
+      { _id: id, ...(await userFilter(auth.session)) },
       data,
       { new: true, runValidators: true }
     ).lean();
@@ -91,7 +91,7 @@ export async function DELETE(
     const { id } = await params;
     const record = await WorkRecord.findOneAndDelete({
       _id: id,
-      ...userFilter(auth.session),
+      ...(await userFilter(auth.session)),
     });
 
     if (!record) {

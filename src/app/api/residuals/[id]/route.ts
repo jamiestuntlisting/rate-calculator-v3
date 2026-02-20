@@ -16,7 +16,7 @@ export async function GET(
 
     const importRecord = await ResidualImport.findOne({
       _id: id,
-      ...userFilter(auth.session),
+      ...(await userFilter(auth.session)),
     }).lean();
 
     if (!importRecord) {
@@ -124,7 +124,7 @@ export async function DELETE(
 
     const result = await ResidualImport.findOneAndDelete({
       _id: id,
-      ...userFilter(auth.session),
+      ...(await userFilter(auth.session)),
     });
 
     if (!result) {

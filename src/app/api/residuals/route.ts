@@ -60,7 +60,7 @@ export async function GET() {
     await dbConnect();
 
     const imports = await ResidualImport.find({
-      ...userFilter(auth.session),
+      ...(await userFilter(auth.session)),
     })
       .select("performerName filename totalChecks totalGross createdAt")
       .sort({ createdAt: -1 })

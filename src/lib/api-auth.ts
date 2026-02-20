@@ -1,5 +1,8 @@
 import { getSession, type SessionPayload } from "@/lib/auth";
 import { NextResponse } from "next/server";
+import { cookies } from "next/headers";
+
+const VIEW_AS_COOKIE = "stl_view_as";
 
 /**
  * Get the authenticated user from the session cookie.
@@ -24,12 +27,35 @@ export async function requireAuth(): Promise<
 }
 
 /**
- * Build a MongoDB filter scoped to the current user.
- * Admins can see all records; regular users only see their own.
+ * Build a MongoDB filter scoped to the effective user.
+ *
+ * - Regular users: always scoped to their own userId
+ * - Admins: scoped to their own userId by default.
+ *   If the admin has set a "view as" cookie, scope to that userId instead.
  */
-export function userFilter(session: SessionPayload): Record<string, unknown> {
-  if (session.role === "admin") {
-    return {}; // admins see everything
+export async function userFilter(session: SessionPayload): Promise<Record<string, unknown>> {
+  // Regular users always see only their own data
+  if (session.role !== "admin") {
+    return { userId: session.userId };
   }
+
+  // Admins: check for "view as" cookie
+  const cookieStore = await cookies();
+  const viewAsUserId = cookieStore.get(VIEW_AS_COOKIE)?.value;
+
+  if (viewAsUserId) {
+    return { userId: viewAsUserId };
+  }
+
+  // Default: admin sees their own data
   return { userId: session.userId };
+}
+
+/**
+ * Get the effective userId for creating records.
+ * If admin is viewing as another user, new records are still created
+ * under the admin's own account (not the viewed user).
+ */
+export function getCreateUserId(session: SessionPayload): string {
+  return session.userId;
 }
