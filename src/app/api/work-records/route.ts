@@ -2,9 +2,13 @@ import { NextRequest, NextResponse } from "next/server";
 import dbConnect from "@/lib/mongodb";
 import WorkRecord from "@/models/WorkRecord";
 import { calculatePaymentDueDate } from "@/lib/time-utils";
+import { requireAuth, userFilter } from "@/lib/api-auth";
 
 export async function GET(request: NextRequest) {
   try {
+    const auth = await requireAuth();
+    if (auth.error) return auth.error;
+
     await dbConnect();
 
     const { searchParams } = new URL(request.url);
@@ -16,7 +20,9 @@ export async function GET(request: NextRequest) {
     const show = searchParams.get("show");
     const recordStatus = searchParams.get("recordStatus");
 
-    const filter: Record<string, unknown> = {};
+    const filter: Record<string, unknown> = {
+      ...userFilter(auth.session),
+    };
     if (status && status !== "all") {
       filter.paymentStatus = status;
     }
@@ -57,6 +63,9 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: Request) {
   try {
+    const auth = await requireAuth();
+    if (auth.error) return auth.error;
+
     await dbConnect();
 
     const data = await request.json();
@@ -113,6 +122,7 @@ export async function POST(request: Request) {
 
     const record = await WorkRecord.create({
       ...data,
+      userId: auth.session.userId,
       recordStatus,
       paymentDueDate,
       missingExhibitG: !hasExhibitG && data.workType !== "other",

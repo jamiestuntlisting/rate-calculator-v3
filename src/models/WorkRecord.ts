@@ -75,6 +75,7 @@ const WorkDocumentSchema = new Schema(
 
 const WorkRecordSchema = new Schema(
   {
+    userId: { type: Schema.Types.ObjectId, ref: "User", required: true, index: true },
     workType: {
       type: String,
       enum: ["sag_aftra", "other"],
@@ -144,6 +145,7 @@ WorkRecordSchema.index({ paymentStatus: 1 });
 WorkRecordSchema.index({ recordStatus: 1 });
 
 export interface IWorkRecord extends Document {
+  userId: mongoose.Types.ObjectId;
   workType: string;
   otherWorkCategory: string | null;
   showName: string;

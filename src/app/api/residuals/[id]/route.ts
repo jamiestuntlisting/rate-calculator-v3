@@ -1,16 +1,23 @@
 import { NextRequest, NextResponse } from "next/server";
 import dbConnect from "@/lib/mongodb";
 import ResidualImport from "@/models/ResidualImport";
+import { requireAuth, userFilter } from "@/lib/api-auth";
 
 export async function GET(
   _request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const auth = await requireAuth();
+    if (auth.error) return auth.error;
+
     await dbConnect();
     const { id } = await params;
 
-    const importRecord = await ResidualImport.findById(id).lean();
+    const importRecord = await ResidualImport.findOne({
+      _id: id,
+      ...userFilter(auth.session),
+    }).lean();
 
     if (!importRecord) {
       return NextResponse.json(
@@ -109,10 +116,16 @@ export async function DELETE(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const auth = await requireAuth();
+    if (auth.error) return auth.error;
+
     await dbConnect();
     const { id } = await params;
 
-    const result = await ResidualImport.findByIdAndDelete(id);
+    const result = await ResidualImport.findOneAndDelete({
+      _id: id,
+      ...userFilter(auth.session),
+    });
 
     if (!result) {
       return NextResponse.json(

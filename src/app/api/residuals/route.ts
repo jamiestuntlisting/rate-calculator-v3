@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import dbConnect from "@/lib/mongodb";
 import ResidualImport from "@/models/ResidualImport";
+import { requireAuth, userFilter } from "@/lib/api-auth";
 
 /** Parse a dollar string like "$1,234.56" to a number */
 function parseDollar(val: string): number {
@@ -53,9 +54,14 @@ function parseCSV(text: string): string[][] {
 
 export async function GET() {
   try {
+    const auth = await requireAuth();
+    if (auth.error) return auth.error;
+
     await dbConnect();
 
-    const imports = await ResidualImport.find({})
+    const imports = await ResidualImport.find({
+      ...userFilter(auth.session),
+    })
       .select("performerName filename totalChecks totalGross createdAt")
       .sort({ createdAt: -1 })
       .lean();
@@ -72,6 +78,9 @@ export async function GET() {
 
 export async function POST(request: NextRequest) {
   try {
+    const auth = await requireAuth();
+    if (auth.error) return auth.error;
+
     await dbConnect();
 
     const formData = await request.formData();
@@ -157,8 +166,9 @@ export async function POST(request: NextRequest) {
       });
     }
 
-    // Create the import record
+    // Create the import record with userId
     const importRecord = await ResidualImport.create({
+      userId: auth.session.userId,
       performerName,
       filename: file.name,
       totalChecks: checks.length,

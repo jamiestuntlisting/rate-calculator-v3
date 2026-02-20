@@ -1,15 +1,22 @@
 import { NextResponse } from "next/server";
 import dbConnect from "@/lib/mongodb";
 import WorkRecord from "@/models/WorkRecord";
+import { requireAuth, userFilter } from "@/lib/api-auth";
 
 export async function GET(
   _request: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const auth = await requireAuth();
+    if (auth.error) return auth.error;
+
     await dbConnect();
     const { id } = await params;
-    const record = await WorkRecord.findById(id).lean();
+    const record = await WorkRecord.findOne({
+      _id: id,
+      ...userFilter(auth.session),
+    }).lean();
 
     if (!record) {
       return NextResponse.json(
@@ -36,14 +43,21 @@ export async function PUT(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const auth = await requireAuth();
+    if (auth.error) return auth.error;
+
     await dbConnect();
     const { id } = await params;
     const data = await request.json();
 
-    const record = await WorkRecord.findByIdAndUpdate(id, data, {
-      new: true,
-      runValidators: true,
-    }).lean();
+    // Prevent userId from being overwritten
+    delete data.userId;
+
+    const record = await WorkRecord.findOneAndUpdate(
+      { _id: id, ...userFilter(auth.session) },
+      data,
+      { new: true, runValidators: true }
+    ).lean();
 
     if (!record) {
       return NextResponse.json(
@@ -70,9 +84,15 @@ export async function DELETE(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const auth = await requireAuth();
+    if (auth.error) return auth.error;
+
     await dbConnect();
     const { id } = await params;
-    const record = await WorkRecord.findByIdAndDelete(id);
+    const record = await WorkRecord.findOneAndDelete({
+      _id: id,
+      ...userFilter(auth.session),
+    });
 
     if (!record) {
       return NextResponse.json(

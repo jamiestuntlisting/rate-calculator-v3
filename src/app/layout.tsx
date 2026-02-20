@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import { TierProvider } from "@/context/tier-context";
+import { AuthProvider } from "@/context/auth-context";
 import { AppHeader } from "@/components/layout/app-header";
 import { AppFooter } from "@/components/layout/app-footer";
 import { Toaster } from "@/components/ui/sonner";
@@ -32,14 +33,16 @@ export default function RootLayout({
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased min-h-screen flex flex-col`}
       >
-        <TierProvider>
-          <AppHeader />
-          <main className="flex-1 container mx-auto px-4 py-6">
-            {children}
-          </main>
-          <AppFooter />
-          <Toaster />
-        </TierProvider>
+        <AuthProvider>
+          <TierProvider>
+            <AppHeader />
+            <main className="flex-1 container mx-auto px-4 py-6">
+              {children}
+            </main>
+            <AppFooter />
+            <Toaster />
+          </TierProvider>
+        </AuthProvider>
       </body>
     </html>
   );

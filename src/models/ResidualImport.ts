@@ -23,6 +23,7 @@ const ResidualCheckSchema = new Schema(
 
 const ResidualImportSchema = new Schema(
   {
+    userId: { type: Schema.Types.ObjectId, ref: "User", required: true, index: true },
     performerName: { type: String, required: true },
     filename: { type: String, required: true },
     totalChecks: { type: Number, default: 0 },
@@ -55,6 +56,7 @@ export interface IResidualCheck {
 }
 
 export interface IResidualImport extends Document {
+  userId: mongoose.Types.ObjectId;
   performerName: string;
   filename: string;
   totalChecks: number;
