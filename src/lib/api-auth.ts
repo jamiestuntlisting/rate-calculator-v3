@@ -53,9 +53,16 @@ export async function userFilter(session: SessionPayload): Promise<Record<string
 
 /**
  * Get the effective userId for creating records.
- * If admin is viewing as another user, new records are still created
- * under the admin's own account (not the viewed user).
+ * If admin is viewing as another user, new records are created
+ * under the viewed user's account (so data belongs to that member).
  */
-export function getCreateUserId(session: SessionPayload): string {
+export async function getCreateUserId(session: SessionPayload): Promise<string> {
+  if (session.role === "admin") {
+    const cookieStore = await cookies();
+    const viewAsUserId = cookieStore.get(VIEW_AS_COOKIE)?.value;
+    if (viewAsUserId) {
+      return viewAsUserId;
+    }
+  }
   return session.userId;
 }

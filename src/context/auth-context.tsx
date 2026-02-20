@@ -51,7 +51,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const router = useRouter();
   const pathname = usePathname();
 
-  // Check session on mount
+  // Check session on mount (and re-verify Plus membership via /api/auth/me)
   useEffect(() => {
     const checkSession = async () => {
       try {
@@ -88,6 +88,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             } catch {
               // Non-critical — just won't restore view-as state
             }
+          }
+        } else if (res.status === 403) {
+          // Membership expired — user is no longer Plus
+          // Clear session and redirect to login (which will show upgrade prompt)
+          setUser(null);
+          try {
+            await fetch("/api/auth/logout", { method: "POST" });
+          } catch {
+            // ignore
           }
         } else {
           setUser(null);

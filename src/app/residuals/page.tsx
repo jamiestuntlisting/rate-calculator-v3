@@ -333,30 +333,6 @@ export default function ResidualsPage() {
         </Card>
       </div>
 
-      {/* If we have multiple imports, show a selector */}
-      {imports.length > 1 && (
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-lg">Previous Imports</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="flex flex-wrap gap-2">
-              {imports.map((imp) => (
-                <Button
-                  key={imp._id}
-                  variant={activeImport?._id === imp._id ? "default" : "outline"}
-                  size="sm"
-                  onClick={() => loadImportDetail(imp._id)}
-                  disabled={loadingDetail}
-                >
-                  {imp.performerName} ({imp.totalChecks} checks)
-                </Button>
-              ))}
-            </div>
-          </CardContent>
-        </Card>
-      )}
-
       {/* Search */}
       <div>
         <Input

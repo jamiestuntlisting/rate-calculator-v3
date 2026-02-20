@@ -65,7 +65,7 @@ const WorkDocumentSchema = new Schema(
     originalName: { type: String, required: true },
     documentType: {
       type: String,
-      enum: ["exhibit_g", "contract", "wardrobe_photo", "paystub", "timecard", "other"],
+      enum: ["exhibit_g", "call_sheet", "contract", "wardrobe_photo", "paystub", "timecard", "other"],
       default: "other",
     },
     uploadedAt: { type: Date, default: Date.now },

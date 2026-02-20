@@ -33,6 +33,7 @@ export interface SessionPayload {
   lastName: string;
   tier: string;
   role: string;
+  stlAccessToken?: string; // StuntListing API token for re-verification
 }
 
 /** Create a signed JWT session token */

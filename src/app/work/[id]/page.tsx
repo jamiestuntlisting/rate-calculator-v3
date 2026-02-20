@@ -26,7 +26,7 @@ import { RateBreakdown } from "@/components/calculation/rate-breakdown";
 import { formatCurrency } from "@/lib/time-utils";
 import { toast } from "sonner";
 import type { WorkRecord } from "@/types";
-import { ArrowLeft, Save, Upload, Trash2, Mail, Pencil, X } from "lucide-react";
+import { ArrowLeft, Save, Upload, Trash2, Pencil, X } from "lucide-react";
 
 const STATUS_LABELS: Record<string, string> = {
   unpaid: "Unpaid",
@@ -82,7 +82,6 @@ export default function WorkDetailPage() {
   const [paymentStatus, setPaymentStatus] = useState("unpaid");
   const [notes, setNotes] = useState("");
   const [saving, setSaving] = useState(false);
-  const [generatingPdf, setGeneratingPdf] = useState(false);
 
   // Inline edit state
   const [editing, setEditing] = useState(false);
@@ -434,60 +433,6 @@ export default function WorkDetailPage() {
       router.push("/tracker");
     } catch {
       toast.error("Failed to delete record");
-    }
-  };
-
-  const handleEmailAsPdf = async () => {
-    if (!contentRef.current || !record) return;
-    setGeneratingPdf(true);
-    try {
-      const html2canvas = (await import("html2canvas-pro")).default;
-      const { jsPDF } = await import("jspdf");
-
-      const canvas = await html2canvas(contentRef.current, {
-        scale: 2,
-        useCORS: true,
-        logging: false,
-      });
-
-      const imgWidth = 210;
-      const imgHeight = (canvas.height * imgWidth) / canvas.width;
-      const pdf = new jsPDF("p", "mm", "a4");
-
-      let position = 0;
-      const pageHeight = 297;
-      const totalHeight = imgHeight;
-
-      while (position < totalHeight) {
-        if (position > 0) pdf.addPage();
-        pdf.addImage(
-          canvas.toDataURL("image/png"),
-          "PNG",
-          0,
-          -position,
-          imgWidth,
-          imgHeight
-        );
-        position += pageHeight;
-      }
-
-      const dateStr = formatDateSafe(record.workDate);
-      const filename = `${record.showName}-${dateStr}.pdf`.replace(/[/\\]/g, "-");
-      pdf.save(filename);
-
-      const subject = encodeURIComponent(
-        `Work Record: ${record.showName} - ${dateStr}`
-      );
-      const body = encodeURIComponent(
-        `Please find attached the work record for ${record.showName} on ${dateStr}.\n\nExpected: ${record.expectedAmount ? formatCurrency(record.expectedAmount) : "N/A"}\n\nPlease attach the downloaded PDF (${filename}) to this email.`
-      );
-      window.open(`mailto:?subject=${subject}&body=${body}`, "_blank");
-
-      toast.success("PDF downloaded — attach it to the email");
-    } catch {
-      toast.error("Failed to generate PDF");
-    } finally {
-      setGeneratingPdf(false);
     }
   };
 
@@ -985,6 +930,7 @@ export default function WorkDetailPage() {
                   const isPdf = ext === "pdf";
                   const docTypeLabel =
                     doc.documentType === "exhibit_g" ? "Exhibit G"
+                    : doc.documentType === "call_sheet" ? "Call Sheet"
                     : doc.documentType === "contract" ? "Contract"
                     : doc.documentType === "wardrobe_photo" ? "Wardrobe Photo"
                     : doc.documentType === "paystub" ? "Paystub"
@@ -1035,17 +981,6 @@ export default function WorkDetailPage() {
           </Card>
         )}
       </div>{/* end contentRef */}
-
-      {/* Email as PDF */}
-      <Button
-        variant="outline"
-        className="w-full"
-        onClick={handleEmailAsPdf}
-        disabled={generatingPdf}
-      >
-        <Mail className="mr-2 h-4 w-4" />
-        {generatingPdf ? "Generating PDF..." : "Email as PDF"}
-      </Button>
 
       {/* Photos */}
       <Card>

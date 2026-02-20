@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import dbConnect from "@/lib/mongodb";
 import WorkRecord from "@/models/WorkRecord";
 import { calculatePaymentDueDate } from "@/lib/time-utils";
-import { requireAuth, userFilter } from "@/lib/api-auth";
+import { requireAuth, userFilter, getCreateUserId } from "@/lib/api-auth";
 
 export async function GET(request: NextRequest) {
   try {
@@ -122,7 +122,7 @@ export async function POST(request: Request) {
 
     const record = await WorkRecord.create({
       ...data,
-      userId: auth.session.userId,
+      userId: await getCreateUserId(auth.session),
       recordStatus,
       paymentDueDate,
       missingExhibitG: !hasExhibitG && data.workType !== "other",

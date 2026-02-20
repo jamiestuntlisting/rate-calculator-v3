@@ -17,7 +17,6 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { Badge } from "@/components/ui/badge";
 import { formatCurrency } from "@/lib/time-utils";
 import { ArrowLeft } from "lucide-react";
 
@@ -144,7 +143,6 @@ export default function ResidualProductionDetailPage() {
                   <TableHead className="hidden md:table-cell">Received</TableHead>
                   <TableHead className="hidden md:table-cell">Company</TableHead>
                   <TableHead className="hidden lg:table-cell">Payroll House</TableHead>
-                  <TableHead className="hidden lg:table-cell">Status</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -171,18 +169,6 @@ export default function ResidualProductionDetailPage() {
                       <span className="truncate max-w-[200px] block text-xs">
                         {check.payrollHouse || "—"}
                       </span>
-                    </TableCell>
-                    <TableCell className="hidden lg:table-cell">
-                      <Badge
-                        variant="secondary"
-                        className={
-                          check.checkStatus?.includes("Complete")
-                            ? "bg-green-900/40 text-green-300 border-green-700/50"
-                            : "bg-yellow-900/40 text-yellow-300 border-yellow-700/50"
-                        }
-                      >
-                        {check.checkStatus || "Unknown"}
-                      </Badge>
                     </TableCell>
                   </TableRow>
                 ))}

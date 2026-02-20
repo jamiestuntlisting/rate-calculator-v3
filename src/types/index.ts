@@ -4,6 +4,7 @@ import type { RateSchedule } from "@/lib/rate-constants";
 
 export type DocumentType =
   | "exhibit_g"
+  | "call_sheet"
   | "contract"
   | "wardrobe_photo"
   | "paystub"
@@ -19,6 +20,7 @@ export interface WorkDocument {
 
 export const DOCUMENT_TYPE_LABELS: Record<DocumentType, string> = {
   exhibit_g: "Exhibit G",
+  call_sheet: "Call Sheet",
   contract: "Contract",
   wardrobe_photo: "Wardrobe Photo",
   paystub: "Paystub",

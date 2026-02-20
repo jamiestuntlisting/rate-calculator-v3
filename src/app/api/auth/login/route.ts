@@ -147,6 +147,7 @@ export async function POST(request: Request) {
       lastName: profile.last_name || "",
       tier: membershipTier,
       role: isAdmin ? "admin" : "user",
+      stlAccessToken: access_token,
     };
 
     const token = await createSession(sessionPayload);

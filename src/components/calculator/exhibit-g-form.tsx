@@ -95,15 +95,15 @@ export function ExhibitGForm() {
 
   // Live calculation — runs whenever input changes (not for stunt coordinator — flat rate)
   // When showLiveRate is on, uses current time as dismiss time for the calculation
+  // Only requires callTime to be set — reportOnSet defaults to callTime if empty
   const liveBreakdown: CalculationBreakdown | null = useMemo(() => {
     if (isStuntCoordinator) return null;
+    if (!input.callTime) return null;
+    const reportOnSet = input.reportOnSet || input.callTime;
     const dismissTime = showLiveRate ? getCurrentTimeSnapped() : input.dismissOnSet;
-    // Need minimum fields to calculate
-    if (!input.callTime || !input.reportOnSet || !dismissTime) {
-      return null;
-    }
+    if (!dismissTime) return null;
     try {
-      return calculateRate({ ...input, dismissOnSet: dismissTime });
+      return calculateRate({ ...input, reportOnSet, dismissOnSet: dismissTime });
     } catch {
       return null;
     }
@@ -604,8 +604,8 @@ export function ExhibitGForm() {
               onUpload={handleDocUpload}
               onRemove={handleDocRemove}
               documentTypes={isStuntCoordinator
-                ? ["contract", "other", "paystub"]
-                : ["contract", "wardrobe_photo", "other", "paystub"]
+                ? ["call_sheet", "contract", "other", "paystub"]
+                : ["call_sheet", "contract", "wardrobe_photo", "other", "paystub"]
               }
             />
           </div>

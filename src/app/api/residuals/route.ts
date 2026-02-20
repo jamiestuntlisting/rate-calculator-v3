@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import dbConnect from "@/lib/mongodb";
 import ResidualImport from "@/models/ResidualImport";
-import { requireAuth, userFilter } from "@/lib/api-auth";
+import { requireAuth, userFilter, getCreateUserId } from "@/lib/api-auth";
 
 /** Parse a dollar string like "$1,234.56" to a number */
 function parseDollar(val: string): number {
@@ -168,7 +168,7 @@ export async function POST(request: NextRequest) {
 
     // Create the import record with userId
     const importRecord = await ResidualImport.create({
-      userId: auth.session.userId,
+      userId: await getCreateUserId(auth.session),
       performerName,
       filename: file.name,
       totalChecks: checks.length,
