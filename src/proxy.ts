@@ -5,7 +5,7 @@ import { jwtVerify } from "jose";
 const SESSION_COOKIE = "stl_session";
 
 // Routes that don't require authentication
-const PUBLIC_PATHS = ["/login", "/api/auth/login", "/api/auth/logout"];
+const PUBLIC_PATHS = ["/login", "/api/auth/login", "/api/auth/logout", "/api/auth/me"];
 
 function getSecretKey() {
   const secret =
@@ -14,7 +14,7 @@ function getSecretKey() {
   return new TextEncoder().encode(secret);
 }
 
-export async function middleware(request: NextRequest) {
+export async function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
   // Allow public paths
