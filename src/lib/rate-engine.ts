@@ -1,0 +1,348 @@
+import {
+  RATES,
+  OVERTIME,
+  MULTIPLIERS,
+  MEAL_PENALTIES,
+  FORCED_CALL,
+} from "./rate-constants";
+import type { RateSchedule } from "./rate-constants";
+import {
+  calculateDuration,
+  calculateMealMinutes,
+  roundUpToTenthHour,
+  minutesToDecimalHours,
+  getEarliestTime,
+  getLatestTime,
+  parseTimeToMinutes,
+} from "./time-utils";
+import type {
+  ExhibitGInput,
+  CalculationBreakdown,
+  TimeSegment,
+  MealPenalty,
+} from "@/types";
+
+/**
+ * Main rate calculation function.
+ * Pure function: takes Exhibit G input, returns full breakdown.
+ */
+export function calculateRate(input: ExhibitGInput): CalculationBreakdown {
+  const rates = RATES[input.workStatus as RateSchedule];
+  const baseRate = rates.daily;
+  const hourlyRate = rates.hourly;
+
+  // Step 1: Apply stunt adjustment to base rate BEFORE OT calculation
+  const adjustedBaseRate = baseRate + input.stuntAdjustment;
+  const adjustedHourlyRate = adjustedBaseRate / 8;
+
+  // Step 2: Determine work start and end times
+  const workStart = getEarliestTime(
+    input.callTime,
+    input.reportMakeupWardrobe
+  );
+  const workEnd = getLatestTime(
+    workStart,
+    input.dismissOnSet,
+    input.dismissMakeupWardrobe
+  );
+
+  // Step 3: Calculate total elapsed time
+  const totalElapsedMinutes = calculateDuration(workStart, workEnd);
+
+  // Step 4: Subtract meal periods (non-work time)
+  const meals = [
+    { start: input.ndMealIn, finish: input.ndMealOut },
+    { start: input.firstMealStart, finish: input.firstMealFinish },
+    { start: input.secondMealStart, finish: input.secondMealFinish },
+  ];
+  const mealMinutes = calculateMealMinutes(meals);
+  const netWorkMinutes = Math.max(0, totalElapsedMinutes - mealMinutes);
+
+  // Step 5: Round to 1/10th hour increments
+  const netWorkMinutesRounded = roundUpToTenthHour(netWorkMinutes);
+  const netWorkHours = minutesToDecimalHours(netWorkMinutesRounded);
+  const totalWorkHours = minutesToDecimalHours(totalElapsedMinutes);
+  const totalMealTime = minutesToDecimalHours(mealMinutes);
+
+  // Step 6: Determine day multiplier
+  const dayMultiplierInfo = getDayMultiplier(input);
+
+  // Step 7: Build time segments with OT tiers
+  const segments = buildTimeSegments(
+    netWorkHours,
+    adjustedHourlyRate,
+    dayMultiplierInfo.multiplier
+  );
+
+  // Step 8: Calculate meal penalties
+  const mealPenalties = calculateMealPenalties(input);
+
+  // Step 9: Calculate forced call penalty
+  const forcedCallPenalty = input.forcedCall
+    ? Math.min(adjustedBaseRate, FORCED_CALL.maxPenalty)
+    : 0;
+
+  // Step 10: Sum everything
+  const segmentTotal = segments.reduce((sum, s) => sum + s.subtotal, 0);
+  const penaltyTotal =
+    mealPenalties.reduce((sum, p) => sum + p.amount, 0) + forcedCallPenalty;
+  const grandTotal = segmentTotal + penaltyTotal;
+
+  return {
+    baseRate,
+    hourlyRate,
+    adjustedBaseRate,
+    adjustedHourlyRate,
+    totalWorkHours,
+    totalMealTime,
+    netWorkHours,
+    segments,
+    penalties: {
+      mealPenalties,
+      forcedCallPenalty,
+      totalPenalties: penaltyTotal,
+    },
+    dayMultiplier: dayMultiplierInfo,
+    grandTotal,
+  };
+}
+
+/**
+ * Determine the day multiplier based on 6th/7th day or holiday.
+ */
+function getDayMultiplier(input: ExhibitGInput): {
+  applied: boolean;
+  type: "6th_day" | "7th_day" | "holiday" | null;
+  multiplier: number;
+} {
+  // Holiday takes precedence, then 7th day, then 6th day
+  if (input.isHoliday) {
+    return { applied: true, type: "holiday", multiplier: MULTIPLIERS.holiday };
+  }
+  if (input.isSeventhDay) {
+    return {
+      applied: true,
+      type: "7th_day",
+      multiplier: MULTIPLIERS.seventhDay,
+    };
+  }
+  if (input.isSixthDay) {
+    return {
+      applied: true,
+      type: "6th_day",
+      multiplier: MULTIPLIERS.sixthDay,
+    };
+  }
+  return { applied: false, type: null, multiplier: 1.0 };
+}
+
+/**
+ * Build time segments with overtime tiers.
+ *
+ * Normal day: Hours 1-8 at 1.0x, 9-10 at 1.5x, 11+ at 2.0x
+ * 6th day: minimum 1.5x for all hours (OT still applies if higher)
+ * 7th day / holiday: minimum 2.0x for all hours
+ */
+function buildTimeSegments(
+  netWorkHours: number,
+  adjustedHourlyRate: number,
+  dayMultiplier: number
+): TimeSegment[] {
+  const segments: TimeSegment[] = [];
+  let remainingHours = netWorkHours;
+
+  // Segment 1: Straight time (hours 1-8)
+  const straightHours = round1(Math.min(
+    remainingHours,
+    OVERTIME.straightTimeEnd
+  ));
+  if (straightHours > 0) {
+    const effectiveMultiplier = Math.max(MULTIPLIERS.straight, dayMultiplier);
+    segments.push({
+      label:
+        dayMultiplier > 1
+          ? `Base Time (Hrs 1-${Math.min(netWorkHours, 8).toFixed(1).replace(".0", "")})`
+          : `Straight Time (Hrs 1-${Math.min(netWorkHours, 8).toFixed(1).replace(".0", "")})`,
+      hours: straightHours,
+      rate: adjustedHourlyRate,
+      multiplier: effectiveMultiplier,
+      subtotal: round2(straightHours * adjustedHourlyRate * effectiveMultiplier),
+    });
+    remainingHours -= straightHours;
+  }
+
+  // Segment 2: Time-and-a-half (hours 9-10)
+  const timeAndHalfCapacity = OVERTIME.timeAndHalfEnd - OVERTIME.straightTimeEnd; // 2 hours
+  const timeAndHalfHours = round1(Math.min(remainingHours, timeAndHalfCapacity));
+  if (timeAndHalfHours > 0) {
+    const effectiveMultiplier = Math.max(
+      MULTIPLIERS.timeAndHalf,
+      dayMultiplier
+    );
+    segments.push({
+      label: `Time-and-a-Half (Hrs ${OVERTIME.straightTimeEnd + 1}-${OVERTIME.straightTimeEnd + Math.ceil(timeAndHalfHours)})`,
+      hours: timeAndHalfHours,
+      rate: adjustedHourlyRate,
+      multiplier: effectiveMultiplier,
+      subtotal: round2(
+        timeAndHalfHours * adjustedHourlyRate * effectiveMultiplier
+      ),
+    });
+    remainingHours -= timeAndHalfHours;
+  }
+
+  // Segment 3: Double time (hours 11+)
+  if (remainingHours > 0) {
+    const roundedRemaining = round1(remainingHours);
+    const effectiveMultiplier = Math.max(
+      MULTIPLIERS.doubleTime,
+      dayMultiplier
+    );
+    segments.push({
+      label: `Double Time (Hrs ${OVERTIME.timeAndHalfEnd + 1}+)`,
+      hours: roundedRemaining,
+      rate: adjustedHourlyRate,
+      multiplier: effectiveMultiplier,
+      subtotal: round2(
+        roundedRemaining * adjustedHourlyRate * effectiveMultiplier
+      ),
+    });
+  }
+
+  return segments;
+}
+
+/**
+ * Calculate meal penalties based on when meals were taken vs required deadlines.
+ */
+function calculateMealPenalties(input: ExhibitGInput): MealPenalty[] {
+  const penalties: MealPenalty[] = [];
+  const callMinutes = parseTimeToMinutes(input.callTime);
+
+  // Check ND meal — if provided, it resets the meal clock
+  let mealClockStart = callMinutes;
+  if (input.ndMealIn && input.ndMealOut) {
+    // ND meal resets the clock from the ND meal out time
+    let ndOutMinutes = parseTimeToMinutes(input.ndMealOut);
+    if (ndOutMinutes < callMinutes) ndOutMinutes += 24 * 60;
+    mealClockStart = ndOutMinutes;
+  }
+
+  // 1st meal penalty check
+  const maxFirstMealMinutes =
+    mealClockStart + MEAL_PENALTIES.maxHoursBeforeFirstMeal * 60;
+
+  if (input.firstMealStart) {
+    let firstMealStartMin = parseTimeToMinutes(input.firstMealStart);
+    if (firstMealStartMin < callMinutes) firstMealStartMin += 24 * 60;
+
+    if (firstMealStartMin > maxFirstMealMinutes) {
+      const minutesLate = firstMealStartMin - maxFirstMealMinutes;
+      const penaltyItems = calculatePenaltyAmounts("1st Meal", minutesLate);
+      penalties.push(...penaltyItems);
+    }
+  } else {
+    // No first meal recorded — check if work exceeded 6 hours
+    const workEnd = getLatestTime(
+      input.callTime,
+      input.dismissOnSet,
+      input.dismissMakeupWardrobe
+    );
+    const totalMinutes = calculateDuration(input.callTime, workEnd);
+    if (totalMinutes > MEAL_PENALTIES.maxHoursBeforeFirstMeal * 60) {
+      // Entire work period past 6 hours is late
+      const minutesLate =
+        totalMinutes - MEAL_PENALTIES.maxHoursBeforeFirstMeal * 60;
+      const penaltyItems = calculatePenaltyAmounts("1st Meal", minutesLate);
+      penalties.push(...penaltyItems);
+    }
+  }
+
+  // 2nd meal penalty check
+  if (input.firstMealFinish) {
+    let firstMealFinishMin = parseTimeToMinutes(input.firstMealFinish);
+    if (firstMealFinishMin < callMinutes) firstMealFinishMin += 24 * 60;
+
+    const maxSecondMealMinutes =
+      firstMealFinishMin + MEAL_PENALTIES.maxHoursBeforeSecondMeal * 60;
+
+    if (input.secondMealStart) {
+      let secondMealStartMin = parseTimeToMinutes(input.secondMealStart);
+      if (secondMealStartMin < callMinutes) secondMealStartMin += 24 * 60;
+
+      if (secondMealStartMin > maxSecondMealMinutes) {
+        const minutesLate = secondMealStartMin - maxSecondMealMinutes;
+        const penaltyItems = calculatePenaltyAmounts("2nd Meal", minutesLate);
+        penalties.push(...penaltyItems);
+      }
+    } else {
+      // No second meal — check if work continued 6+ hours past first meal finish
+      const workEnd = getLatestTime(
+        input.callTime,
+        input.dismissOnSet,
+        input.dismissMakeupWardrobe
+      );
+      let workEndMin = parseTimeToMinutes(workEnd);
+      if (workEndMin < callMinutes) workEndMin += 24 * 60;
+
+      if (workEndMin > maxSecondMealMinutes) {
+        const minutesLate = workEndMin - maxSecondMealMinutes;
+        const penaltyItems = calculatePenaltyAmounts("2nd Meal", minutesLate);
+        penalties.push(...penaltyItems);
+      }
+    }
+  }
+
+  return penalties;
+}
+
+/**
+ * Calculate escalating penalty amounts for a given number of minutes late.
+ * 1st 30 min = $25, 2nd 30 min = $35, each additional 30 min = $50
+ */
+function calculatePenaltyAmounts(
+  mealLabel: string,
+  minutesLate: number
+): MealPenalty[] {
+  const penalties: MealPenalty[] = [];
+  let remaining = minutesLate;
+  let periodCount = 0;
+
+  while (remaining > 0) {
+    periodCount++;
+    const periodMinutes = Math.min(remaining, 30);
+    let amount: number;
+
+    if (periodCount === 1) {
+      amount = MEAL_PENALTIES.firstHalfHour;
+    } else if (periodCount === 2) {
+      amount = MEAL_PENALTIES.secondHalfHour;
+    } else {
+      amount = MEAL_PENALTIES.eachAdditionalHalfHour;
+    }
+
+    penalties.push({
+      meal: mealLabel,
+      minutesLate: periodMinutes,
+      amount,
+    });
+
+    remaining -= 30;
+  }
+
+  return penalties;
+}
+
+/**
+ * Round to 1 decimal place (nearest tenth of an hour).
+ */
+function round1(n: number): number {
+  return Math.round(n * 10) / 10;
+}
+
+/**
+ * Round to 2 decimal places.
+ */
+function round2(n: number): number {
+  return Math.round(n * 100) / 100;
+}
