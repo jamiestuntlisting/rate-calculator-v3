@@ -15,6 +15,7 @@ import {
  * Standard/Free members get a redirect to upgrade.
  */
 export async function POST(request: Request) {
+  let step = "parsing request";
   try {
     const { email, password } = await request.json();
 
@@ -26,6 +27,7 @@ export async function POST(request: Request) {
     }
 
     // 1. Authenticate with StuntListing GraphQL API
+    step = "authenticating with StuntListing";
     const loginRes = await fetch("https://api.stuntlisting.com/graphql", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -53,6 +55,7 @@ export async function POST(request: Request) {
     const { access_token } = loginData.data.login;
 
     // 2. Fetch user profile from StuntListing API (using actual STL field names)
+    step = "fetching StuntListing profile";
     const profileRes = await fetch("https://api.stuntlisting.com/graphql", {
       method: "POST",
       headers: {
@@ -90,11 +93,9 @@ export async function POST(request: Request) {
     const isAdmin = isAdminEmail(userEmail);
 
     // Determine membership tier from StuntListing subscription fields
-    // subscription_type values: "plus", "standard", "free", etc.
     const subscriptionType = (profile.subscription_type || "free").toLowerCase();
     const isSubscriptionActive = profile.is_subscription_active === true;
 
-    // Map to our tier system: active plus → plus, active standard → standard, else free
     let membershipTier: "free" | "standard" | "plus" = "free";
     if (isSubscriptionActive) {
       if (subscriptionType.includes("plus")) {
@@ -119,9 +120,11 @@ export async function POST(request: Request) {
     }
 
     // 4. Upsert user in our MongoDB (keyed by stuntlisting user id)
+    step = "connecting to database";
     await dbConnect();
 
-    const stuntlistingUserId = profile.id;
+    step = "upserting user record";
+    const stuntlistingUserId = String(profile.id);
 
     const user = await User.findOneAndUpdate(
       { stuntlistingUserId },
@@ -140,6 +143,7 @@ export async function POST(request: Request) {
     );
 
     // 5. Create session JWT and set cookie
+    step = "creating session";
     const sessionPayload: SessionPayload = {
       userId: user._id.toString(),
       stuntlistingUserId,
@@ -151,6 +155,8 @@ export async function POST(request: Request) {
     };
 
     const token = await createSession(sessionPayload);
+
+    step = "setting session cookie";
     await setSessionCookie(token);
 
     return NextResponse.json({
@@ -166,9 +172,10 @@ export async function POST(request: Request) {
       },
     });
   } catch (error) {
-    console.error("Login error:", error);
+    console.error(`Login error at step "${step}":`, error);
+    const message = error instanceof Error ? error.message : String(error);
     return NextResponse.json(
-      { error: "An unexpected error occurred during login" },
+      { error: `Login failed at: ${step}. Details: ${message}` },
       { status: 500 }
     );
   }
