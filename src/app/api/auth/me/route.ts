@@ -1,5 +1,7 @@
 import { NextResponse } from "next/server";
 import { getSession, isAdminEmail, createSession, setSessionCookie } from "@/lib/auth";
+import dbConnect from "@/lib/mongodb";
+import User from "@/models/User";
 
 /**
  * GET /api/auth/me
@@ -16,68 +18,74 @@ export async function GET() {
 
   const isAdmin = isAdminEmail(session.email);
 
-  // Re-verify subscription status with StuntListing API
-  if (session.stlAccessToken) {
-    try {
-      const profileRes = await fetch("https://api.stuntlisting.com/graphql", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${session.stlAccessToken}`,
-        },
-        body: JSON.stringify({
-          operationName: "getMyProfile",
-          variables: {},
-          query: `query getMyProfile {
-            getMyProfile {
-              id
-              is_subscription_active
-              subscription_type
+  // Look up the user's STL access token from MongoDB for re-verification
+  try {
+    await dbConnect();
+    const user = await User.findById(session.userId).select("stlAccessToken").lean();
+    const stlAccessToken = user?.stlAccessToken;
+
+    if (stlAccessToken) {
+      try {
+        const profileRes = await fetch("https://api.stuntlisting.com/graphql", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${stlAccessToken}`,
+          },
+          body: JSON.stringify({
+            operationName: "getMyProfile",
+            variables: {},
+            query: `query getMyProfile {
+              getMyProfile {
+                id
+                is_subscription_active
+                subscription_type
+              }
+            }`,
+          }),
+        });
+
+        const profileData = await profileRes.json();
+        const profile = profileData.data?.getMyProfile;
+
+        if (profile) {
+          const subscriptionType = (profile.subscription_type || "free").toLowerCase();
+          const isSubscriptionActive = profile.is_subscription_active === true;
+
+          let currentTier: "free" | "standard" | "plus" = "free";
+          if (isSubscriptionActive) {
+            if (subscriptionType.includes("plus")) {
+              currentTier = "plus";
+            } else if (subscriptionType.includes("standard")) {
+              currentTier = "standard";
             }
-          }`,
-        }),
-      });
+          }
 
-      const profileData = await profileRes.json();
-      const profile = profileData.data?.getMyProfile;
+          // If tier changed, update the session cookie
+          if (currentTier !== session.tier) {
+            session.tier = currentTier;
+            const token = await createSession(session);
+            await setSessionCookie(token);
+          }
 
-      if (profile) {
-        const subscriptionType = (profile.subscription_type || "free").toLowerCase();
-        const isSubscriptionActive = profile.is_subscription_active === true;
-
-        let currentTier: "free" | "standard" | "plus" = "free";
-        if (isSubscriptionActive) {
-          if (subscriptionType.includes("plus")) {
-            currentTier = "plus";
-          } else if (subscriptionType.includes("standard")) {
-            currentTier = "standard";
+          // If user is no longer Plus and not an admin, block access
+          if (currentTier !== "plus" && !isAdmin) {
+            return NextResponse.json(
+              {
+                error: "upgrade_required",
+                tier: currentTier,
+                message: "Your Plus membership is no longer active.",
+              },
+              { status: 403 }
+            );
           }
         }
-
-        // If tier changed, update the session
-        if (currentTier !== session.tier) {
-          session.tier = currentTier;
-          // Re-sign the session cookie with the updated tier
-          const token = await createSession(session);
-          await setSessionCookie(token);
-        }
-
-        // If user is no longer Plus and not an admin, block access
-        if (currentTier !== "plus" && !isAdmin) {
-          return NextResponse.json(
-            {
-              error: "upgrade_required",
-              tier: currentTier,
-              message: "Your Plus membership is no longer active.",
-            },
-            { status: 403 }
-          );
-        }
+      } catch {
+        // If STL API is unreachable, fall back to stored tier — don't block access
       }
-    } catch {
-      // If STL API is unreachable, fall back to stored tier
-      // Don't block access — just use what we have
     }
+  } catch {
+    // If DB is unreachable, fall back to session data — don't block access
   }
 
   return NextResponse.json({

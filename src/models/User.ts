@@ -18,6 +18,7 @@ const UserSchema = new Schema(
       default: "user",
     },
     lastLogin: { type: Date, default: Date.now },
+    stlAccessToken: { type: String, default: null },
   },
   { timestamps: true }
 );
@@ -33,6 +34,7 @@ export interface IUser extends Document {
   tier: "free" | "standard" | "plus";
   role: "user" | "admin";
   lastLogin: Date;
+  stlAccessToken: string | null;
   createdAt: Date;
   updatedAt: Date;
 }
