@@ -1,12 +1,15 @@
 import { NextResponse } from "next/server";
 import { getSession } from "@/lib/auth";
 import { cookies } from "next/headers";
+import dbConnect from "@/lib/mongodb";
+import User from "@/models/User";
 
 const VIEW_AS_COOKIE = "stl_view_as";
 
 /**
  * GET /api/admin/view-as
- * Returns the current "view as" userId, or null if viewing own data.
+ * Returns the current "view as" user info, or null if viewing own data.
+ * Looks up the user from MongoDB so the client doesn't need a second request.
  */
 export async function GET() {
   const session = await getSession();
@@ -17,7 +20,42 @@ export async function GET() {
   const cookieStore = await cookies();
   const viewAsUserId = cookieStore.get(VIEW_AS_COOKIE)?.value || null;
 
-  return NextResponse.json({ viewAsUserId });
+  if (!viewAsUserId) {
+    return NextResponse.json({ viewAsUserId: null, viewAsUser: null });
+  }
+
+  // Look up the user so we can return their name for the banner
+  try {
+    await dbConnect();
+    const user = await User.findById(viewAsUserId)
+      .select("email firstName lastName")
+      .lean();
+
+    if (user) {
+      return NextResponse.json({
+        viewAsUserId,
+        viewAsUser: {
+          id: viewAsUserId,
+          email: user.email,
+          firstName: user.firstName,
+          lastName: user.lastName,
+        },
+      });
+    }
+  } catch {
+    // Fall through — return the userId even if lookup fails
+  }
+
+  // Cookie set but user not found — return userId so banner still shows
+  return NextResponse.json({
+    viewAsUserId,
+    viewAsUser: {
+      id: viewAsUserId,
+      email: "",
+      firstName: "User",
+      lastName: viewAsUserId.slice(-6),
+    },
+  });
 }
 
 /**

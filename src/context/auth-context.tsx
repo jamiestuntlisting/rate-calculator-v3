@@ -66,23 +66,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
               const vaRes = await fetch("/api/admin/view-as");
               if (vaRes.ok) {
                 const vaData = await vaRes.json();
-                if (vaData.viewAsUserId) {
-                  // Fetch the viewed user's info
-                  const usersRes = await fetch("/api/admin/users");
-                  if (usersRes.ok) {
-                    const usersData = await usersRes.json();
-                    const viewedUser = usersData.users.find(
-                      (u: { id: string }) => u.id === vaData.viewAsUserId
-                    );
-                    if (viewedUser) {
-                      setViewingAs({
-                        id: viewedUser.id,
-                        email: viewedUser.email,
-                        firstName: viewedUser.firstName,
-                        lastName: viewedUser.lastName,
-                      });
-                    }
-                  }
+                if (vaData.viewAsUser) {
+                  setViewingAs({
+                    id: vaData.viewAsUser.id,
+                    email: vaData.viewAsUser.email,
+                    firstName: vaData.viewAsUser.firstName,
+                    lastName: vaData.viewAsUser.lastName,
+                  });
                 }
               }
             } catch {
@@ -184,13 +174,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       });
       if (res.ok) {
         setViewingAs(targetUser);
-        // Reload the current page data
-        router.refresh();
+        // Full reload to ensure all data refetches with the new user filter
+        window.location.reload();
       }
     } catch {
       // Silently fail
     }
-  }, [router]);
+  }, []);
 
   const clearViewAs = useCallback(async () => {
     try {
@@ -199,8 +189,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       // Silently fail
     }
     setViewingAs(null);
-    router.refresh();
-  }, [router]);
+    // Full reload to ensure all data refetches with the admin's own filter
+    window.location.reload();
+  }, []);
 
   const isAdmin = user?.role === "admin";
 
