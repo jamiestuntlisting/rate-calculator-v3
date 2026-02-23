@@ -82,11 +82,13 @@ export function calculateRate(input: ExhibitGInput): CalculationBreakdown {
     ? Math.min(adjustedBaseRate, FORCED_CALL.maxPenalty)
     : 0;
 
-  // Step 10: Sum everything
+  // Step 10: Sum everything — enforce 8-hour daily minimum guarantee
   const segmentTotal = segments.reduce((sum, s) => sum + s.subtotal, 0);
+  const dailyMinimum = round2(adjustedBaseRate * dayMultiplierInfo.multiplier);
+  const adjustedSegmentTotal = Math.max(segmentTotal, dailyMinimum);
   const penaltyTotal =
     mealPenalties.reduce((sum, p) => sum + p.amount, 0) + forcedCallPenalty;
-  const grandTotal = segmentTotal + penaltyTotal;
+  const grandTotal = adjustedSegmentTotal + penaltyTotal;
 
   return {
     baseRate,
