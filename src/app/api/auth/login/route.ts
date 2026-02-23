@@ -3,10 +3,20 @@ import dbConnect from "@/lib/mongodb";
 import User from "@/models/User";
 import {
   createSession,
-  setSessionCookie,
   isAdminEmail,
   type SessionPayload,
 } from "@/lib/auth";
+
+const SESSION_COOKIE = "stl_session";
+const SESSION_MAX_AGE = 30 * 24 * 60 * 60; // 30 days
+const BUILD_TS = "2026-02-23T01";
+
+/**
+ * GET /api/auth/login — returns build version for deployment verification
+ */
+export async function GET() {
+  return NextResponse.json({ build: BUILD_TS, status: "ok" });
+}
 
 /**
  * POST /api/auth/login
@@ -21,7 +31,7 @@ export async function POST(request: Request) {
 
     if (!email || !password) {
       return NextResponse.json(
-        { error: "Email and password are required" },
+        { error: "Email and password are required", build: BUILD_TS },
         { status: 400 }
       );
     }
@@ -49,7 +59,7 @@ export async function POST(request: Request) {
     if (loginData.errors || !loginData.data?.login?.access_token) {
       const errorMsg =
         loginData.errors?.[0]?.message || "Invalid email or password";
-      return NextResponse.json({ error: errorMsg }, { status: 401 });
+      return NextResponse.json({ error: errorMsg, build: BUILD_TS }, { status: 401 });
     }
 
     const { access_token } = loginData.data.login;
@@ -83,7 +93,7 @@ export async function POST(request: Request) {
 
     if (profileData.errors || !profileData.data?.getMyProfile) {
       return NextResponse.json(
-        { error: "Failed to fetch user profile from StuntListing" },
+        { error: "Failed to fetch user profile from StuntListing", build: BUILD_TS },
         { status: 500 }
       );
     }
@@ -142,7 +152,7 @@ export async function POST(request: Request) {
       { upsert: true, new: true }
     );
 
-    // 5. Create session JWT and set cookie
+    // 5. Create session JWT and set cookie on the response directly
     step = "creating session";
     const sessionPayload: SessionPayload = {
       userId: user._id.toString(),
@@ -157,9 +167,7 @@ export async function POST(request: Request) {
     const token = await createSession(sessionPayload);
 
     step = "setting session cookie";
-    await setSessionCookie(token);
-
-    return NextResponse.json({
+    const response = NextResponse.json({
       success: true,
       user: {
         id: user._id.toString(),
@@ -171,11 +179,21 @@ export async function POST(request: Request) {
         role: isAdmin ? "admin" : "user",
       },
     });
+
+    response.cookies.set(SESSION_COOKIE, token, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === "production",
+      sameSite: "lax",
+      maxAge: SESSION_MAX_AGE,
+      path: "/",
+    });
+
+    return response;
   } catch (error) {
     console.error(`Login error at step "${step}":`, error);
     const message = error instanceof Error ? error.message : String(error);
     return NextResponse.json(
-      { error: `Login failed at: ${step}. Details: ${message}` },
+      { error: `Login failed at: ${step}. Details: ${message}`, build: BUILD_TS },
       { status: 500 }
     );
   }

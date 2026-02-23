@@ -127,26 +127,38 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           body: JSON.stringify({ email, password }),
         });
 
-        const data = await res.json();
+        // Safely parse response — Vercel may return HTML on 500
+        let data: Record<string, unknown>;
+        const contentType = res.headers.get("content-type") || "";
+        if (contentType.includes("application/json")) {
+          data = await res.json();
+        } else {
+          const text = await res.text();
+          return {
+            success: false,
+            error: `Server error (${res.status}). Non-JSON response: ${text.slice(0, 200)}`,
+          };
+        }
 
         if (res.status === 403 && data.error === "upgrade_required") {
           return {
             success: false,
             upgradeRequired: true,
-            tier: data.tier,
-            error: data.message,
+            tier: data.tier as string,
+            error: data.message as string,
           };
         }
 
         if (!res.ok) {
-          return { success: false, error: data.error || "Login failed" };
+          return { success: false, error: (data.error as string) || `Login failed (${res.status})` };
         }
 
-        setUser(data.user);
+        setUser(data.user as AuthUser);
         router.replace("/");
         return { success: true };
-      } catch {
-        return { success: false, error: "Network error. Please try again." };
+      } catch (err) {
+        const msg = err instanceof Error ? err.message : String(err);
+        return { success: false, error: `Network error: ${msg}` };
       }
     },
     [router]
