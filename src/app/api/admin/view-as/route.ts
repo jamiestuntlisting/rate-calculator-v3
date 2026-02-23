@@ -37,8 +37,8 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "userId is required" }, { status: 400 });
   }
 
-  const cookieStore = await cookies();
-  cookieStore.set(VIEW_AS_COOKIE, userId, {
+  const response = NextResponse.json({ success: true, viewAsUserId: userId });
+  response.cookies.set(VIEW_AS_COOKIE, userId, {
     httpOnly: true,
     secure: process.env.NODE_ENV === "production",
     sameSite: "lax",
@@ -46,7 +46,7 @@ export async function POST(request: Request) {
     path: "/",
   });
 
-  return NextResponse.json({ success: true, viewAsUserId: userId });
+  return response;
 }
 
 /**
@@ -59,8 +59,8 @@ export async function DELETE() {
     return NextResponse.json({ error: "Admin access required" }, { status: 403 });
   }
 
-  const cookieStore = await cookies();
-  cookieStore.delete(VIEW_AS_COOKIE);
+  const response = NextResponse.json({ success: true, viewAsUserId: null });
+  response.cookies.delete(VIEW_AS_COOKIE);
 
-  return NextResponse.json({ success: true, viewAsUserId: null });
+  return response;
 }
