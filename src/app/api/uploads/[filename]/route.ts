@@ -1,17 +1,6 @@
 import { NextResponse } from "next/server";
-import { readFile } from "fs/promises";
-import { join } from "path";
-
-const UPLOAD_DIR = join(process.cwd(), "uploads");
-
-const MIME_TYPES: Record<string, string> = {
-  jpg: "image/jpeg",
-  jpeg: "image/jpeg",
-  png: "image/png",
-  gif: "image/gif",
-  webp: "image/webp",
-  pdf: "application/pdf",
-};
+import dbConnect from "@/lib/mongodb";
+import Upload from "@/models/Upload";
 
 export async function GET(
   _request: Request,
@@ -20,19 +9,20 @@ export async function GET(
   try {
     const { filename } = await params;
 
-    // Prevent directory traversal
     if (filename.includes("..") || filename.includes("/")) {
       return NextResponse.json({ error: "Invalid filename" }, { status: 400 });
     }
 
-    const filepath = join(UPLOAD_DIR, filename);
-    const data = await readFile(filepath);
-    const ext = filename.split(".").pop()?.toLowerCase() || "";
-    const contentType = MIME_TYPES[ext] || "application/octet-stream";
+    await dbConnect();
 
-    return new NextResponse(data, {
+    const upload = await Upload.findOne({ filename });
+    if (!upload) {
+      return NextResponse.json({ error: "File not found" }, { status: 404 });
+    }
+
+    return new NextResponse(new Uint8Array(upload.data), {
       headers: {
-        "Content-Type": contentType,
+        "Content-Type": upload.contentType,
         "Cache-Control": "public, max-age=31536000",
       },
     });

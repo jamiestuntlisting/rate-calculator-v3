@@ -1,9 +1,17 @@
 import { NextResponse } from "next/server";
-import { writeFile, mkdir } from "fs/promises";
-import { join } from "path";
 import { v4 as uuidv4 } from "uuid";
+import dbConnect from "@/lib/mongodb";
+import Upload from "@/models/Upload";
 
-const UPLOAD_DIR = join(process.cwd(), "uploads");
+const MIME_TYPES: Record<string, string> = {
+  jpg: "image/jpeg",
+  jpeg: "image/jpeg",
+  png: "image/png",
+  gif: "image/gif",
+  webp: "image/webp",
+  pdf: "application/pdf",
+  heic: "image/heic",
+};
 
 export async function POST(request: Request) {
   try {
@@ -14,17 +22,20 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "No file provided" }, { status: 400 });
     }
 
-    // Ensure uploads directory exists
-    await mkdir(UPLOAD_DIR, { recursive: true });
+    await dbConnect();
 
-    // Generate unique filename
-    const ext = file.name.split(".").pop() || "jpg";
+    const ext = file.name.split(".").pop()?.toLowerCase() || "jpg";
     const filename = `${uuidv4()}.${ext}`;
-    const filepath = join(UPLOAD_DIR, filename);
-
-    // Write file
+    const contentType = MIME_TYPES[ext] || file.type || "application/octet-stream";
     const bytes = await file.arrayBuffer();
-    await writeFile(filepath, Buffer.from(bytes));
+
+    await Upload.create({
+      filename,
+      originalName: file.name,
+      contentType,
+      data: Buffer.from(bytes),
+      size: file.size,
+    });
 
     return NextResponse.json({
       filename,
@@ -33,8 +44,9 @@ export async function POST(request: Request) {
     });
   } catch (error) {
     console.error("Upload error:", error);
+    const message = error instanceof Error ? error.message : String(error);
     return NextResponse.json(
-      { error: "Failed to upload file" },
+      { error: `Failed to upload file: ${message}` },
       { status: 500 }
     );
   }
