@@ -11,11 +11,12 @@ import { cn } from "@/lib/utils";
 import { useAuth, type ViewAsUser } from "@/context/auth-context";
 
 const navLinks = [
-  { href: "/", label: "Rate Calculator" },
-  { href: "/other-work", label: "Other Work Days" },
-  { href: "/tracker", label: "Payment Tracker" },
-  { href: "/analytics", label: "Analytics" },
-  { href: "/residuals", label: "Residuals" },
+  { href: "/", label: "Rate Calculator", adminOnly: false },
+  { href: "/other-work", label: "Other Work Days", adminOnly: false },
+  { href: "/tracker", label: "Payment Tracker", adminOnly: false },
+  { href: "/analytics", label: "Analytics", adminOnly: false },
+  { href: "/residuals", label: "Residuals", adminOnly: false },
+  { href: "/test-bench", label: "Test Bench", adminOnly: true },
 ];
 
 interface UserListItem {
@@ -107,7 +108,7 @@ export function AppHeader() {
             {/* Desktop nav — only show when logged in */}
             {user && !isLoginPage && (
               <nav className="hidden md:flex items-center gap-4">
-                {navLinks.map((link) => (
+                {navLinks.filter((l) => !l.adminOnly || isAdmin).map((link) => (
                   <Link
                     key={link.href}
                     href={link.href}
