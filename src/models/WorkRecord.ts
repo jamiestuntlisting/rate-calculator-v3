@@ -89,7 +89,6 @@ const WorkRecordSchema = new Schema(
     showName: { type: String, required: true },
     workDate: { type: Date, required: true },
     callTime: { type: String, default: null },
-    reportMakeupWardrobe: { type: String, default: null },
     dismissOnSet: { type: String, default: null },
     dismissMakeupWardrobe: { type: String, default: null },
     ndMealIn: { type: String, default: null },
@@ -150,7 +149,6 @@ export interface IWorkRecord extends Document {
   showName: string;
   workDate: Date;
   callTime: string | null;
-  reportMakeupWardrobe: string | null;
   dismissOnSet: string | null;
   dismissMakeupWardrobe: string | null;
   ndMealIn: string | null;

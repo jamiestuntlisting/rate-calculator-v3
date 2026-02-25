@@ -11,7 +11,6 @@ import {
   calculateMealMinutes,
   roundUpToTenthHour,
   minutesToDecimalHours,
-  getEarliestTime,
   getLatestTime,
   parseTimeToMinutes,
 } from "./time-utils";
@@ -48,10 +47,7 @@ export function calculateRate(input: ExhibitGInput): CalculationBreakdown {
   }
 
   // Step 3: Determine work start and end times
-  const workStart = getEarliestTime(
-    input.callTime,
-    input.reportMakeupWardrobe
-  );
+  const workStart = input.callTime;
   const workEnd = getLatestTime(
     workStart,
     input.dismissOnSet,

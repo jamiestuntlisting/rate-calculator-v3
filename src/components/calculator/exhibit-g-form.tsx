@@ -46,7 +46,6 @@ const defaultInput: ExhibitGInput = {
   showName: "",
   workDate: new Date().toISOString().split("T")[0],
   callTime: "",
-  reportMakeupWardrobe: null,
   dismissOnSet: "",
   dismissMakeupWardrobe: null,
   ndMealIn: null,
@@ -134,6 +133,34 @@ export function ExhibitGForm() {
     }
   };
 
+  /** Press 'a' or 'p' in any time field to set AM or PM */
+  const handleTimeKeyDown = useCallback((field: keyof ExhibitGInput, e: React.KeyboardEvent<HTMLInputElement>) => {
+    const key = e.key.toLowerCase();
+    if (key !== "a" && key !== "p") return;
+
+    const val = e.currentTarget.value;
+    if (!val) return;
+
+    const parts = val.split(":");
+    if (parts.length !== 2) return;
+
+    let hour = parseInt(parts[0], 10);
+    const min = parts[1];
+
+    if (key === "a" && hour >= 12) {
+      hour -= 12;
+    } else if (key === "p" && hour < 12) {
+      hour += 12;
+    } else {
+      e.preventDefault();
+      return; // already correct period
+    }
+
+    const newValue = `${String(hour).padStart(2, "0")}:${min}`;
+    update(field, newValue);
+    e.preventDefault();
+  }, [update]);
+
   const handleSaveDraft = async () => {
     if (!input.showName || !input.workDate) {
       toast.error("Show name and work date are required to save");
@@ -159,7 +186,6 @@ export function ExhibitGForm() {
             notes: input.notes,
             callTime: null,
             dismissOnSet: null,
-            reportMakeupWardrobe: null,
             dismissMakeupWardrobe: null,
             ndMealIn: null,
             ndMealOut: null,
@@ -396,13 +422,9 @@ export function ExhibitGForm() {
             <div className="space-y-0">
               <div className="flex items-center justify-between gap-4 p-2 rounded bg-muted/50">
                 <Label htmlFor="callTime" className="text-sm shrink-0">Call Time</Label>
-                <Input id="callTime" type="time" value={input.callTime} onChange={(e) => update("callTime", e.target.value)} onFocus={() => handleTimeFocus("callTime", input.callTime || null)} onBlur={() => handleTimeBlur("callTime", input.callTime)} className="w-40" />
+                <Input id="callTime" type="time" value={input.callTime} onChange={(e) => update("callTime", e.target.value)} onFocus={() => handleTimeFocus("callTime", input.callTime || null)} onBlur={() => handleTimeBlur("callTime", input.callTime)} onKeyDown={(e) => handleTimeKeyDown("callTime", e)} className="w-40" />
               </div>
-              <div className="flex items-center justify-between gap-4 p-2">
-                <Label htmlFor="reportMakeupWardrobe" className="text-sm shrink-0">Report Makeup/Wardrobe</Label>
-                <Input id="reportMakeupWardrobe" type="time" value={input.reportMakeupWardrobe || ""} onChange={(e) => update("reportMakeupWardrobe", e.target.value || null)} onFocus={() => handleTimeFocus("reportMakeupWardrobe", input.reportMakeupWardrobe)} onBlur={() => handleTimeBlur("reportMakeupWardrobe", input.reportMakeupWardrobe || "")} className="w-40" />
-              </div>
-              {/* Meals — between Report M/W and Dismiss On Set */}
+              {/* Meals */}
               <div className="border-t border-b py-3 my-1 space-y-3">
                 {/* ND Meal */}
                 <div className="space-y-0">
@@ -414,11 +436,11 @@ export function ExhibitGForm() {
                     <div className="pl-6 space-y-0">
                       <div className="flex items-center justify-between gap-4 p-2 rounded bg-muted/50">
                         <Label htmlFor="ndMealIn" className="text-sm shrink-0">ND Meal In</Label>
-                        <Input id="ndMealIn" type="time" value={input.ndMealIn || ""} onChange={(e) => update("ndMealIn", e.target.value || null)} onFocus={() => handleTimeFocus("ndMealIn", input.ndMealIn)} onBlur={() => handleTimeBlur("ndMealIn", input.ndMealIn || "")} className="w-40" />
+                        <Input id="ndMealIn" type="time" value={input.ndMealIn || ""} onChange={(e) => update("ndMealIn", e.target.value || null)} onFocus={() => handleTimeFocus("ndMealIn", input.ndMealIn)} onBlur={() => handleTimeBlur("ndMealIn", input.ndMealIn || "")} onKeyDown={(e) => handleTimeKeyDown("ndMealIn", e)} className="w-40" />
                       </div>
                       <div className="flex items-center justify-between gap-4 p-2">
                         <Label htmlFor="ndMealOut" className="text-sm shrink-0">ND Meal Out</Label>
-                        <Input id="ndMealOut" type="time" value={input.ndMealOut || ""} onChange={(e) => update("ndMealOut", e.target.value || null)} onFocus={() => handleTimeFocus("ndMealOut", input.ndMealOut)} onBlur={() => handleTimeBlur("ndMealOut", input.ndMealOut || "")} className="w-40" />
+                        <Input id="ndMealOut" type="time" value={input.ndMealOut || ""} onChange={(e) => update("ndMealOut", e.target.value || null)} onFocus={() => handleTimeFocus("ndMealOut", input.ndMealOut)} onBlur={() => handleTimeBlur("ndMealOut", input.ndMealOut || "")} onKeyDown={(e) => handleTimeKeyDown("ndMealOut", e)} className="w-40" />
                       </div>
                     </div>
                   )}
@@ -433,11 +455,11 @@ export function ExhibitGForm() {
                     <div className="pl-6 space-y-0">
                       <div className="flex items-center justify-between gap-4 p-2 rounded bg-muted/50">
                         <Label htmlFor="firstMealStart" className="text-sm shrink-0">1st Meal Start</Label>
-                        <Input id="firstMealStart" type="time" value={input.firstMealStart || ""} onChange={(e) => update("firstMealStart", e.target.value || null)} onFocus={() => handleTimeFocus("firstMealStart", input.firstMealStart)} onBlur={() => handleTimeBlur("firstMealStart", input.firstMealStart || "")} className="w-40" />
+                        <Input id="firstMealStart" type="time" value={input.firstMealStart || ""} onChange={(e) => update("firstMealStart", e.target.value || null)} onFocus={() => handleTimeFocus("firstMealStart", input.firstMealStart)} onBlur={() => handleTimeBlur("firstMealStart", input.firstMealStart || "")} onKeyDown={(e) => handleTimeKeyDown("firstMealStart", e)} className="w-40" />
                       </div>
                       <div className="flex items-center justify-between gap-4 p-2">
                         <Label htmlFor="firstMealFinish" className="text-sm shrink-0">1st Meal Finish</Label>
-                        <Input id="firstMealFinish" type="time" value={input.firstMealFinish || ""} onChange={(e) => update("firstMealFinish", e.target.value || null)} onFocus={() => handleTimeFocus("firstMealFinish", input.firstMealFinish)} onBlur={() => handleTimeBlur("firstMealFinish", input.firstMealFinish || "")} className="w-40" />
+                        <Input id="firstMealFinish" type="time" value={input.firstMealFinish || ""} onChange={(e) => update("firstMealFinish", e.target.value || null)} onFocus={() => handleTimeFocus("firstMealFinish", input.firstMealFinish)} onBlur={() => handleTimeBlur("firstMealFinish", input.firstMealFinish || "")} onKeyDown={(e) => handleTimeKeyDown("firstMealFinish", e)} className="w-40" />
                       </div>
                     </div>
                   )}
@@ -453,11 +475,11 @@ export function ExhibitGForm() {
                     <div className="pl-6 space-y-0">
                       <div className="flex items-center justify-between gap-4 p-2 rounded bg-muted/50">
                         <Label htmlFor="secondMealStart" className="text-sm shrink-0">2nd Meal Start</Label>
-                        <Input id="secondMealStart" type="time" value={input.secondMealStart || ""} onChange={(e) => update("secondMealStart", e.target.value || null)} onFocus={() => handleTimeFocus("secondMealStart", input.secondMealStart)} onBlur={() => handleTimeBlur("secondMealStart", input.secondMealStart || "")} className="w-40" />
+                        <Input id="secondMealStart" type="time" value={input.secondMealStart || ""} onChange={(e) => update("secondMealStart", e.target.value || null)} onFocus={() => handleTimeFocus("secondMealStart", input.secondMealStart)} onBlur={() => handleTimeBlur("secondMealStart", input.secondMealStart || "")} onKeyDown={(e) => handleTimeKeyDown("secondMealStart", e)} className="w-40" />
                       </div>
                       <div className="flex items-center justify-between gap-4 p-2">
                         <Label htmlFor="secondMealFinish" className="text-sm shrink-0">2nd Meal Finish</Label>
-                        <Input id="secondMealFinish" type="time" value={input.secondMealFinish || ""} onChange={(e) => update("secondMealFinish", e.target.value || null)} onFocus={() => handleTimeFocus("secondMealFinish", input.secondMealFinish)} onBlur={() => handleTimeBlur("secondMealFinish", input.secondMealFinish || "")} className="w-40" />
+                        <Input id="secondMealFinish" type="time" value={input.secondMealFinish || ""} onChange={(e) => update("secondMealFinish", e.target.value || null)} onFocus={() => handleTimeFocus("secondMealFinish", input.secondMealFinish)} onBlur={() => handleTimeBlur("secondMealFinish", input.secondMealFinish || "")} onKeyDown={(e) => handleTimeKeyDown("secondMealFinish", e)} className="w-40" />
                       </div>
                     </div>
                   )}
@@ -474,12 +496,13 @@ export function ExhibitGForm() {
                   onChange={(e) => update("dismissOnSet", e.target.value)}
                   onFocus={() => handleTimeFocus("dismissOnSet", input.dismissOnSet || null)}
                   onBlur={() => handleTimeBlur("dismissOnSet", input.dismissOnSet)}
+                  onKeyDown={(e) => handleTimeKeyDown("dismissOnSet", e)}
                   className="w-40"
                 />
               </div>
               <div className="flex items-center justify-between gap-4 p-2 rounded bg-muted/50">
                 <Label htmlFor="dismissMakeupWardrobe" className="text-sm shrink-0">Wrapped</Label>
-                <Input id="dismissMakeupWardrobe" type="time" value={input.dismissMakeupWardrobe || ""} onChange={(e) => update("dismissMakeupWardrobe", e.target.value || null)} onFocus={() => handleTimeFocus("dismissMakeupWardrobe", input.dismissMakeupWardrobe)} onBlur={() => handleTimeBlur("dismissMakeupWardrobe", input.dismissMakeupWardrobe || "")} className="w-40" />
+                <Input id="dismissMakeupWardrobe" type="time" value={input.dismissMakeupWardrobe || ""} onChange={(e) => update("dismissMakeupWardrobe", e.target.value || null)} onFocus={() => handleTimeFocus("dismissMakeupWardrobe", input.dismissMakeupWardrobe)} onBlur={() => handleTimeBlur("dismissMakeupWardrobe", input.dismissMakeupWardrobe || "")} onKeyDown={(e) => handleTimeKeyDown("dismissMakeupWardrobe", e)} className="w-40" />
               </div>
 
               {/* Stunt Adjustment */}

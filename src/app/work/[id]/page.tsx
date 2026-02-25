@@ -91,7 +91,6 @@ export default function WorkDetailPage() {
     characterName: "",
     callTime: "",
     dismissOnSet: "",
-    reportMakeupWardrobe: "" as string | null,
     dismissMakeupWardrobe: "" as string | null,
     stuntAdjustment: 0,
     forcedCall: false,
@@ -156,7 +155,6 @@ export default function WorkDetailPage() {
         characterName: record.characterName || "",
         callTime: record.callTime || "",
         dismissOnSet: record.dismissOnSet || "",
-        reportMakeupWardrobe: record.reportMakeupWardrobe || "",
         dismissMakeupWardrobe: record.dismissMakeupWardrobe || "",
         stuntAdjustment: record.stuntAdjustment || 0,
         forcedCall: record.forcedCall || false,
@@ -236,7 +234,6 @@ export default function WorkDetailPage() {
             characterName: "",
             callTime: "",
             dismissOnSet: "",
-            reportMakeupWardrobe: null,
             dismissMakeupWardrobe: null,
             ndMealIn: null,
             ndMealOut: null,
@@ -269,7 +266,6 @@ export default function WorkDetailPage() {
         showName: editData.showName,
         workDate: editData.workDate,
         callTime: editData.callTime,
-        reportMakeupWardrobe: editData.reportMakeupWardrobe || null,
         dismissOnSet: editData.dismissOnSet,
         dismissMakeupWardrobe: editData.dismissMakeupWardrobe || null,
         ndMealIn: editData.ndMealIn || null,
@@ -676,14 +672,6 @@ export default function WorkDetailPage() {
                             type="time"
                             value={editData.dismissOnSet}
                             onChange={(e) => setEditData(d => ({ ...d, dismissOnSet: e.target.value }))}
-                          />
-                        </div>
-                        <div className="space-y-1">
-                          <Label className="text-sm text-muted-foreground">Report Makeup/Wardrobe</Label>
-                          <Input
-                            type="time"
-                            value={editData.reportMakeupWardrobe || ""}
-                            onChange={(e) => setEditData(d => ({ ...d, reportMakeupWardrobe: e.target.value || null }))}
                           />
                         </div>
                         <div className="space-y-1">

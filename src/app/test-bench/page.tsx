@@ -51,7 +51,6 @@ function defaultInput(overrides: Partial<ExhibitGInput> = {}): ExhibitGInput {
     showName: "Test",
     workDate: "2026-02-24",
     callTime: "07:00",
-    reportMakeupWardrobe: null,
     dismissOnSet: "15:30",
     dismissMakeupWardrobe: null,
     ndMealIn: null,

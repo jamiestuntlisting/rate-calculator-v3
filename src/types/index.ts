@@ -53,7 +53,6 @@ export interface ExhibitGInput {
   showName: string;
   workDate: string; // ISO date string "YYYY-MM-DD"
   callTime: string; // "HH:MM" 24hr
-  reportMakeupWardrobe: string | null;
   dismissOnSet: string;
   dismissMakeupWardrobe: string | null;
   ndMealIn: string | null;
@@ -128,7 +127,6 @@ export interface WorkRecord {
   showName: string;
   workDate: string;
   callTime?: string;
-  reportMakeupWardrobe: string | null;
   dismissOnSet?: string;
   dismissMakeupWardrobe: string | null;
   ndMealIn: string | null;
