@@ -35,7 +35,19 @@ export function calculateRate(input: ExhibitGInput): CalculationBreakdown {
   const adjustedBaseRate = baseRate + input.stuntAdjustment;
   const adjustedHourlyRate = adjustedBaseRate / 8;
 
-  // Step 2: Determine work start and end times
+  // Step 2: Validate NDB — must end within 2 hours of call time
+  if (input.ndMealIn && input.ndMealOut) {
+    const callMin = parseTimeToMinutes(input.callTime);
+    let ndOutMin = parseTimeToMinutes(input.ndMealOut);
+    if (ndOutMin < callMin) ndOutMin += 24 * 60;
+    if (ndOutMin - callMin > 2 * 60) {
+      throw new Error(
+        "ND meal must end within 2 hours of call time"
+      );
+    }
+  }
+
+  // Step 3: Determine work start and end times
   const workStart = getEarliestTime(
     input.callTime,
     input.reportMakeupWardrobe
@@ -46,43 +58,42 @@ export function calculateRate(input: ExhibitGInput): CalculationBreakdown {
     input.dismissMakeupWardrobe
   );
 
-  // Step 3: Calculate total elapsed time
+  // Step 4: Calculate total elapsed time
   const totalElapsedMinutes = calculateDuration(workStart, workEnd);
 
-  // Step 4: Subtract meal periods (non-work time)
+  // Step 5: Subtract DEDUCTIBLE meal periods only (ND meals are non-deductible — they count as work time)
   const meals = [
-    { start: input.ndMealIn, finish: input.ndMealOut },
     { start: input.firstMealStart, finish: input.firstMealFinish },
     { start: input.secondMealStart, finish: input.secondMealFinish },
   ];
   const mealMinutes = calculateMealMinutes(meals);
   const netWorkMinutes = Math.max(0, totalElapsedMinutes - mealMinutes);
 
-  // Step 5: Round to 1/10th hour increments
+  // Step 6: Round to 1/10th hour increments
   const netWorkMinutesRounded = roundUpToTenthHour(netWorkMinutes);
   const netWorkHours = minutesToDecimalHours(netWorkMinutesRounded);
   const totalWorkHours = minutesToDecimalHours(totalElapsedMinutes);
   const totalMealTime = minutesToDecimalHours(mealMinutes);
 
-  // Step 6: Determine day multiplier
+  // Step 7: Determine day multiplier
   const dayMultiplierInfo = getDayMultiplier(input);
 
-  // Step 7: Build time segments with OT tiers
+  // Step 8: Build time segments with OT tiers
   const segments = buildTimeSegments(
     netWorkHours,
     adjustedHourlyRate,
     dayMultiplierInfo.multiplier
   );
 
-  // Step 8: Calculate meal penalties
+  // Step 9: Calculate meal penalties
   const mealPenalties = calculateMealPenalties(input);
 
-  // Step 9: Calculate forced call penalty
+  // Step 10: Calculate forced call penalty
   const forcedCallPenalty = input.forcedCall
     ? Math.min(adjustedBaseRate, FORCED_CALL.maxPenalty)
     : 0;
 
-  // Step 10: Sum everything — enforce 8-hour daily minimum guarantee
+  // Step 11: Sum everything — enforce 8-hour daily minimum guarantee
   const segmentTotal = segments.reduce((sum, s) => sum + s.subtotal, 0);
   const dailyMinimum = round2(adjustedBaseRate * dayMultiplierInfo.multiplier);
   const adjustedSegmentTotal = Math.max(segmentTotal, dailyMinimum);
