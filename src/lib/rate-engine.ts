@@ -78,13 +78,16 @@ export function calculateRate(input: ExhibitGInput, options?: { skipRounding?: b
   const dayMultiplierInfo = getDayMultiplier(input);
 
   // Step 8: Build time segments with OT tiers
-  // When stunt adjustment exceeds base daily rate, 1.5x extends to hour 12 (double time at 13+)
-  const effectiveTimeAndHalfEnd =
-    input.stuntAdjustment > baseRate ? 12 : OVERTIME.timeAndHalfEnd;
+  // When stunt adjustment exceeds base daily rate:
+  //   Straight time extends to 12 hours, NO time-and-a-half, double time at 13+
+  const highStunt = input.stuntAdjustment > baseRate;
+  const effectiveStraightTimeEnd = highStunt ? 12 : OVERTIME.straightTimeEnd;
+  const effectiveTimeAndHalfEnd = highStunt ? 12 : OVERTIME.timeAndHalfEnd;
   const segments = buildTimeSegments(
     netWorkHours,
     adjustedHourlyRate,
     dayMultiplierInfo.multiplier,
+    effectiveStraightTimeEnd,
     effectiveTimeAndHalfEnd
   );
 
@@ -156,7 +159,7 @@ function getDayMultiplier(input: ExhibitGInput): {
  * Build time segments with overtime tiers.
  *
  * Normal day: Hours 1-8 at 1.0x, 9-10 at 1.5x, 11+ at 2.0x
- * High stunt adj (> base rate): Hours 1-8 at 1.0x, 9-12 at 1.5x, 13+ at 2.0x
+ * High stunt adj (> base rate): Hours 1-12 at 1.0x, NO 1.5x tier, 13+ at 2.0x
  * 6th day: minimum 1.5x for all hours (OT still applies if higher)
  * 7th day / holiday: minimum 2.0x for all hours
  */
@@ -164,23 +167,21 @@ function buildTimeSegments(
   netWorkHours: number,
   adjustedHourlyRate: number,
   dayMultiplier: number,
+  straightTimeEnd: number,
   timeAndHalfEnd: number
 ): TimeSegment[] {
   const segments: TimeSegment[] = [];
   let remainingHours = netWorkHours;
 
-  // Segment 1: Straight time (hours 1-8)
-  const straightHours = round1(Math.min(
-    remainingHours,
-    OVERTIME.straightTimeEnd
-  ));
+  // Segment 1: Straight time (hours 1-8, or 1-12 when stunt adj > base rate)
+  const straightHours = round1(Math.min(remainingHours, straightTimeEnd));
   if (straightHours > 0) {
     const effectiveMultiplier = Math.max(MULTIPLIERS.straight, dayMultiplier);
     segments.push({
       label:
         dayMultiplier > 1
-          ? `Base Time (Hrs 1-${Math.min(netWorkHours, 8).toFixed(1).replace(".0", "")})`
-          : `Straight Time (Hrs 1-${Math.min(netWorkHours, 8).toFixed(1).replace(".0", "")})`,
+          ? `Base Time (Hrs 1-${Math.min(netWorkHours, straightTimeEnd).toFixed(1).replace(".0", "")})`
+          : `Straight Time (Hrs 1-${Math.min(netWorkHours, straightTimeEnd).toFixed(1).replace(".0", "")})`,
       hours: straightHours,
       rate: adjustedHourlyRate,
       multiplier: effectiveMultiplier,
@@ -189,27 +190,29 @@ function buildTimeSegments(
     remainingHours -= straightHours;
   }
 
-  // Segment 2: Time-and-a-half (hours 9-10, or 9-12 when stunt adj > base rate)
-  const timeAndHalfCapacity = timeAndHalfEnd - OVERTIME.straightTimeEnd;
-  const timeAndHalfHours = round1(Math.min(remainingHours, timeAndHalfCapacity));
-  if (timeAndHalfHours > 0) {
-    const effectiveMultiplier = Math.max(
-      MULTIPLIERS.timeAndHalf,
-      dayMultiplier
-    );
-    segments.push({
-      label: `Time-and-a-Half (Hrs ${OVERTIME.straightTimeEnd + 1}-${OVERTIME.straightTimeEnd + Math.ceil(timeAndHalfHours)})`,
-      hours: timeAndHalfHours,
-      rate: adjustedHourlyRate,
-      multiplier: effectiveMultiplier,
-      subtotal: round2(
-        timeAndHalfHours * adjustedHourlyRate * effectiveMultiplier
-      ),
-    });
-    remainingHours -= timeAndHalfHours;
+  // Segment 2: Time-and-a-half (hours 9-10 normally; skipped when stunt adj > base rate)
+  const timeAndHalfCapacity = timeAndHalfEnd - straightTimeEnd;
+  if (timeAndHalfCapacity > 0) {
+    const timeAndHalfHours = round1(Math.min(remainingHours, timeAndHalfCapacity));
+    if (timeAndHalfHours > 0) {
+      const effectiveMultiplier = Math.max(
+        MULTIPLIERS.timeAndHalf,
+        dayMultiplier
+      );
+      segments.push({
+        label: `Time-and-a-Half (Hrs ${straightTimeEnd + 1}-${straightTimeEnd + Math.ceil(timeAndHalfHours)})`,
+        hours: timeAndHalfHours,
+        rate: adjustedHourlyRate,
+        multiplier: effectiveMultiplier,
+        subtotal: round2(
+          timeAndHalfHours * adjustedHourlyRate * effectiveMultiplier
+        ),
+      });
+      remainingHours -= timeAndHalfHours;
+    }
   }
 
-  // Segment 3: Double time (hours 11+ or 13+ when stunt adj > base rate)
+  // Segment 3: Double time (hours 11+ normally, or 13+ when stunt adj > base rate)
   if (remainingHours > 0) {
     const roundedRemaining = round1(remainingHours);
     const effectiveMultiplier = Math.max(

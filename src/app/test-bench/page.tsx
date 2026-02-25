@@ -363,8 +363,8 @@ function getDefaultTests(): TestCase[] {
 
     {
       id: "17",
-      name: "12h day +$1,300 adj (adj > base, extended 1.5x)",
-      description: "Call 7:00, dismiss 20:00, two 30min meals. $1,300 adj > $1,246 base → 1.5x to hr 12. 8@1x + 4@1.5x at $318.25/hr.",
+      name: "12h day +$1,300 adj (adj > base, extended straight)",
+      description: "Call 7:00, dismiss 20:00, two 30min meals. $1,300 adj > $1,246 base → straight time to hr 12, no 1.5x tier, 2x at 13+. 12@1x at $318.25/hr.",
       input: defaultInput({
         callTime: "07:00",
 
@@ -375,7 +375,7 @@ function getDefaultTests(): TestCase[] {
         secondMealFinish: "18:30",
         stuntAdjustment: 1300,
       }),
-      expectedTotal: 4455.50,
+      expectedTotal: 3819.00,
       actualTotal: null,
       breakdown: null,
       error: null,
