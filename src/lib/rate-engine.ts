@@ -79,10 +79,14 @@ export function calculateRate(input: ExhibitGInput): CalculationBreakdown {
   const dayMultiplierInfo = getDayMultiplier(input);
 
   // Step 8: Build time segments with OT tiers
+  // When stunt adjustment exceeds base daily rate, 1.5x extends to hour 12 (double time at 13+)
+  const effectiveTimeAndHalfEnd =
+    input.stuntAdjustment > baseRate ? 12 : OVERTIME.timeAndHalfEnd;
   const segments = buildTimeSegments(
     netWorkHours,
     adjustedHourlyRate,
-    dayMultiplierInfo.multiplier
+    dayMultiplierInfo.multiplier,
+    effectiveTimeAndHalfEnd
   );
 
   // Step 9: Calculate meal penalties
@@ -153,13 +157,15 @@ function getDayMultiplier(input: ExhibitGInput): {
  * Build time segments with overtime tiers.
  *
  * Normal day: Hours 1-8 at 1.0x, 9-10 at 1.5x, 11+ at 2.0x
+ * High stunt adj (> base rate): Hours 1-8 at 1.0x, 9-12 at 1.5x, 13+ at 2.0x
  * 6th day: minimum 1.5x for all hours (OT still applies if higher)
  * 7th day / holiday: minimum 2.0x for all hours
  */
 function buildTimeSegments(
   netWorkHours: number,
   adjustedHourlyRate: number,
-  dayMultiplier: number
+  dayMultiplier: number,
+  timeAndHalfEnd: number
 ): TimeSegment[] {
   const segments: TimeSegment[] = [];
   let remainingHours = netWorkHours;
@@ -184,8 +190,8 @@ function buildTimeSegments(
     remainingHours -= straightHours;
   }
 
-  // Segment 2: Time-and-a-half (hours 9-10)
-  const timeAndHalfCapacity = OVERTIME.timeAndHalfEnd - OVERTIME.straightTimeEnd; // 2 hours
+  // Segment 2: Time-and-a-half (hours 9-10, or 9-12 when stunt adj > base rate)
+  const timeAndHalfCapacity = timeAndHalfEnd - OVERTIME.straightTimeEnd;
   const timeAndHalfHours = round1(Math.min(remainingHours, timeAndHalfCapacity));
   if (timeAndHalfHours > 0) {
     const effectiveMultiplier = Math.max(
@@ -204,7 +210,7 @@ function buildTimeSegments(
     remainingHours -= timeAndHalfHours;
   }
 
-  // Segment 3: Double time (hours 11+)
+  // Segment 3: Double time (hours 11+ or 13+ when stunt adj > base rate)
   if (remainingHours > 0) {
     const roundedRemaining = round1(remainingHours);
     const effectiveMultiplier = Math.max(
@@ -212,7 +218,7 @@ function buildTimeSegments(
       dayMultiplier
     );
     segments.push({
-      label: `Double Time (Hrs ${OVERTIME.timeAndHalfEnd + 1}+)`,
+      label: `Double Time (Hrs ${timeAndHalfEnd + 1}+)`,
       hours: roundedRemaining,
       rate: adjustedHourlyRate,
       multiplier: effectiveMultiplier,
