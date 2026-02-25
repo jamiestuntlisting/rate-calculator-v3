@@ -290,19 +290,37 @@ function calculateMealPenalties(input: ExhibitGInput): MealPenalty[] {
       }
     } else {
       // No second meal — check if work continued 6+ hours past first meal finish
-      const workEnd = getLatestTime(
-        input.callTime,
-        input.dismissOnSet,
-        input.dismissMakeupWardrobe
-      );
-      let workEndMin = parseTimeToMinutes(workEnd);
-      if (workEndMin < callMinutes) workEndMin += 24 * 60;
+      // Meal penalties stop at dismiss on set
+      let penaltyEndMin = parseTimeToMinutes(input.dismissOnSet);
+      if (penaltyEndMin < callMinutes) penaltyEndMin += 24 * 60;
+      if (penaltyEndMin < firstMealFinishMin) penaltyEndMin += 24 * 60;
 
-      if (workEndMin > maxSecondMealMinutes) {
-        const minutesLate = workEndMin - maxSecondMealMinutes;
+      if (penaltyEndMin > maxSecondMealMinutes) {
+        const minutesLate = penaltyEndMin - maxSecondMealMinutes;
         const penaltyItems = calculatePenaltyAmounts("2nd Meal", minutesLate);
         penalties.push(...penaltyItems);
       }
+    }
+  }
+
+  // 3rd meal penalty check (after 2nd meal finish, if work continues 6+ hours)
+  if (input.secondMealFinish) {
+    let secondMealFinishMin = parseTimeToMinutes(input.secondMealFinish);
+    if (secondMealFinishMin < callMinutes) secondMealFinishMin += 24 * 60;
+
+    const maxThirdMealMinutes =
+      secondMealFinishMin + MEAL_PENALTIES.maxHoursBeforeSecondMeal * 60;
+
+    // Meal penalties stop at dismiss on set
+    let penaltyEndMin = parseTimeToMinutes(input.dismissOnSet);
+    if (penaltyEndMin < callMinutes) penaltyEndMin += 24 * 60;
+    // Handle overnight: if penalty end is before 2nd meal finish, it must be next day
+    if (penaltyEndMin < secondMealFinishMin) penaltyEndMin += 24 * 60;
+
+    if (penaltyEndMin > maxThirdMealMinutes) {
+      const minutesLate = penaltyEndMin - maxThirdMealMinutes;
+      const penaltyItems = calculatePenaltyAmounts("3rd Meal", minutesLate);
+      penalties.push(...penaltyItems);
     }
   }
 

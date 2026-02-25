@@ -201,7 +201,7 @@ function getDefaultTests(): TestCase[] {
     {
       id: "8",
       name: "24h day (overnight)",
-      description: "Call 6:00, dismiss 06:00 next day, two 30min meals. 23h net worked.",
+      description: "Call 6:00, dismiss 06:00 next day, two 30min meals. 23h net + $460 3rd meal penalties.",
       input: defaultInput({
         callTime: "06:00",
 
@@ -211,7 +211,7 @@ function getDefaultTests(): TestCase[] {
         secondMealStart: "18:30",
         secondMealFinish: "19:00",
       }),
-      expectedTotal: 5598.88,
+      expectedTotal: 6222.75,
       actualTotal: null,
       breakdown: null,
       error: null,
@@ -343,7 +343,7 @@ function getDefaultTests(): TestCase[] {
     {
       id: "16",
       name: "24h day (overnight) +$100 adj",
-      description: "Call 6:00, dismiss 06:00 next day, two 30min meals. $100 stunt adj. 23h net worked.",
+      description: "Call 6:00, dismiss 06:00 next day, two 30min meals. $100 stunt adj. 23h net + $460 3rd meal penalties.",
       input: defaultInput({
         callTime: "06:00",
 
@@ -354,7 +354,7 @@ function getDefaultTests(): TestCase[] {
         secondMealFinish: "19:00",
         stuntAdjustment: 100,
       }),
-      expectedTotal: 6225.25,
+      expectedTotal: 6685.25,
       actualTotal: null,
       breakdown: null,
       error: null,
@@ -793,29 +793,58 @@ function TestEditor({
       </div>
 
       {/* Breakdown (if run) */}
-      {tc.breakdown && (
-        <div className="mt-4 p-3 rounded bg-muted/50 text-sm font-mono space-y-1">
-          <div className="font-semibold mb-2">Breakdown:</div>
-          <div>Net work hours: {tc.breakdown.netWorkHours}h</div>
-          {tc.breakdown.segments.map((s, i) => (
-            <div key={i}>
-              {s.label}: {s.hours}h × ${s.rate.toFixed(2)} × {s.multiplier}x = ${s.subtotal.toFixed(2)}
+      {tc.breakdown && (() => {
+        const b = tc.breakdown!;
+        // Group meal penalties by category
+        const penaltyGroups: Record<string, { count: number; total: number }> = {};
+        for (const p of b.penalties.mealPenalties) {
+          if (!penaltyGroups[p.meal]) penaltyGroups[p.meal] = { count: 0, total: 0 };
+          penaltyGroups[p.meal].count++;
+          penaltyGroups[p.meal].total += p.amount;
+        }
+        const segmentTotal = b.segments.reduce((s, seg) => s + seg.subtotal, 0);
+        const dailyMin = b.adjustedBaseRate * (b.dayMultiplier?.multiplier ?? 1);
+        const appliedSegmentTotal = Math.max(segmentTotal, dailyMin);
+        const mealPenaltyTotal = b.penalties.mealPenalties.reduce((s, p) => s + p.amount, 0);
+        // Build grand total addends
+        const addends: string[] = [`$${appliedSegmentTotal.toFixed(2)}`];
+        if (mealPenaltyTotal > 0) addends.push(`$${mealPenaltyTotal.toFixed(2)}`);
+        if (b.penalties.forcedCallPenalty > 0) addends.push(`$${b.penalties.forcedCallPenalty.toFixed(2)}`);
+
+        return (
+          <div className="mt-4 p-3 rounded bg-muted/50 text-sm font-mono space-y-1">
+            <div className="font-semibold mb-2">Breakdown:</div>
+            <div>Hourly: (${b.baseRate.toFixed(2)} base + ${tc.input.stuntAdjustment.toFixed(2)} adj) / 8 = ${b.adjustedHourlyRate.toFixed(2)}/hr</div>
+            <div>Net work hours: {b.netWorkHours}h</div>
+            {b.segments.map((s, i) => (
+              <div key={i}>
+                {s.label}: {s.hours}h × ${s.rate.toFixed(2)} × {s.multiplier}x = ${s.subtotal.toFixed(2)}
+              </div>
+            ))}
+            {segmentTotal < dailyMin && (
+              <div>8hr minimum guarantee: ${dailyMin.toFixed(2)}</div>
+            )}
+            {Object.keys(penaltyGroups).length > 0 ? (
+              Object.entries(penaltyGroups).map(([meal, g]) => (
+                <div key={meal}>
+                  {meal} penalties: {g.count} × 30min = ${g.total.toFixed(2)}
+                </div>
+              ))
+            ) : (
+              <div className="text-muted-foreground">Meal penalties: none</div>
+            )}
+            {b.penalties.forcedCallPenalty > 0 && (
+              <div>Forced call: ${b.penalties.forcedCallPenalty.toFixed(2)}</div>
+            )}
+            {b.dayMultiplier.applied && (
+              <div>Day multiplier: {b.dayMultiplier.type} ({b.dayMultiplier.multiplier}x)</div>
+            )}
+            <div className="font-bold mt-1">
+              Grand Total: {addends.length > 1 ? addends.join(" + ") + " = " : ""}${b.grandTotal.toFixed(2)}
             </div>
-          ))}
-          {tc.breakdown.penalties.mealPenalties.map((p, i) => (
-            <div key={`mp-${i}`}>
-              {p.meal} penalty ({p.minutesLate}min late): ${p.amount.toFixed(2)}
-            </div>
-          ))}
-          {tc.breakdown.penalties.forcedCallPenalty > 0 && (
-            <div>Forced call: ${tc.breakdown.penalties.forcedCallPenalty.toFixed(2)}</div>
-          )}
-          {tc.breakdown.dayMultiplier.applied && (
-            <div>Day multiplier: {tc.breakdown.dayMultiplier.type} ({tc.breakdown.dayMultiplier.multiplier}x)</div>
-          )}
-          <div className="font-bold mt-1">Grand Total: ${tc.breakdown.grandTotal.toFixed(2)}</div>
-        </div>
-      )}
+          </div>
+        );
+      })()}
 
       {tc.error && (
         <div className="mt-4 p-3 rounded bg-red-900/20 text-red-400 text-sm">
