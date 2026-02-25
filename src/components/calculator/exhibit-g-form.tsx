@@ -94,27 +94,34 @@ export function ExhibitGForm() {
     return () => clearInterval(interval);
   }, [showLiveRate, liveMode]);
 
-  /** Get current time as HH:MM string without snapping */
-  const getCurrentTimeRaw = (): string => {
-    const now = new Date();
-    return `${String(now.getHours()).padStart(2, "0")}:${String(now.getMinutes()).padStart(2, "0")}`;
-  };
-
   // Live calculation — runs whenever input changes (not for stunt coordinator — flat rate)
   // When showLiveRate is on, uses current time as dismiss time for the calculation
-  // Only requires callTime to be set
+  // Counter mode: recalcs every second with seconds precision for smooth ticking
+  // 6-min mode: recalcs every 60s with standard 6-min snapped time
   const liveBreakdown: CalculationBreakdown | null = useMemo(() => {
     if (isStuntCoordinator) return null;
     if (!input.callTime) return null;
-    const dismissTime = showLiveRate
-      ? (liveMode === "counter" ? getCurrentTimeRaw() : getCurrentTimeSnapped())
-      : input.dismissOnSet;
-    if (!dismissTime) return null;
+    if (showLiveRate) {
+      const now = new Date();
+      const dismissTime = `${String(now.getHours()).padStart(2, "0")}:${String(now.getMinutes()).padStart(2, "0")}`;
+      try {
+        if (liveMode === "counter") {
+          // Pass current seconds for sub-minute precision
+          return calculateRate(
+            { ...input, dismissOnSet: dismissTime },
+            { skipRounding: true, additionalSeconds: now.getSeconds() }
+          );
+        } else {
+          return calculateRate({ ...input, dismissOnSet: getCurrentTimeSnapped() });
+        }
+      } catch {
+        return null;
+      }
+    }
+    // Not live — use entered dismiss time
+    if (!input.dismissOnSet) return null;
     try {
-      return calculateRate(
-        { ...input, dismissOnSet: dismissTime },
-        liveMode === "counter" ? { skipRounding: true } : undefined
-      );
+      return calculateRate(input);
     } catch {
       return null;
     }

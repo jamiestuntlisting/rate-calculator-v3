@@ -25,7 +25,7 @@ import type {
  * Main rate calculation function.
  * Pure function: takes Exhibit G input, returns full breakdown.
  */
-export function calculateRate(input: ExhibitGInput, options?: { skipRounding?: boolean }): CalculationBreakdown {
+export function calculateRate(input: ExhibitGInput, options?: { skipRounding?: boolean; additionalSeconds?: number }): CalculationBreakdown {
   const rates = RATES[input.workStatus as RateSchedule];
   const baseRate = rates.daily;
   const hourlyRate = rates.hourly;
@@ -54,8 +54,11 @@ export function calculateRate(input: ExhibitGInput, options?: { skipRounding?: b
     input.dismissMakeupWardrobe
   );
 
-  // Step 4: Calculate total elapsed time
-  const totalElapsedMinutes = calculateDuration(workStart, workEnd);
+  // Step 4: Calculate total elapsed time (add fractional seconds for real-time counter)
+  let totalElapsedMinutes = calculateDuration(workStart, workEnd);
+  if (options?.additionalSeconds) {
+    totalElapsedMinutes += options.additionalSeconds / 60;
+  }
 
   // Step 5: Subtract DEDUCTIBLE meal periods only (ND meals are non-deductible — they count as work time)
   const meals = [
