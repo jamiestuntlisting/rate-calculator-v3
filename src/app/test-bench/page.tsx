@@ -47,7 +47,7 @@ interface TestCase {
 // ---------------------------------------------------------------------------
 
 function defaultInput(overrides: Partial<ExhibitGInput> = {}): ExhibitGInput {
-  return {
+  const result: ExhibitGInput = {
     showName: "Test",
     workDate: "2026-02-24",
     callTime: "07:00",
@@ -70,6 +70,11 @@ function defaultInput(overrides: Partial<ExhibitGInput> = {}): ExhibitGInput {
     notes: "",
     ...overrides,
   };
+  // Default Wrapped to Dismiss On Set if not explicitly provided
+  if (result.dismissMakeupWardrobe === null) {
+    result.dismissMakeupWardrobe = result.dismissOnSet;
+  }
+  return result;
 }
 
 // ---------------------------------------------------------------------------
