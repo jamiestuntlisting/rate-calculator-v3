@@ -75,7 +75,9 @@ export function ExhibitGForm() {
   const [showSecondMeal, setShowSecondMeal] = useState(false);
   // Show live rate toggle (only available when work date is today)
   const [showLiveRate, setShowLiveRate] = useState(false);
-  // Tick counter to trigger recalc for live rate every 60s
+  // Live rate mode: "counter" = real-time by the second, "6min" = 6-minute intervals
+  const [liveMode, setLiveMode] = useState<"counter" | "6min">("6min");
+  // Tick counter to trigger recalc for live rate
   const [liveTick, setLiveTick] = useState(0);
 
   const isStuntCoordinator = input.workStatus === "stunt_coordinator";
@@ -84,12 +86,19 @@ export function ExhibitGForm() {
     setInput((prev) => ({ ...prev, [field]: value }));
   }, []);
 
-  // Tick every 60s when live rate is on, to re-trigger the calculation
+  // Tick interval: 1s for counter mode, 60s for 6-min mode
   useEffect(() => {
     if (!showLiveRate) return;
-    const interval = setInterval(() => setLiveTick((t) => t + 1), 60_000);
+    const ms = liveMode === "counter" ? 1_000 : 60_000;
+    const interval = setInterval(() => setLiveTick((t) => t + 1), ms);
     return () => clearInterval(interval);
-  }, [showLiveRate]);
+  }, [showLiveRate, liveMode]);
+
+  /** Get current time as HH:MM string without snapping */
+  const getCurrentTimeRaw = (): string => {
+    const now = new Date();
+    return `${String(now.getHours()).padStart(2, "0")}:${String(now.getMinutes()).padStart(2, "0")}`;
+  };
 
   // Live calculation — runs whenever input changes (not for stunt coordinator — flat rate)
   // When showLiveRate is on, uses current time as dismiss time for the calculation
@@ -97,14 +106,20 @@ export function ExhibitGForm() {
   const liveBreakdown: CalculationBreakdown | null = useMemo(() => {
     if (isStuntCoordinator) return null;
     if (!input.callTime) return null;
-    const dismissTime = showLiveRate ? getCurrentTimeSnapped() : input.dismissOnSet;
+    const dismissTime = showLiveRate
+      ? (liveMode === "counter" ? getCurrentTimeRaw() : getCurrentTimeSnapped())
+      : input.dismissOnSet;
     if (!dismissTime) return null;
     try {
-      return calculateRate({ ...input, dismissOnSet: dismissTime });
+      return calculateRate(
+        { ...input, dismissOnSet: dismissTime },
+        liveMode === "counter" ? { skipRounding: true } : undefined
+      );
     } catch {
       return null;
     }
-  }, [input, isStuntCoordinator, showLiveRate, liveTick]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [input, isStuntCoordinator, showLiveRate, liveMode, liveTick]);
 
   // Live meal penalty summary from the breakdown
   const liveMealPenaltySummary = useMemo(() => {
@@ -521,27 +536,37 @@ export function ExhibitGForm() {
             </div>
           </div>
 
-          {/* Live meal penalty display */}
-          {liveMealPenaltySummary && (
+          {/* Live penalty & modifier display */}
+          {(liveMealPenaltySummary || liveBreakdown?.dayMultiplier.applied) && (
             <div className="rounded-lg bg-amber-950/30 border border-amber-700/50 p-3">
-              <p className="text-sm font-medium text-amber-300 mb-1">Meal Penalties</p>
+              <p className="text-sm font-medium text-amber-300 mb-1">Penalties & Modifiers</p>
               <div className="space-y-0.5">
-                {Object.entries(liveMealPenaltySummary.mealTotals).map(([meal, total]) => (
+                {liveBreakdown?.dayMultiplier.applied && (
+                  <div className="flex justify-between text-sm">
+                    <span className="text-amber-400">
+                      {liveBreakdown.dayMultiplier.type === "6th_day" ? "6th Consecutive Day" : liveBreakdown.dayMultiplier.type === "7th_day" ? "7th Consecutive Day" : "Holiday"} ({liveBreakdown.dayMultiplier.multiplier}x)
+                    </span>
+                    <span className="font-semibold text-amber-300">All hours</span>
+                  </div>
+                )}
+                {liveMealPenaltySummary && Object.entries(liveMealPenaltySummary.mealTotals).map(([meal, total]) => (
                   <div key={meal} className="flex justify-between text-sm">
                     <span className="text-amber-400">{meal} Penalty</span>
                     <span className="font-semibold text-amber-300">{formatCurrency(total)}</span>
                   </div>
                 ))}
-                {liveMealPenaltySummary.forcedCallPenalty > 0 && (
+                {liveMealPenaltySummary && liveMealPenaltySummary.forcedCallPenalty > 0 && (
                   <div className="flex justify-between text-sm">
                     <span className="text-amber-400">Forced Call Penalty</span>
                     <span className="font-semibold text-amber-300">{formatCurrency(liveMealPenaltySummary.forcedCallPenalty)}</span>
                   </div>
                 )}
-                <div className="flex justify-between text-sm font-bold border-t border-amber-700/50 pt-1 mt-1">
-                  <span className="text-amber-300">Total Penalties</span>
-                  <span className="text-amber-300">{formatCurrency(liveMealPenaltySummary.totalPenalties)}</span>
-                </div>
+                {liveMealPenaltySummary && (
+                  <div className="flex justify-between text-sm font-bold border-t border-amber-700/50 pt-1 mt-1">
+                    <span className="text-amber-300">Total Penalties</span>
+                    <span className="text-amber-300">{formatCurrency(liveMealPenaltySummary.totalPenalties)}</span>
+                  </div>
+                )}
               </div>
             </div>
           )}
@@ -585,7 +610,7 @@ export function ExhibitGForm() {
             <div className="rounded-lg border-2 border-primary bg-primary/5 p-4">
               <div className="text-center">
                 <p className="text-sm text-muted-foreground">
-                  {showLiveRate ? "Live Rate (as of now)" : "Calculated Total"}
+                  {showLiveRate ? (liveMode === "counter" ? "Live Rate (real-time)" : "Live Rate (6-min intervals)") : "Calculated Total"}
                 </p>
                 <p className="text-3xl font-bold tracking-tight">
                   {formatCurrency(liveBreakdown.grandTotal)}
@@ -597,6 +622,33 @@ export function ExhibitGForm() {
                   )}
                 </div>
               </div>
+            </div>
+          )}
+
+          {/* Live Rate toggle — right below rate display */}
+          {!isStuntCoordinator && isToday(input.workDate) && (
+            <div className="flex items-center gap-4">
+              <div className="flex items-center space-x-2">
+                <Checkbox
+                  id="showLiveRate"
+                  checked={showLiveRate}
+                  onCheckedChange={(v) => setShowLiveRate(!!v)}
+                />
+                <Label htmlFor="showLiveRate" className="text-sm font-normal">
+                  Live rate
+                </Label>
+              </div>
+              {showLiveRate && (
+                <Select value={liveMode} onValueChange={(v) => setLiveMode(v as "counter" | "6min")}>
+                  <SelectTrigger className="w-44 h-8 text-xs">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="counter">Counter (real-time)</SelectItem>
+                    <SelectItem value="6min">6-Minute Intervals</SelectItem>
+                  </SelectContent>
+                </Select>
+              )}
             </div>
           )}
           </>)}
@@ -624,20 +676,6 @@ export function ExhibitGForm() {
               }
             />
           </div>
-
-          {/* Show Live Rate — only when work date is today */}
-          {!isStuntCoordinator && isToday(input.workDate) && (
-            <div className="flex items-center space-x-2">
-              <Checkbox
-                id="showLiveRate"
-                checked={showLiveRate}
-                onCheckedChange={(v) => setShowLiveRate(!!v)}
-              />
-              <Label htmlFor="showLiveRate" className="text-sm font-normal">
-                Show live rate
-              </Label>
-            </div>
-          )}
 
           {/* Action Button */}
           <div className="pt-4">

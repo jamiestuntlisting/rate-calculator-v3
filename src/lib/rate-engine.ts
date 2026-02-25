@@ -25,7 +25,7 @@ import type {
  * Main rate calculation function.
  * Pure function: takes Exhibit G input, returns full breakdown.
  */
-export function calculateRate(input: ExhibitGInput): CalculationBreakdown {
+export function calculateRate(input: ExhibitGInput, options?: { skipRounding?: boolean }): CalculationBreakdown {
   const rates = RATES[input.workStatus as RateSchedule];
   const baseRate = rates.daily;
   const hourlyRate = rates.hourly;
@@ -65,8 +65,8 @@ export function calculateRate(input: ExhibitGInput): CalculationBreakdown {
   const mealMinutes = calculateMealMinutes(meals);
   const netWorkMinutes = Math.max(0, totalElapsedMinutes - mealMinutes);
 
-  // Step 6: Round to 1/10th hour increments
-  const netWorkMinutesRounded = roundUpToTenthHour(netWorkMinutes);
+  // Step 6: Round to 1/10th hour increments (skip for real-time counter mode)
+  const netWorkMinutesRounded = options?.skipRounding ? netWorkMinutes : roundUpToTenthHour(netWorkMinutes);
   const netWorkHours = minutesToDecimalHours(netWorkMinutesRounded);
   const totalWorkHours = minutesToDecimalHours(totalElapsedMinutes);
   const totalMealTime = minutesToDecimalHours(mealMinutes);
