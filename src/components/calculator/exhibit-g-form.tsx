@@ -47,7 +47,6 @@ const defaultInput: ExhibitGInput = {
   workDate: new Date().toISOString().split("T")[0],
   callTime: "",
   reportMakeupWardrobe: null,
-  reportOnSet: "",
   dismissOnSet: "",
   dismissMakeupWardrobe: null,
   ndMealIn: null,
@@ -95,15 +94,14 @@ export function ExhibitGForm() {
 
   // Live calculation — runs whenever input changes (not for stunt coordinator — flat rate)
   // When showLiveRate is on, uses current time as dismiss time for the calculation
-  // Only requires callTime to be set — reportOnSet defaults to callTime if empty
+  // Only requires callTime to be set
   const liveBreakdown: CalculationBreakdown | null = useMemo(() => {
     if (isStuntCoordinator) return null;
     if (!input.callTime) return null;
-    const reportOnSet = input.reportOnSet || input.callTime;
     const dismissTime = showLiveRate ? getCurrentTimeSnapped() : input.dismissOnSet;
     if (!dismissTime) return null;
     try {
-      return calculateRate({ ...input, reportOnSet, dismissOnSet: dismissTime });
+      return calculateRate({ ...input, dismissOnSet: dismissTime });
     } catch {
       return null;
     }
@@ -160,7 +158,6 @@ export function ExhibitGForm() {
             characterName: "",
             notes: input.notes,
             callTime: null,
-            reportOnSet: null,
             dismissOnSet: null,
             reportMakeupWardrobe: null,
             dismissMakeupWardrobe: null,
@@ -196,7 +193,7 @@ export function ExhibitGForm() {
       // Calculate if we have enough data
       let calculation: CalculationBreakdown | undefined;
       let expectedAmount: number | undefined;
-      if (input.callTime && input.reportOnSet && input.dismissOnSet) {
+      if (input.callTime && input.dismissOnSet) {
         try {
           calculation = calculateRate(input);
           expectedAmount = calculation.grandTotal;
@@ -405,12 +402,7 @@ export function ExhibitGForm() {
                 <Label htmlFor="reportMakeupWardrobe" className="text-sm shrink-0">Report Makeup/Wardrobe</Label>
                 <Input id="reportMakeupWardrobe" type="time" value={input.reportMakeupWardrobe || ""} onChange={(e) => update("reportMakeupWardrobe", e.target.value || null)} onFocus={() => handleTimeFocus("reportMakeupWardrobe", input.reportMakeupWardrobe)} onBlur={() => handleTimeBlur("reportMakeupWardrobe", input.reportMakeupWardrobe || "")} className="w-40" />
               </div>
-              <div className="flex items-center justify-between gap-4 p-2 rounded bg-muted/50">
-                <Label htmlFor="reportOnSet" className="text-sm shrink-0">Report On Set</Label>
-                <Input id="reportOnSet" type="time" value={input.reportOnSet} onChange={(e) => update("reportOnSet", e.target.value)} onFocus={() => handleTimeFocus("reportOnSet", input.reportOnSet || null)} onBlur={() => handleTimeBlur("reportOnSet", input.reportOnSet)} className="w-40" />
-              </div>
-
-              {/* Meals — between Report On Set and Dismiss On Set */}
+              {/* Meals — between Report M/W and Dismiss On Set */}
               <div className="border-t border-b py-3 my-1 space-y-3">
                 {/* ND Meal */}
                 <div className="space-y-0">
@@ -486,7 +478,7 @@ export function ExhibitGForm() {
                 />
               </div>
               <div className="flex items-center justify-between gap-4 p-2 rounded bg-muted/50">
-                <Label htmlFor="dismissMakeupWardrobe" className="text-sm shrink-0">Dismiss Makeup/Wardrobe</Label>
+                <Label htmlFor="dismissMakeupWardrobe" className="text-sm shrink-0">Wrapped</Label>
                 <Input id="dismissMakeupWardrobe" type="time" value={input.dismissMakeupWardrobe || ""} onChange={(e) => update("dismissMakeupWardrobe", e.target.value || null)} onFocus={() => handleTimeFocus("dismissMakeupWardrobe", input.dismissMakeupWardrobe)} onBlur={() => handleTimeBlur("dismissMakeupWardrobe", input.dismissMakeupWardrobe || "")} className="w-40" />
               </div>
 

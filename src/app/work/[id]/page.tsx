@@ -90,7 +90,6 @@ export default function WorkDetailPage() {
     workDate: "",
     characterName: "",
     callTime: "",
-    reportOnSet: "",
     dismissOnSet: "",
     reportMakeupWardrobe: "" as string | null,
     dismissMakeupWardrobe: "" as string | null,
@@ -156,7 +155,6 @@ export default function WorkDetailPage() {
         workDate: record.workDate?.split("T")[0] || "",
         characterName: record.characterName || "",
         callTime: record.callTime || "",
-        reportOnSet: record.reportOnSet || "",
         dismissOnSet: record.dismissOnSet || "",
         reportMakeupWardrobe: record.reportMakeupWardrobe || "",
         dismissMakeupWardrobe: record.dismissMakeupWardrobe || "",
@@ -237,7 +235,6 @@ export default function WorkDetailPage() {
             workStatus: editData.workStatus,
             characterName: "",
             callTime: "",
-            reportOnSet: "",
             dismissOnSet: "",
             reportMakeupWardrobe: null,
             dismissMakeupWardrobe: null,
@@ -273,7 +270,6 @@ export default function WorkDetailPage() {
         workDate: editData.workDate,
         callTime: editData.callTime,
         reportMakeupWardrobe: editData.reportMakeupWardrobe || null,
-        reportOnSet: editData.reportOnSet,
         dismissOnSet: editData.dismissOnSet,
         dismissMakeupWardrobe: editData.dismissMakeupWardrobe || null,
         ndMealIn: editData.ndMealIn || null,
@@ -296,7 +292,7 @@ export default function WorkDetailPage() {
       let calculation = record?.calculation;
       let expectedAmount = record?.expectedAmount;
 
-      if (editData.callTime && editData.reportOnSet && editData.dismissOnSet) {
+      if (editData.callTime && editData.dismissOnSet) {
         const calcRes = await fetch("/api/calculate", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -312,7 +308,7 @@ export default function WorkDetailPage() {
 
       // Determine record status
       let recordStatus: string;
-      if (editData.callTime && editData.reportOnSet && editData.dismissOnSet) {
+      if (editData.callTime && editData.dismissOnSet) {
         recordStatus = "complete";
       } else if (record?.documents?.some((d) => d.documentType === "exhibit_g")) {
         recordStatus = "needs_times";
@@ -672,14 +668,6 @@ export default function WorkDetailPage() {
                             onChange={(e) => setEditData(d => ({ ...d, callTime: e.target.value }))}
                           />
                         </div>
-                        <div className="space-y-1">
-                          <Label className="text-sm text-muted-foreground">Report On Set</Label>
-                          <Input
-                            type="time"
-                            value={editData.reportOnSet}
-                            onChange={(e) => setEditData(d => ({ ...d, reportOnSet: e.target.value }))}
-                          />
-                        </div>
                       </div>
                       <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
                         <div className="space-y-1">
@@ -699,7 +687,7 @@ export default function WorkDetailPage() {
                           />
                         </div>
                         <div className="space-y-1">
-                          <Label className="text-sm text-muted-foreground">Dismiss Makeup/Wardrobe</Label>
+                          <Label className="text-sm text-muted-foreground">Wrapped</Label>
                           <Input
                             type="time"
                             value={editData.dismissMakeupWardrobe || ""}
@@ -796,10 +784,6 @@ export default function WorkDetailPage() {
                       <div>
                         <p className="text-muted-foreground">Call Time</p>
                         <p className="font-semibold">{record.callTime || "—"}</p>
-                      </div>
-                      <div>
-                        <p className="text-muted-foreground">Report On Set</p>
-                        <p className="font-semibold">{record.reportOnSet || "—"}</p>
                       </div>
                       <div>
                         <p className="text-muted-foreground">Dismiss On Set</p>

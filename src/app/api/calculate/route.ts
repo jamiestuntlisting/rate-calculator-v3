@@ -8,9 +8,9 @@ export async function POST(request: Request) {
     const input: ExhibitGInput = await request.json();
 
     // Basic validation
-    if (!input.showName || !input.callTime || !input.reportOnSet || !input.dismissOnSet) {
+    if (!input.showName || !input.callTime || !input.dismissOnSet) {
       return NextResponse.json(
-        { error: "Missing required fields: showName, callTime, reportOnSet, dismissOnSet" },
+        { error: "Missing required fields: showName, callTime, dismissOnSet" },
         { status: 400 }
       );
     }

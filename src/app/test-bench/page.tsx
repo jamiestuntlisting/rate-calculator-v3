@@ -52,7 +52,6 @@ function defaultInput(overrides: Partial<ExhibitGInput> = {}): ExhibitGInput {
     workDate: "2026-02-24",
     callTime: "07:00",
     reportMakeupWardrobe: null,
-    reportOnSet: "07:00",
     dismissOnSet: "15:30",
     dismissMakeupWardrobe: null,
     ndMealIn: null,
@@ -85,7 +84,7 @@ function getDefaultTests(): TestCase[] {
       description: "Call 7:00, dismiss 11:00, no meals. Should pay full daily rate ($1,246).",
       input: defaultInput({
         callTime: "07:00",
-        reportOnSet: "07:00",
+
         dismissOnSet: "11:00",
         firstMealStart: null,
         firstMealFinish: null,
@@ -101,7 +100,7 @@ function getDefaultTests(): TestCase[] {
       description: "Call 7:00, dismiss 15:30, 30min lunch at 13:00. Exactly 8h worked.",
       input: defaultInput({
         callTime: "07:00",
-        reportOnSet: "07:00",
+
         dismissOnSet: "15:30",
         firstMealStart: "13:00",
         firstMealFinish: "13:30",
@@ -117,7 +116,7 @@ function getDefaultTests(): TestCase[] {
       description: "Call 7:00, dismiss 17:30, 30min lunch. 10h worked = 8h@1x + 2h@1.5x.",
       input: defaultInput({
         callTime: "07:00",
-        reportOnSet: "07:00",
+
         dismissOnSet: "17:30",
         firstMealStart: "13:00",
         firstMealFinish: "13:30",
@@ -133,7 +132,7 @@ function getDefaultTests(): TestCase[] {
       description: "Call 7:00, dismiss 14:30, no meal taken. 7.5h worked but 6h meal deadline exceeded by 1.5h = $25+$35+$50 penalties.",
       input: defaultInput({
         callTime: "07:00",
-        reportOnSet: "07:00",
+
         dismissOnSet: "14:30",
         firstMealStart: null,
         firstMealFinish: null,
@@ -149,7 +148,7 @@ function getDefaultTests(): TestCase[] {
       description: "Call 7:00, NDB 8:00-8:30 (within 2h, counts as work), lunch 12:00-12:30, dismiss 15:30. 8h net worked.",
       input: defaultInput({
         callTime: "07:00",
-        reportOnSet: "07:00",
+
         dismissOnSet: "15:30",
         ndMealIn: "08:00",
         ndMealOut: "08:30",
@@ -167,7 +166,7 @@ function getDefaultTests(): TestCase[] {
       description: "8h day with $2,000 stunt adjustment. Adjusted daily = $3,246.",
       input: defaultInput({
         callTime: "07:00",
-        reportOnSet: "07:00",
+
         dismissOnSet: "15:30",
         firstMealStart: "13:00",
         firstMealFinish: "13:30",
@@ -184,7 +183,7 @@ function getDefaultTests(): TestCase[] {
       description: "Call 6:00, dismiss 22:30, 30min lunch. 16h worked = 8@1x + 2@1.5x + 6@2x.",
       input: defaultInput({
         callTime: "06:00",
-        reportOnSet: "06:00",
+
         dismissOnSet: "22:30",
         firstMealStart: "12:00",
         firstMealFinish: "12:30",
@@ -200,7 +199,7 @@ function getDefaultTests(): TestCase[] {
       description: "Call 6:00, dismiss 06:00 next day, two 30min meals. 23h net worked.",
       input: defaultInput({
         callTime: "06:00",
-        reportOnSet: "06:00",
+
         dismissOnSet: "06:00",
         firstMealStart: "12:00",
         firstMealFinish: "12:30",
@@ -221,7 +220,7 @@ function getDefaultTests(): TestCase[] {
       description: "Call 7:00, dismiss 11:00, no meals. $100 stunt adj. Minimum = $1,346.",
       input: defaultInput({
         callTime: "07:00",
-        reportOnSet: "07:00",
+
         dismissOnSet: "11:00",
         firstMealStart: null,
         firstMealFinish: null,
@@ -238,7 +237,7 @@ function getDefaultTests(): TestCase[] {
       description: "Call 7:00, dismiss 15:30, 30min lunch. $100 stunt adj. 8h × $168.25 = $1,346.",
       input: defaultInput({
         callTime: "07:00",
-        reportOnSet: "07:00",
+
         dismissOnSet: "15:30",
         firstMealStart: "13:00",
         firstMealFinish: "13:30",
@@ -255,7 +254,7 @@ function getDefaultTests(): TestCase[] {
       description: "Call 7:00, dismiss 17:30, 30min lunch. $100 stunt adj. 8h@1x + 2h@1.5x at $168.25/hr.",
       input: defaultInput({
         callTime: "07:00",
-        reportOnSet: "07:00",
+
         dismissOnSet: "17:30",
         firstMealStart: "13:00",
         firstMealFinish: "13:30",
@@ -272,7 +271,7 @@ function getDefaultTests(): TestCase[] {
       description: "Call 7:00, dismiss 14:30, no meal. $100 stunt adj. 8hr min $1,346 + meal penalties.",
       input: defaultInput({
         callTime: "07:00",
-        reportOnSet: "07:00",
+
         dismissOnSet: "14:30",
         firstMealStart: null,
         firstMealFinish: null,
@@ -289,7 +288,7 @@ function getDefaultTests(): TestCase[] {
       description: "Call 7:00, NDB 8:00-8:30, lunch 12:00-12:30, dismiss 15:30. $100 stunt adj. 8h = $1,346.",
       input: defaultInput({
         callTime: "07:00",
-        reportOnSet: "07:00",
+
         dismissOnSet: "15:30",
         ndMealIn: "08:00",
         ndMealOut: "08:30",
@@ -308,7 +307,7 @@ function getDefaultTests(): TestCase[] {
       description: "8h day with $100 stunt adj instead of $2,000. Adjusted daily = $1,346.",
       input: defaultInput({
         callTime: "07:00",
-        reportOnSet: "07:00",
+
         dismissOnSet: "15:30",
         firstMealStart: "13:00",
         firstMealFinish: "13:30",
@@ -325,7 +324,7 @@ function getDefaultTests(): TestCase[] {
       description: "Call 6:00, dismiss 22:30, 30min lunch. $100 stunt adj. 8@1x + 2@1.5x + 6@2x at $168.25/hr.",
       input: defaultInput({
         callTime: "06:00",
-        reportOnSet: "06:00",
+
         dismissOnSet: "22:30",
         firstMealStart: "12:00",
         firstMealFinish: "12:30",
@@ -342,7 +341,7 @@ function getDefaultTests(): TestCase[] {
       description: "Call 6:00, dismiss 06:00 next day, two 30min meals. $100 stunt adj. 23h net worked.",
       input: defaultInput({
         callTime: "06:00",
-        reportOnSet: "06:00",
+
         dismissOnSet: "06:00",
         firstMealStart: "12:00",
         firstMealFinish: "12:30",
@@ -364,7 +363,7 @@ function getDefaultTests(): TestCase[] {
       description: "Call 7:00, dismiss 20:00, two 30min meals. $1,300 stunt adj ($1,246 rounded up). 12h = 8@1x + 2@1.5x + 2@2x at $318.25/hr.",
       input: defaultInput({
         callTime: "07:00",
-        reportOnSet: "07:00",
+
         dismissOnSet: "20:00",
         firstMealStart: "12:00",
         firstMealFinish: "12:30",
@@ -764,9 +763,8 @@ function TestEditor({
       {/* Times */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         <TimeField label="Call Time" value={inp.callTime} onChange={(v) => onUpdateInput("callTime", v)} />
-        <TimeField label="Report On Set" value={inp.reportOnSet} onChange={(v) => onUpdateInput("reportOnSet", v)} />
         <TimeField label="Dismiss On Set" value={inp.dismissOnSet} onChange={(v) => onUpdateInput("dismissOnSet", v)} />
-        <TimeField label="Dismiss M/W" value={inp.dismissMakeupWardrobe || ""} onChange={(v) => onUpdateInput("dismissMakeupWardrobe", v || null)} />
+        <TimeField label="Wrapped" value={inp.dismissMakeupWardrobe || ""} onChange={(v) => onUpdateInput("dismissMakeupWardrobe", v || null)} />
       </div>
 
       {/* Meals */}

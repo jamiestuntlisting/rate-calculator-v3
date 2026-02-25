@@ -87,11 +87,11 @@ export async function POST(request: Request) {
       data.workStatus !== "stunt_coordinator" &&
       data.workType !== "other"
     ) {
-      if (!data.callTime || !data.reportOnSet || !data.dismissOnSet) {
+      if (!data.callTime || !data.dismissOnSet) {
         return NextResponse.json(
           {
             error:
-              "Call time, report on set, and dismiss on set are required for complete records",
+              "Call time and dismiss on set are required for complete records",
           },
           { status: 400 }
         );
