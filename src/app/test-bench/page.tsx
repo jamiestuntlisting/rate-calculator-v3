@@ -380,6 +380,27 @@ function getDefaultTests(): TestCase[] {
       breakdown: null,
       error: null,
     },
+
+    // --- 14h day with large stunt adjustment (double time kicks in) ---
+
+    {
+      id: "18",
+      name: "14h day +$1,300 adj (adj > base, into double time)",
+      description: "Call 7:00, dismiss 22:00, two 30min meals. $1,300 adj > $1,246 base → straight to hr 12, 2x at 13+. 12@1x + 2@2x at $318.25/hr.",
+      input: defaultInput({
+        callTime: "07:00",
+        dismissOnSet: "22:00",
+        firstMealStart: "12:00",
+        firstMealFinish: "12:30",
+        secondMealStart: "18:00",
+        secondMealFinish: "18:30",
+        stuntAdjustment: 1300,
+      }),
+      expectedTotal: 5092.00,
+      actualTotal: null,
+      breakdown: null,
+      error: null,
+    },
   ];
 }
 
