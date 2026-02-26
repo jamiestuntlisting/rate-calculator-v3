@@ -70,8 +70,9 @@ export function calculateRate(input: ExhibitGInput, options?: { skipRounding?: b
 
   // Step 6: Round to 1/10th hour increments (skip for real-time counter mode)
   const netWorkMinutesRounded = options?.skipRounding ? netWorkMinutes : roundUpToTenthHour(netWorkMinutes);
-  const netWorkHours = minutesToDecimalHours(netWorkMinutesRounded);
-  const totalWorkHours = minutesToDecimalHours(totalElapsedMinutes);
+  // For counter mode, use raw hours (no rounding) so the rate ticks every second
+  const netWorkHours = options?.skipRounding ? netWorkMinutes / 60 : minutesToDecimalHours(netWorkMinutesRounded);
+  const totalWorkHours = options?.skipRounding ? totalElapsedMinutes / 60 : minutesToDecimalHours(totalElapsedMinutes);
   const totalMealTime = minutesToDecimalHours(mealMinutes);
 
   // Step 7: Determine day multiplier
@@ -88,7 +89,8 @@ export function calculateRate(input: ExhibitGInput, options?: { skipRounding?: b
     adjustedHourlyRate,
     dayMultiplierInfo.multiplier,
     effectiveStraightTimeEnd,
-    effectiveTimeAndHalfEnd
+    effectiveTimeAndHalfEnd,
+    !!options?.skipRounding
   );
 
   // Step 9: Calculate meal penalties
@@ -105,7 +107,7 @@ export function calculateRate(input: ExhibitGInput, options?: { skipRounding?: b
   const adjustedSegmentTotal = Math.max(segmentTotal, dailyMinimum);
   const penaltyTotal =
     mealPenalties.reduce((sum, p) => sum + p.amount, 0) + forcedCallPenalty;
-  const grandTotal = adjustedSegmentTotal + penaltyTotal;
+  const grandTotal = Math.round((adjustedSegmentTotal + penaltyTotal) * 100) / 100;
 
   return {
     baseRate,
@@ -168,13 +170,17 @@ function buildTimeSegments(
   adjustedHourlyRate: number,
   dayMultiplier: number,
   straightTimeEnd: number,
-  timeAndHalfEnd: number
+  timeAndHalfEnd: number,
+  skipRounding: boolean = false
 ): TimeSegment[] {
   const segments: TimeSegment[] = [];
   let remainingHours = netWorkHours;
+  // When skipRounding is true (counter mode), use raw hours for smooth ticking
+  const roundHrs = skipRounding ? (h: number) => h : round1;
+  const roundDollars = skipRounding ? (d: number) => Math.round(d * 100) / 100 : round2;
 
   // Segment 1: Straight time (hours 1-8, or 1-12 when stunt adj > base rate)
-  const straightHours = round1(Math.min(remainingHours, straightTimeEnd));
+  const straightHours = roundHrs(Math.min(remainingHours, straightTimeEnd));
   if (straightHours > 0) {
     const effectiveMultiplier = Math.max(MULTIPLIERS.straight, dayMultiplier);
     segments.push({
@@ -185,7 +191,7 @@ function buildTimeSegments(
       hours: straightHours,
       rate: adjustedHourlyRate,
       multiplier: effectiveMultiplier,
-      subtotal: round2(straightHours * adjustedHourlyRate * effectiveMultiplier),
+      subtotal: roundDollars(straightHours * adjustedHourlyRate * effectiveMultiplier),
     });
     remainingHours -= straightHours;
   }
@@ -193,7 +199,7 @@ function buildTimeSegments(
   // Segment 2: Time-and-a-half (hours 9-10 normally; skipped when stunt adj > base rate)
   const timeAndHalfCapacity = timeAndHalfEnd - straightTimeEnd;
   if (timeAndHalfCapacity > 0) {
-    const timeAndHalfHours = round1(Math.min(remainingHours, timeAndHalfCapacity));
+    const timeAndHalfHours = roundHrs(Math.min(remainingHours, timeAndHalfCapacity));
     if (timeAndHalfHours > 0) {
       const effectiveMultiplier = Math.max(
         MULTIPLIERS.timeAndHalf,
@@ -204,7 +210,7 @@ function buildTimeSegments(
         hours: timeAndHalfHours,
         rate: adjustedHourlyRate,
         multiplier: effectiveMultiplier,
-        subtotal: round2(
+        subtotal: roundDollars(
           timeAndHalfHours * adjustedHourlyRate * effectiveMultiplier
         ),
       });
@@ -214,7 +220,7 @@ function buildTimeSegments(
 
   // Segment 3: Double time (hours 11+ normally, or 13+ when stunt adj > base rate)
   if (remainingHours > 0) {
-    const roundedRemaining = round1(remainingHours);
+    const roundedRemaining = roundHrs(remainingHours);
     const effectiveMultiplier = Math.max(
       MULTIPLIERS.doubleTime,
       dayMultiplier
@@ -224,7 +230,7 @@ function buildTimeSegments(
       hours: roundedRemaining,
       rate: adjustedHourlyRate,
       multiplier: effectiveMultiplier,
-      subtotal: round2(
+      subtotal: roundDollars(
         roundedRemaining * adjustedHourlyRate * effectiveMultiplier
       ),
     });

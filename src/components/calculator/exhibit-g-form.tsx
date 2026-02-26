@@ -623,7 +623,7 @@ export function ExhibitGForm() {
                   {formatCurrency(liveBreakdown.grandTotal)}
                 </p>
                 <div className="flex justify-center gap-4 mt-2 text-xs text-muted-foreground">
-                  <span>{liveBreakdown.netWorkHours}h worked</span>
+                  <span>{Number(liveBreakdown.netWorkHours.toFixed(1))}h worked</span>
                   {liveBreakdown.penalties.totalPenalties > 0 && (
                     <span>+ {formatCurrency(liveBreakdown.penalties.totalPenalties)} penalties</span>
                   )}
