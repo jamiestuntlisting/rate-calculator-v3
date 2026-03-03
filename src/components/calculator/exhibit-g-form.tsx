@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useMemo, useCallback } from "react";
+import { useState, useEffect, useMemo, useCallback, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -63,6 +63,41 @@ const defaultInput: ExhibitGInput = {
   characterName: "",
   notes: "",
 };
+
+// Animated currency counter — rolls through each cent toward the target value
+function AnimatedCurrency({ value }: { value: number }) {
+  const targetCents = Math.round(value * 100);
+  const displayedRef = useRef(targetCents);
+  const [displayed, setDisplayed] = useState(targetCents);
+  const rafRef = useRef<number>(0);
+
+  useEffect(() => {
+    const animate = () => {
+      const current = displayedRef.current;
+      const diff = targetCents - current;
+
+      if (diff === 0) return;
+
+      // Large jump (> $5) — snap immediately
+      if (Math.abs(diff) > 500) {
+        displayedRef.current = targetCents;
+        setDisplayed(targetCents);
+        return;
+      }
+
+      // Step 1 cent toward target each frame
+      displayedRef.current = current + (diff > 0 ? 1 : -1);
+      setDisplayed(displayedRef.current);
+      rafRef.current = requestAnimationFrame(animate);
+    };
+
+    cancelAnimationFrame(rafRef.current);
+    rafRef.current = requestAnimationFrame(animate);
+    return () => cancelAnimationFrame(rafRef.current);
+  }, [targetCents]);
+
+  return <>{formatCurrency(displayed / 100)}</>;
+}
 
 export function ExhibitGForm() {
   const router = useRouter();
@@ -619,8 +654,8 @@ export function ExhibitGForm() {
                 <p className="text-sm text-muted-foreground">
                   {showLiveRate ? (liveMode === "counter" ? "Live Rate (real-time)" : "Live Rate (6-min intervals)") : "Calculated Total"}
                 </p>
-                <p className="text-3xl font-bold tracking-tight">
-                  {formatCurrency(liveBreakdown.grandTotal)}
+                <p className="text-3xl font-bold tracking-tight tabular-nums">
+                  <AnimatedCurrency value={liveBreakdown.grandTotal} />
                 </p>
                 <div className="flex justify-center gap-4 mt-2 text-xs text-muted-foreground">
                   <span>{Number(liveBreakdown.netWorkHours.toFixed(1))}h worked</span>
