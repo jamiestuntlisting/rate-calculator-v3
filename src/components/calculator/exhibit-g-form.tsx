@@ -86,10 +86,10 @@ export function ExhibitGForm() {
     setInput((prev) => ({ ...prev, [field]: value }));
   }, []);
 
-  // Tick interval: 1s for counter mode, 60s for 6-min mode
+  // Tick interval: 100ms for counter mode (smooth ticking), 60s for 6-min mode
   useEffect(() => {
     if (!showLiveRate) return;
-    const ms = liveMode === "counter" ? 1_000 : 60_000;
+    const ms = liveMode === "counter" ? 100 : 60_000;
     const interval = setInterval(() => setLiveTick((t) => t + 1), ms);
     return () => clearInterval(interval);
   }, [showLiveRate, liveMode]);
@@ -106,10 +106,10 @@ export function ExhibitGForm() {
       const dismissTime = `${String(now.getHours()).padStart(2, "0")}:${String(now.getMinutes()).padStart(2, "0")}`;
       try {
         if (liveMode === "counter") {
-          // Pass current seconds for sub-minute precision
+          // Pass current seconds + milliseconds for smooth real-time ticking
           return calculateRate(
             { ...input, dismissOnSet: dismissTime },
-            { skipRounding: true, additionalSeconds: now.getSeconds() }
+            { skipRounding: true, additionalSeconds: now.getSeconds() + now.getMilliseconds() / 1000 }
           );
         } else {
           return calculateRate({ ...input, dismissOnSet: getCurrentTimeSnapped() });

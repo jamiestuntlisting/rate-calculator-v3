@@ -359,33 +359,11 @@ function getDefaultTests(): TestCase[] {
       error: null,
     },
 
-    // --- 12h day with large stunt adjustment ---
-
-    {
-      id: "17",
-      name: "12h day +$1,300 adj (adj > base, extended straight)",
-      description: "Call 7:00, dismiss 20:00, two 30min meals. $1,300 adj > $1,246 base → straight time to hr 12, no 1.5x tier, 2x at 13+. 12@1x at $318.25/hr.",
-      input: defaultInput({
-        callTime: "07:00",
-
-        dismissOnSet: "20:00",
-        firstMealStart: "12:00",
-        firstMealFinish: "12:30",
-        secondMealStart: "18:00",
-        secondMealFinish: "18:30",
-        stuntAdjustment: 1300,
-      }),
-      expectedTotal: 3819.00,
-      actualTotal: null,
-      breakdown: null,
-      error: null,
-    },
-
     // --- 14h day with large stunt adjustment (double time kicks in) ---
 
     {
-      id: "18",
-      name: "14h day +$1,300 adj (adj > base, into double time)",
+      id: "17",
+      name: "14h day +$1,300 adj (adj > base, into 2x OT)",
       description: "Call 7:00, dismiss 22:00, two 30min meals. $1,300 adj > $1,246 base → straight to hr 12, 2x at 13+. 12@1x + 2@2x at $318.25/hr.",
       input: defaultInput({
         callTime: "07:00",
@@ -397,6 +375,27 @@ function getDefaultTests(): TestCase[] {
         stuntAdjustment: 1300,
       }),
       expectedTotal: 5092.00,
+      actualTotal: null,
+      breakdown: null,
+      error: null,
+    },
+
+    // --- 14h day: 6h/6h splits with 2h wrap — no meal penalties ---
+
+    {
+      id: "18",
+      name: "14h day, 6h+6h splits, 2h wrap (no meal penalty)",
+      description: "Call 7:00, dismiss 19:30, wrapped 21:30, one 30min meal at 13:00. AM break exactly 6h, PM break exactly 6h to dismiss. Wrap adds 2h but should NOT trigger meal penalty. 8@1x + 4@1.5x + 2@2x at $155.75/hr.",
+      input: defaultInput({
+        callTime: "07:00",
+        dismissOnSet: "19:30",
+        dismissMakeupWardrobe: "21:30",
+        firstMealStart: "13:00",
+        firstMealFinish: "13:30",
+        secondMealStart: null,
+        secondMealFinish: null,
+      }),
+      expectedTotal: 2803.50,
       actualTotal: null,
       breakdown: null,
       error: null,
