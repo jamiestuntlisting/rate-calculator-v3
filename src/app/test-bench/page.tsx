@@ -385,7 +385,7 @@ function getDefaultTests(): TestCase[] {
     {
       id: "18",
       name: "14h day, 6h+6h splits, 2h wrap (no meal penalty)",
-      description: "Call 7:00, dismiss 19:30, wrapped 21:30, one 30min meal at 13:00. AM break exactly 6h, PM break exactly 6h to dismiss. Wrap adds 2h but should NOT trigger meal penalty. 8@1x + 4@1.5x + 2@2x at $155.75/hr.",
+      description: "Call 7:00, dismiss 19:30, wrapped 21:30, one 30min meal at 13:00. AM break exactly 6h, PM break exactly 6h to dismiss. Wrap adds 2h but should NOT trigger meal penalty. 8@1x + 2@1.5x + 4@2x at $155.75/hr.",
       input: defaultInput({
         callTime: "07:00",
         dismissOnSet: "19:30",
@@ -395,7 +395,7 @@ function getDefaultTests(): TestCase[] {
         secondMealStart: null,
         secondMealFinish: null,
       }),
-      expectedTotal: 2803.50,
+      expectedTotal: 2959.25,
       actualTotal: null,
       breakdown: null,
       error: null,
