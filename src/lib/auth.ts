@@ -14,6 +14,7 @@ export const ADMIN_EMAILS = [
   "james.northrup@gmail.com",
   "jamie@stuntlisting.com",
   "warrenhullstunts@gmail.com",
+  "warren.hull.stunts@gmail.com",
   "warren@stuntlisting.com",
   "greg@stuntlisting.com",
   "info@stuntlisting.com",
