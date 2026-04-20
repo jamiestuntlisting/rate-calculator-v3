@@ -9,6 +9,7 @@ import { Menu, LogOut, User, Shield, Eye, X, ChevronDown } from "lucide-react";
 import { useState, useEffect } from "react";
 import { cn } from "@/lib/utils";
 import { useAuth, type ViewAsUser } from "@/context/auth-context";
+import { isAdminEmail } from "@/lib/admin-emails";
 
 const navLinks = [
   { href: "/", label: "Rate Calculator", adminOnly: false },
@@ -17,6 +18,7 @@ const navLinks = [
   { href: "/analytics", label: "Analytics", adminOnly: false },
   { href: "/residuals", label: "Residuals", adminOnly: false },
   { href: "/test-bench", label: "Test Bench", adminOnly: true },
+  { href: "/admin", label: "Admin", adminOnly: true },
 ];
 
 interface UserListItem {
@@ -108,7 +110,7 @@ export function AppHeader() {
             {/* Desktop nav — only show when logged in */}
             {user && !isLoginPage && (
               <nav className="hidden md:flex items-center gap-4">
-                {navLinks.filter((l) => !l.adminOnly || isAdmin).map((link) => (
+                {navLinks.filter((l) => !l.adminOnly || isAdmin || isAdminEmail(user.email)).map((link) => (
                   <Link
                     key={link.href}
                     href={link.href}
@@ -263,7 +265,7 @@ export function AppHeader() {
                     </div>
 
                     <nav className="flex flex-col gap-4">
-                      {navLinks.map((link) => (
+                      {navLinks.filter((l) => !l.adminOnly || isAdmin || isAdminEmail(user.email)).map((link) => (
                         <Link
                           key={link.href}
                           href={link.href}
