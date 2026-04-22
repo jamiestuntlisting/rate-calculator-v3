@@ -1,29 +1,17 @@
 import { SignJWT, jwtVerify } from "jose";
 import { cookies } from "next/headers";
 
+// Re-export the admin allowlist from the client-safe module so server code
+// can still do `import { isAdminEmail } from "@/lib/auth"` without forcing
+// client bundles to pull in next/headers.
+export { ADMIN_EMAILS, isAdminEmail } from "./admin-emails";
+
 const SESSION_COOKIE = "stl_session";
 const SESSION_MAX_AGE = 30 * 24 * 60 * 60; // 30 days in seconds
 
 function getSecretKey() {
   const secret = process.env.SESSION_SECRET || "stuntlisting-bookkeeper-dev-secret-change-in-production";
   return new TextEncoder().encode(secret);
-}
-
-// Admin emails — these users get admin role
-export const ADMIN_EMAILS = [
-  "james.northrup@gmail.com",
-  "jamie@stuntlisting.com",
-  "warrenhullstunts@gmail.com",
-  "warren.hull.stunts@gmail.com",
-  "warren@stuntlisting.com",
-  "greg@stuntlisting.com",
-  "info@stuntlisting.com",
-  "thestuntassistant@gmail.com",
-  "derric@stuntlisting.com",
-];
-
-export function isAdminEmail(email: string): boolean {
-  return ADMIN_EMAILS.includes(email.toLowerCase().trim());
 }
 
 export interface SessionPayload {

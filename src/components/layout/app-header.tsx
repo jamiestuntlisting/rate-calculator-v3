@@ -9,7 +9,7 @@ import { Menu, LogOut, User, Shield, Eye, X, ChevronDown } from "lucide-react";
 import { useState, useEffect } from "react";
 import { cn } from "@/lib/utils";
 import { useAuth, type ViewAsUser } from "@/context/auth-context";
-import { isAdminEmail } from "@/lib/auth";
+import { isAdminEmail } from "@/lib/admin-emails";
 
 const navLinks = [
   { href: "/", label: "Rate Calculator", adminOnly: false },

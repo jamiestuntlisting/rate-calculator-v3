@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useState } from "react";
 import { useAuth } from "@/context/auth-context";
-import { isAdminEmail } from "@/lib/auth";
+import { isAdminEmail } from "@/lib/admin-emails";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { FileText, ArrowRight, ChevronDown, ChevronRight } from "lucide-react";
