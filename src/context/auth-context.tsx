@@ -144,7 +144,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         }
 
         setUser(data.user as AuthUser);
-        router.replace("/");
+        // Full page load so the fresh session cookie is sent on the next
+        // request and the proxy/middleware sees it. router.replace("/")
+        // was racing with the middleware and leaving the spinner stuck.
+        window.location.assign("/");
         return { success: true };
       } catch (err) {
         const msg = err instanceof Error ? err.message : String(err);
