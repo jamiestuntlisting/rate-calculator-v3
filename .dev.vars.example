@@ -1,0 +1,5 @@
+# Local development secrets for wrangler / next dev.
+# Copy to .dev.vars (gitignored). In production, set these with:
+#   npx wrangler secret put SESSION_SECRET
+NEXTJS_ENV=development
+SESSION_SECRET=change-me-in-production

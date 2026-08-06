@@ -1,8 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
-import mongoose from "mongoose";
-import dbConnect from "@/lib/mongodb";
-import WorkRecord from "@/models/WorkRecord";
-import User from "@/models/User";
+import {
+  createWorkRecord,
+  listWorkRecordsForAdmin,
+} from "@/lib/repos/work-records";
+import { findUserById } from "@/lib/repos/users";
 import { getSession, isAdminEmail } from "@/lib/auth";
 import { calculatePaymentDueDate } from "@/lib/time-utils";
 import { calculateRate } from "@/lib/rate-engine";
@@ -17,11 +18,6 @@ async function requireAdmin() {
     return { error: NextResponse.json({ error: "Admin access required" }, { status: 403 }) };
   }
   return { session };
-}
-
-function resolveUserObjectId(userId: string): mongoose.Types.ObjectId | null {
-  if (!mongoose.Types.ObjectId.isValid(userId)) return null;
-  return new mongoose.Types.ObjectId(userId);
 }
 
 /**
@@ -39,16 +35,8 @@ export async function GET(
     if (auth.error) return auth.error;
 
     const { userId } = await context.params;
-    const userObjectId = resolveUserObjectId(userId);
-    if (!userObjectId) {
-      return NextResponse.json({ error: "Invalid userId" }, { status: 400 });
-    }
 
-    await dbConnect();
-
-    const userDoc = await User.findById(userObjectId)
-      .select("email firstName lastName")
-      .lean();
+    const userDoc = await findUserById(userId);
     if (!userDoc) {
       return NextResponse.json({ error: "User not found" }, { status: 404 });
     }
@@ -57,10 +45,11 @@ export async function GET(
     const since = searchParams.get("since");
     const fieldParam = searchParams.get("field") || "workDate";
     const allowedFields = new Set(["workDate", "updatedAt", "createdAt"]);
-    const field = allowedFields.has(fieldParam) ? fieldParam : "workDate";
+    const field = (
+      allowedFields.has(fieldParam) ? fieldParam : "workDate"
+    ) as "workDate" | "updatedAt" | "createdAt";
 
-    const filter: Record<string, unknown> = { userId: userObjectId };
-
+    let sinceIso: string | null = null;
     if (since) {
       const sinceDate = new Date(since);
       if (Number.isNaN(sinceDate.getTime())) {
@@ -69,16 +58,14 @@ export async function GET(
           { status: 400 }
         );
       }
-      filter[field] = { $gte: sinceDate };
+      sinceIso = sinceDate.toISOString();
     }
 
-    const records = await WorkRecord.find(filter)
-      .sort({ [field]: -1 })
-      .lean();
+    const records = await listWorkRecordsForAdmin(userId, field, sinceIso);
 
     return NextResponse.json({
       user: {
-        id: userObjectId.toString(),
+        id: userDoc._id,
         email: userDoc.email,
         firstName: userDoc.firstName,
         lastName: userDoc.lastName,
@@ -86,7 +73,7 @@ export async function GET(
       since: since || null,
       field,
       count: records.length,
-      records: records.map((r) => ({ ...r, _id: r._id.toString() })),
+      records,
     });
   } catch (error) {
     console.error("admin work-records GET error:", error);
@@ -113,14 +100,8 @@ export async function POST(
     if (auth.error) return auth.error;
 
     const { userId } = await context.params;
-    const userObjectId = resolveUserObjectId(userId);
-    if (!userObjectId) {
-      return NextResponse.json({ error: "Invalid userId" }, { status: 400 });
-    }
 
-    await dbConnect();
-
-    const userExists = await User.exists({ _id: userObjectId });
+    const userExists = await findUserById(userId);
     if (!userExists) {
       return NextResponse.json({ error: "User not found" }, { status: 404 });
     }
@@ -206,19 +187,18 @@ export async function POST(
           (d: { documentType?: string }) => d.documentType === "exhibit_g"
         ));
 
-    const record = await WorkRecord.create({
-      ...data,
-      userId: userObjectId,
-      recordStatus,
-      calculation,
-      paymentDueDate,
-      missingExhibitG: !hasExhibitG && data.workType !== "other",
-    });
-
-    return NextResponse.json(
-      { ...record.toObject(), _id: record._id.toString() },
-      { status: 201 }
+    const record = await createWorkRecord(
+      {
+        ...data,
+        recordStatus,
+        calculation,
+        paymentDueDate,
+        missingExhibitG: !hasExhibitG && data.workType !== "other",
+      },
+      userId
     );
+
+    return NextResponse.json(record, { status: 201 });
   } catch (error) {
     console.error("admin work-records POST error:", error);
     const message =

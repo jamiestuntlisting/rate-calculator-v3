@@ -1,7 +1,6 @@
 import { NextResponse } from "next/server";
 import { getSession, isAdminEmail, createSession, setSessionCookie } from "@/lib/auth";
-import dbConnect from "@/lib/mongodb";
-import User from "@/models/User";
+import { findUserById } from "@/lib/repos/users";
 
 /**
  * GET /api/auth/me
@@ -18,10 +17,9 @@ export async function GET() {
 
   const isAdmin = isAdminEmail(session.email);
 
-  // Look up the user's STL access token from MongoDB for re-verification
+  // Look up the user's STL access token from D1 for re-verification
   try {
-    await dbConnect();
-    const user = await User.findById(session.userId).select("stlAccessToken").lean();
+    const user = await findUserById(session.userId);
     const stlAccessToken = user?.stlAccessToken;
 
     if (stlAccessToken) {

@@ -1,7 +1,10 @@
 import { NextResponse } from "next/server";
-import dbConnect from "@/lib/mongodb";
-import WorkRecord from "@/models/WorkRecord";
-import { requireAuth, userFilter } from "@/lib/api-auth";
+import {
+  deleteWorkRecord,
+  findWorkRecord,
+  updateWorkRecord,
+} from "@/lib/repos/work-records";
+import { requireAuth, getEffectiveUserId } from "@/lib/api-auth";
 
 export async function GET(
   _request: Request,
@@ -11,12 +14,11 @@ export async function GET(
     const auth = await requireAuth();
     if (auth.error) return auth.error;
 
-    await dbConnect();
     const { id } = await params;
-    const record = await WorkRecord.findOne({
-      _id: id,
-      ...(await userFilter(auth.session)),
-    }).lean();
+    const record = await findWorkRecord(
+      id,
+      await getEffectiveUserId(auth.session)
+    );
 
     if (!record) {
       return NextResponse.json(
@@ -25,10 +27,7 @@ export async function GET(
       );
     }
 
-    return NextResponse.json({
-      ...record,
-      _id: record._id.toString(),
-    });
+    return NextResponse.json(record);
   } catch (error) {
     console.error("Error fetching work record:", error);
     return NextResponse.json(
@@ -46,18 +45,17 @@ export async function PUT(
     const auth = await requireAuth();
     if (auth.error) return auth.error;
 
-    await dbConnect();
     const { id } = await params;
     const data = await request.json();
 
     // Prevent userId from being overwritten
     delete data.userId;
 
-    const record = await WorkRecord.findOneAndUpdate(
-      { _id: id, ...(await userFilter(auth.session)) },
-      data,
-      { new: true, runValidators: true }
-    ).lean();
+    const record = await updateWorkRecord(
+      id,
+      await getEffectiveUserId(auth.session),
+      data
+    );
 
     if (!record) {
       return NextResponse.json(
@@ -66,10 +64,7 @@ export async function PUT(
       );
     }
 
-    return NextResponse.json({
-      ...record,
-      _id: record._id.toString(),
-    });
+    return NextResponse.json(record);
   } catch (error) {
     console.error("Error updating work record:", error);
     return NextResponse.json(
@@ -87,14 +82,13 @@ export async function DELETE(
     const auth = await requireAuth();
     if (auth.error) return auth.error;
 
-    await dbConnect();
     const { id } = await params;
-    const record = await WorkRecord.findOneAndDelete({
-      _id: id,
-      ...(await userFilter(auth.session)),
-    });
+    const deleted = await deleteWorkRecord(
+      id,
+      await getEffectiveUserId(auth.session)
+    );
 
-    if (!record) {
+    if (!deleted) {
       return NextResponse.json(
         { error: "Work record not found" },
         { status: 404 }

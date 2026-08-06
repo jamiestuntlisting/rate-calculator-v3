@@ -36,6 +36,12 @@ yarn-error.log*
 # uploads
 /uploads/
 
+# cloudflare / opennext
+.open-next/
+.wrangler/
+.dev.vars
+!.dev.vars.example
+
 # vercel
 .vercel
 

@@ -1,8 +1,7 @@
 import { NextResponse } from "next/server";
-import dbConnect from "@/lib/mongodb";
-import User from "@/models/User";
-import WorkRecord from "@/models/WorkRecord";
-import ResidualImport from "@/models/ResidualImport";
+import { findOrCreateUserByStuntlistingId } from "@/lib/repos/users";
+import { assignOrphanWorkRecords } from "@/lib/repos/work-records";
+import { assignOrphanResidualImports } from "@/lib/repos/residuals";
 import { getSession } from "@/lib/auth";
 
 /**
@@ -17,58 +16,30 @@ export async function POST() {
       return NextResponse.json({ error: "Admin access required" }, { status: 403 });
     }
 
-    await dbConnect();
-
     // Find or create the target user (james.northrup@gmail.com, STL id 33)
-    const targetUser = await User.findOneAndUpdate(
-      { stuntlistingUserId: "33" },
-      {
-        $setOnInsert: {
-          email: "james.northrup@gmail.com",
-          firstName: "James",
-          lastName: "Northrup",
-          tier: "plus",
-          role: "admin",
-        },
-      },
-      { upsert: true, new: true }
-    );
+    const targetUser = await findOrCreateUserByStuntlistingId("33", {
+      email: "james.northrup@gmail.com",
+      firstName: "James",
+      lastName: "Northrup",
+      tier: "plus",
+      role: "admin",
+    });
 
     const userId = targetUser._id;
 
-    // Assign all orphaned WorkRecords (no userId) to this user
-    const workResult = await WorkRecord.updateMany(
-      { userId: { $exists: false } },
-      { $set: { userId } }
-    );
-
-    // Also catch records where userId is null
-    const workResultNull = await WorkRecord.updateMany(
-      { userId: null },
-      { $set: { userId } }
-    );
-
-    // Assign all orphaned ResidualImports to this user
-    const residualResult = await ResidualImport.updateMany(
-      { userId: { $exists: false } },
-      { $set: { userId } }
-    );
-
-    const residualResultNull = await ResidualImport.updateMany(
-      { userId: null },
-      { $set: { userId } }
-    );
+    const workRecords = await assignOrphanWorkRecords(userId);
+    const residualImports = await assignOrphanResidualImports(userId);
 
     return NextResponse.json({
       success: true,
       targetUser: {
-        id: userId.toString(),
+        id: userId,
         stuntlistingUserId: "33",
         email: "james.northrup@gmail.com",
       },
       migrated: {
-        workRecords: workResult.modifiedCount + workResultNull.modifiedCount,
-        residualImports: residualResult.modifiedCount + residualResultNull.modifiedCount,
+        workRecords,
+        residualImports,
       },
     });
   } catch (error) {

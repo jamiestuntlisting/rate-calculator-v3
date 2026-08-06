@@ -1,7 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
-import dbConnect from "@/lib/mongodb";
-import ResidualImport from "@/models/ResidualImport";
-import { requireAuth, userFilter } from "@/lib/api-auth";
+import {
+  deleteResidualImport,
+  findResidualImport,
+  listChecksForImport,
+} from "@/lib/repos/residuals";
+import { requireAuth, getEffectiveUserId } from "@/lib/api-auth";
 
 export async function GET(
   _request: NextRequest,
@@ -11,13 +14,12 @@ export async function GET(
     const auth = await requireAuth();
     if (auth.error) return auth.error;
 
-    await dbConnect();
     const { id } = await params;
 
-    const importRecord = await ResidualImport.findOne({
-      _id: id,
-      ...(await userFilter(auth.session)),
-    }).lean();
+    const importRecord = await findResidualImport(
+      id,
+      await getEffectiveUserId(auth.session)
+    );
 
     if (!importRecord) {
       return NextResponse.json(
@@ -25,6 +27,8 @@ export async function GET(
         { status: 404 }
       );
     }
+
+    const checks = await listChecksForImport(importRecord._id);
 
     // Group checks by production title for the summary view
     const productionMap = new Map<
@@ -40,7 +44,7 @@ export async function GET(
       }
     >();
 
-    for (const check of importRecord.checks) {
+    for (const check of checks) {
       const title = check.productionTitle;
       const existing = productionMap.get(title);
 
@@ -94,7 +98,7 @@ export async function GET(
       .sort((a, b) => b.totalGross - a.totalGross);
 
     return NextResponse.json({
-      _id: (importRecord._id as { toString(): string }).toString(),
+      _id: importRecord._id,
       performerName: importRecord.performerName,
       filename: importRecord.filename,
       totalChecks: importRecord.totalChecks,
@@ -119,15 +123,14 @@ export async function DELETE(
     const auth = await requireAuth();
     if (auth.error) return auth.error;
 
-    await dbConnect();
     const { id } = await params;
 
-    const result = await ResidualImport.findOneAndDelete({
-      _id: id,
-      ...(await userFilter(auth.session)),
-    });
+    const deleted = await deleteResidualImport(
+      id,
+      await getEffectiveUserId(auth.session)
+    );
 
-    if (!result) {
+    if (!deleted) {
       return NextResponse.json(
         { error: "Import not found" },
         { status: 404 }

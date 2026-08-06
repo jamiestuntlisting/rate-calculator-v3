@@ -1,6 +1,5 @@
 import { NextResponse } from "next/server";
-import dbConnect from "@/lib/mongodb";
-import Upload from "@/models/Upload";
+import { getUploadsBucket } from "@/lib/db";
 
 export async function GET(
   _request: Request,
@@ -13,16 +12,18 @@ export async function GET(
       return NextResponse.json({ error: "Invalid filename" }, { status: 400 });
     }
 
-    await dbConnect();
-
-    const upload = await Upload.findOne({ filename });
-    if (!upload) {
+    const bucket = await getUploadsBucket();
+    const object = await bucket.get(filename);
+    if (!object) {
       return NextResponse.json({ error: "File not found" }, { status: 404 });
     }
 
-    return new NextResponse(new Uint8Array(upload.data), {
+    return new NextResponse(object.body as unknown as BodyInit, {
       headers: {
-        "Content-Type": upload.contentType,
+        "Content-Type":
+          object.httpMetadata?.contentType || "application/octet-stream",
+        "Content-Length": String(object.size),
+        ETag: object.httpEtag,
         "Cache-Control": "public, max-age=31536000",
       },
     });

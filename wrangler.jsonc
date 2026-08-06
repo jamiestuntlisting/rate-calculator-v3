@@ -1,0 +1,35 @@
+/**
+ * Cloudflare Workers configuration for the StuntListing Bookkeeper
+ * (rate calculator) app, deployed via @opennextjs/cloudflare.
+ *
+ * - DB: Cloudflare D1 (SQLite) — all app data
+ * - UPLOADS: Cloudflare R2 — uploaded documents/photos (Exhibit G, call sheets, ...)
+ */
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "rate-calculator",
+  "main": ".open-next/worker.js",
+  "compatibility_date": "2026-07-01",
+  "compatibility_flags": ["nodejs_compat"],
+  "assets": {
+    "binding": "ASSETS",
+    "directory": ".open-next/assets"
+  },
+  "observability": {
+    "enabled": true
+  },
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "rate-calculator-db",
+      "database_id": "b3a532d8-066a-496b-97a2-33f23c0d5978",
+      "migrations_dir": "migrations"
+    }
+  ],
+  "r2_buckets": [
+    {
+      "binding": "UPLOADS",
+      "bucket_name": "rate-calculator-uploads"
+    }
+  ]
+}

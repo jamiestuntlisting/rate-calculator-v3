@@ -27,36 +27,16 @@ export async function requireAuth(): Promise<
 }
 
 /**
- * Build a MongoDB filter scoped to the effective user.
+ * Resolve the userId whose data this request operates on.
  *
- * - Regular users: always scoped to their own userId
- * - Admins: scoped to their own userId by default.
- *   If the admin has set a "view as" cookie, scope to that userId instead.
+ * - Regular users: always their own userId
+ * - Admins: their own userId by default; if the admin has set a
+ *   "view as" cookie, that userId instead (reads AND writes, so records
+ *   created while viewing-as belong to the viewed member).
  */
-export async function userFilter(session: SessionPayload): Promise<Record<string, unknown>> {
-  // Regular users always see only their own data
-  if (session.role !== "admin") {
-    return { userId: session.userId };
-  }
-
-  // Admins: check for "view as" cookie
-  const cookieStore = await cookies();
-  const viewAsUserId = cookieStore.get(VIEW_AS_COOKIE)?.value;
-
-  if (viewAsUserId) {
-    return { userId: viewAsUserId };
-  }
-
-  // Default: admin sees their own data
-  return { userId: session.userId };
-}
-
-/**
- * Get the effective userId for creating records.
- * If admin is viewing as another user, new records are created
- * under the viewed user's account (so data belongs to that member).
- */
-export async function getCreateUserId(session: SessionPayload): Promise<string> {
+export async function getEffectiveUserId(
+  session: SessionPayload
+): Promise<string> {
   if (session.role === "admin") {
     const cookieStore = await cookies();
     const viewAsUserId = cookieStore.get(VIEW_AS_COOKIE)?.value;

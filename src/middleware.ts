@@ -14,7 +14,10 @@ function getSecretKey() {
   return new TextEncoder().encode(secret);
 }
 
-export async function proxy(request: NextRequest) {
+// NOTE: This stays on the `middleware.ts` convention (edge runtime) rather
+// than Next 16's `proxy.ts` (Node runtime) because @opennextjs/cloudflare
+// does not support Node.js middleware yet — only Edge middleware.
+export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
   // Allow public paths

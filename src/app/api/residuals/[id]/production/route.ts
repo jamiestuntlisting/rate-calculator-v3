@@ -1,7 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
-import dbConnect from "@/lib/mongodb";
-import ResidualImport from "@/models/ResidualImport";
-import { requireAuth, userFilter } from "@/lib/api-auth";
+import {
+  findResidualImport,
+  listChecksForProduction,
+} from "@/lib/repos/residuals";
+import { requireAuth, getEffectiveUserId } from "@/lib/api-auth";
 
 export async function GET(
   request: NextRequest,
@@ -11,7 +13,6 @@ export async function GET(
     const auth = await requireAuth();
     if (auth.error) return auth.error;
 
-    await dbConnect();
     const { id } = await params;
     const { searchParams } = new URL(request.url);
     const title = searchParams.get("title");
@@ -23,10 +24,10 @@ export async function GET(
       );
     }
 
-    const importRecord = await ResidualImport.findOne({
-      _id: id,
-      ...(await userFilter(auth.session)),
-    }).lean();
+    const importRecord = await findResidualImport(
+      id,
+      await getEffectiveUserId(auth.session)
+    );
 
     if (!importRecord) {
       return NextResponse.json(
@@ -35,18 +36,18 @@ export async function GET(
       );
     }
 
-    // Filter checks for this production title
-    const checks = importRecord.checks
-      .filter((c) => c.productionTitle === title)
-      .sort((a, b) => {
-        // Sort by check date descending
-        const dateA = new Date(a.checkDate || "");
-        const dateB = new Date(b.checkDate || "");
-        if (isNaN(dateA.getTime()) && isNaN(dateB.getTime())) return 0;
-        if (isNaN(dateA.getTime())) return 1;
-        if (isNaN(dateB.getTime())) return -1;
-        return dateB.getTime() - dateA.getTime();
-      });
+    // Checks for this production title, sorted by check date descending
+    // (dates are raw CSV strings, so parse and sort here rather than in SQL)
+    const checks = (
+      await listChecksForProduction(importRecord._id, title)
+    ).sort((a, b) => {
+      const dateA = new Date(a.checkDate || "");
+      const dateB = new Date(b.checkDate || "");
+      if (isNaN(dateA.getTime()) && isNaN(dateB.getTime())) return 0;
+      if (isNaN(dateA.getTime())) return 1;
+      if (isNaN(dateB.getTime())) return -1;
+      return dateB.getTime() - dateA.getTime();
+    });
 
     const totalGross = checks.reduce((s, c) => s + c.prodTitleGrossAmt, 0);
     const totalNet = checks.reduce((s, c) => s + c.netAmount, 0);
@@ -57,10 +58,7 @@ export async function GET(
       totalGross,
       totalNet,
       checkCount: checks.length,
-      checks: checks.map((c) => ({
-        ...c,
-        _id: (c._id as { toString(): string }).toString(),
-      })),
+      checks,
     });
   } catch (error) {
     console.error("Error fetching production checks:", error);

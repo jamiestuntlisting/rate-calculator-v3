@@ -1,15 +1,15 @@
 import { NextRequest, NextResponse } from "next/server";
-import dbConnect from "@/lib/mongodb";
-import WorkRecord from "@/models/WorkRecord";
+import {
+  createWorkRecord,
+  listWorkRecords,
+} from "@/lib/repos/work-records";
 import { calculatePaymentDueDate } from "@/lib/time-utils";
-import { requireAuth, userFilter, getCreateUserId } from "@/lib/api-auth";
+import { requireAuth, getEffectiveUserId } from "@/lib/api-auth";
 
 export async function GET(request: NextRequest) {
   try {
     const auth = await requireAuth();
     if (auth.error) return auth.error;
-
-    await dbConnect();
 
     const { searchParams } = new URL(request.url);
     const page = parseInt(searchParams.get("page") || "1");
@@ -20,34 +20,19 @@ export async function GET(request: NextRequest) {
     const show = searchParams.get("show");
     const recordStatus = searchParams.get("recordStatus");
 
-    const filter: Record<string, unknown> = {
-      ...(await userFilter(auth.session)),
-    };
-    if (status && status !== "all") {
-      filter.paymentStatus = status;
-    }
-    if (show) {
-      filter.showName = { $regex: show, $options: "i" };
-    }
-    if (recordStatus && recordStatus !== "all") {
-      filter.recordStatus = recordStatus;
-    }
-
-    const skip = (page - 1) * limit;
-    const sortObj: Record<string, 1 | -1> = {
-      [sort]: order === "asc" ? 1 : -1,
-    };
-
-    const [records, total] = await Promise.all([
-      WorkRecord.find(filter).sort(sortObj).skip(skip).limit(limit).lean(),
-      WorkRecord.countDocuments(filter),
-    ]);
+    const { records, total } = await listWorkRecords({
+      userId: await getEffectiveUserId(auth.session),
+      paymentStatus: status && status !== "all" ? status : null,
+      showNameLike: show || null,
+      recordStatus: recordStatus && recordStatus !== "all" ? recordStatus : null,
+      sort,
+      order: order === "asc" ? "asc" : "desc",
+      page,
+      limit,
+    });
 
     return NextResponse.json({
-      records: records.map((r) => ({
-        ...r,
-        _id: r._id.toString(),
-      })),
+      records,
       total,
       page,
       pages: Math.ceil(total / limit),
@@ -65,8 +50,6 @@ export async function POST(request: Request) {
   try {
     const auth = await requireAuth();
     if (auth.error) return auth.error;
-
-    await dbConnect();
 
     const data = await request.json();
 
@@ -120,18 +103,17 @@ export async function POST(request: Request) {
           (d: { documentType?: string }) => d.documentType === "exhibit_g"
         ));
 
-    const record = await WorkRecord.create({
-      ...data,
-      userId: await getCreateUserId(auth.session),
-      recordStatus,
-      paymentDueDate,
-      missingExhibitG: !hasExhibitG && data.workType !== "other",
-    });
-
-    return NextResponse.json(
-      { ...record.toObject(), _id: record._id.toString() },
-      { status: 201 }
+    const record = await createWorkRecord(
+      {
+        ...data,
+        recordStatus,
+        paymentDueDate,
+        missingExhibitG: !hasExhibitG && data.workType !== "other",
+      },
+      await getEffectiveUserId(auth.session)
     );
+
+    return NextResponse.json(record, { status: 201 });
   } catch (error) {
     console.error("Error creating work record:", error);
     const message =

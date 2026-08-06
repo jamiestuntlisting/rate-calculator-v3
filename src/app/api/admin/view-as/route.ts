@@ -1,8 +1,7 @@
 import { NextResponse } from "next/server";
 import { getSession } from "@/lib/auth";
 import { cookies } from "next/headers";
-import dbConnect from "@/lib/mongodb";
-import User from "@/models/User";
+import { findUserById } from "@/lib/repos/users";
 
 const VIEW_AS_COOKIE = "stl_view_as";
 
@@ -26,10 +25,7 @@ export async function GET() {
 
   // Look up the user so we can return their name for the banner
   try {
-    await dbConnect();
-    const user = await User.findById(viewAsUserId)
-      .select("email firstName lastName")
-      .lean();
+    const user = await findUserById(viewAsUserId);
 
     if (user) {
       return NextResponse.json({

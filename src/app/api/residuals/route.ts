@@ -1,7 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
-import dbConnect from "@/lib/mongodb";
-import ResidualImport from "@/models/ResidualImport";
-import { requireAuth, userFilter, getCreateUserId } from "@/lib/api-auth";
+import {
+  createResidualImport,
+  listResidualImports,
+} from "@/lib/repos/residuals";
+import { requireAuth, getEffectiveUserId } from "@/lib/api-auth";
 
 /** Parse a dollar string like "$1,234.56" to a number */
 function parseDollar(val: string): number {
@@ -57,14 +59,9 @@ export async function GET() {
     const auth = await requireAuth();
     if (auth.error) return auth.error;
 
-    await dbConnect();
-
-    const imports = await ResidualImport.find({
-      ...(await userFilter(auth.session)),
-    })
-      .select("performerName filename totalChecks totalGross createdAt")
-      .sort({ createdAt: -1 })
-      .lean();
+    const imports = await listResidualImports(
+      await getEffectiveUserId(auth.session)
+    );
 
     return NextResponse.json({ imports });
   } catch (error) {
@@ -80,8 +77,6 @@ export async function POST(request: NextRequest) {
   try {
     const auth = await requireAuth();
     if (auth.error) return auth.error;
-
-    await dbConnect();
 
     const formData = await request.formData();
     const file = formData.get("file") as File | null;
@@ -167,18 +162,17 @@ export async function POST(request: NextRequest) {
     }
 
     // Create the import record with userId
-    const importRecord = await ResidualImport.create({
-      userId: await getCreateUserId(auth.session),
+    const importId = await createResidualImport({
+      userId: await getEffectiveUserId(auth.session),
       performerName,
       filename: file.name,
-      totalChecks: checks.length,
       totalGross,
       checks,
     });
 
     return NextResponse.json(
       {
-        _id: importRecord._id.toString(),
+        _id: importId,
         performerName,
         totalChecks: checks.length,
         totalGross,

@@ -1,6 +1,5 @@
 import { NextResponse } from "next/server";
-import dbConnect from "@/lib/mongodb";
-import User from "@/models/User";
+import { upsertUserByStuntlistingId } from "@/lib/repos/users";
 import {
   createSession,
   isAdminEmail,
@@ -129,33 +128,24 @@ export async function POST(request: Request) {
       );
     }
 
-    // 4. Upsert user in our MongoDB (keyed by stuntlisting user id)
-    step = "connecting to database";
-    await dbConnect();
-
+    // 4. Upsert user in our D1 database (keyed by stuntlisting user id)
     step = "upserting user record";
     const stuntlistingUserId = String(profile.id);
 
-    const user = await User.findOneAndUpdate(
-      { stuntlistingUserId },
-      {
-        $set: {
-          email: userEmail,
-          firstName: profile.first_name || "",
-          lastName: profile.last_name || "",
-          tier: membershipTier,
-          role: isAdmin ? "admin" : "user",
-          lastLogin: new Date(),
-          stlAccessToken: access_token,
-        },
-      },
-      { upsert: true, new: true }
-    );
+    const user = await upsertUserByStuntlistingId({
+      stuntlistingUserId,
+      email: userEmail,
+      firstName: profile.first_name || "",
+      lastName: profile.last_name || "",
+      tier: membershipTier,
+      role: isAdmin ? "admin" : "user",
+      stlAccessToken: access_token,
+    });
 
     // 5. Create session JWT and set cookie on the response directly
     step = "creating session";
     const sessionPayload: SessionPayload = {
-      userId: user._id.toString(),
+      userId: user._id,
       stuntlistingUserId,
       email: userEmail,
       firstName: profile.first_name || "",
@@ -170,7 +160,7 @@ export async function POST(request: Request) {
     const response = NextResponse.json({
       success: true,
       user: {
-        id: user._id.toString(),
+        id: user._id,
         stuntlistingUserId,
         email: userEmail,
         firstName: profile.first_name || "",

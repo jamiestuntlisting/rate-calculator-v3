@@ -1,6 +1,5 @@
 import { NextResponse } from "next/server";
-import dbConnect from "@/lib/mongodb";
-import User from "@/models/User";
+import { listUsers } from "@/lib/repos/users";
 import { getSession } from "@/lib/auth";
 
 /**
@@ -14,16 +13,11 @@ export async function GET() {
       return NextResponse.json({ error: "Admin access required" }, { status: 403 });
     }
 
-    await dbConnect();
-
-    const users = await User.find({})
-      .select("stuntlistingUserId email firstName lastName tier role lastLogin")
-      .sort({ lastLogin: -1 })
-      .lean();
+    const users = await listUsers();
 
     return NextResponse.json({
       users: users.map((u) => ({
-        id: u._id.toString(),
+        id: u._id,
         stuntlistingUserId: u.stuntlistingUserId,
         email: u.email,
         firstName: u.firstName,

@@ -1,7 +1,6 @@
 import { NextResponse } from "next/server";
 import { v4 as uuidv4 } from "uuid";
-import dbConnect from "@/lib/mongodb";
-import Upload from "@/models/Upload";
+import { getUploadsBucket } from "@/lib/db";
 
 const MIME_TYPES: Record<string, string> = {
   jpg: "image/jpeg",
@@ -22,19 +21,15 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "No file provided" }, { status: 400 });
     }
 
-    await dbConnect();
-
     const ext = file.name.split(".").pop()?.toLowerCase() || "jpg";
     const filename = `${uuidv4()}.${ext}`;
     const contentType = MIME_TYPES[ext] || file.type || "application/octet-stream";
     const bytes = await file.arrayBuffer();
 
-    await Upload.create({
-      filename,
-      originalName: file.name,
-      contentType,
-      data: Buffer.from(bytes),
-      size: file.size,
+    const bucket = await getUploadsBucket();
+    await bucket.put(filename, bytes, {
+      httpMetadata: { contentType },
+      customMetadata: { originalName: file.name },
     });
 
     return NextResponse.json({

@@ -1,36 +1,85 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# StuntListing Bookkeeper (Rate Calculator)
 
-## Getting Started
+SAG-AFTRA stunt rate calculator and payment tracker for StuntListing Plus
+members. Next.js 16 app running on **Cloudflare Workers** with **Cloudflare
+D1** (database) and **Cloudflare R2** (uploaded documents/photos), deployed via
+[@opennextjs/cloudflare](https://opennext.js.org/cloudflare).
 
-First, run the development server:
+## Stack
+
+- **Hosting**: Cloudflare Workers (OpenNext adapter) — worker name `rate-calculator`
+- **Database**: Cloudflare D1 `rate-calculator-db` (SQLite) — schema in `migrations/`
+- **File storage**: Cloudflare R2 bucket `rate-calculator-uploads`
+- **Auth**: StuntListing GraphQL login + JWT session cookie (jose), enforced by
+  edge middleware (`src/middleware.ts`)
+- **Bindings**: declared in `wrangler.jsonc` (`DB`, `UPLOADS`), typed via
+  `cloudflare-env.d.ts` / `worker-bindings.d.ts`, accessed through
+  `src/lib/db.ts` + repositories in `src/lib/repos/`
+
+## Local development
 
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+npm install
+cp .dev.vars.example .dev.vars                       # local secrets
+npx wrangler d1 migrations apply rate-calculator-db --local   # create local DB schema
+npm run dev                                          # Next dev server with D1/R2 bindings
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+`npm run dev` uses local simulated D1/R2 state under `.wrangler/state/` — no
+Cloudflare account needed.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+To run the production build on the actual Workers runtime locally:
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+```bash
+npm run preview        # opennextjs-cloudflare build + wrangler dev
+```
 
-## Learn More
+## Deploying to Cloudflare
 
-To learn more about Next.js, take a look at the following resources:
+Two options:
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+1. **Workers Builds (recommended — replaces Vercel's git integration).**
+   In the Cloudflare dashboard: *Workers & Pages → Create → Import a
+   repository*, pick this repo, and set:
+   - Build command: `npx opennextjs-cloudflare build`
+   - Deploy command: `npx wrangler deploy`
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+   Every push to the connected branch then builds and deploys automatically.
 
-## Deploy on Vercel
+2. **From your machine:**
+   ```bash
+   npx wrangler login
+   npm run deploy
+   ```
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+One-time production setup (either path):
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+```bash
+npx wrangler secret put SESSION_SECRET    # strong random string
+npm run db:migrate:remote                 # apply migrations to remote D1 (already applied)
+```
+
+## Migrating data from the old MongoDB deployment
+
+The previous Vercel deployment stored data in MongoDB. To move it into D1/R2:
+
+```bash
+npm i --no-save mongodb
+MONGODB_URI="mongodb+srv://..." node scripts/mongo-to-d1.mjs
+npx wrangler d1 execute rate-calculator-db --remote --file=mongo-export/data.sql
+bash mongo-export/upload-to-r2.sh
+```
+
+Document ids and user associations are preserved.
+
+## Useful commands
+
+| Command | What it does |
+| --- | --- |
+| `npm run dev` | Next dev server (fast refresh) with local bindings |
+| `npm run preview` | Production build on local Workers runtime |
+| `npm run deploy` | Build + deploy to Cloudflare |
+| `npm run db:migrate:local` | Apply D1 migrations locally |
+| `npm run db:migrate:remote` | Apply D1 migrations to production |
+| `npm run cf-typegen` | Regenerate `cloudflare-env.d.ts` after `wrangler.jsonc` changes |
+| `npx wrangler tail rate-calculator` | Live production logs |
