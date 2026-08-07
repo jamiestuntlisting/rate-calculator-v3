@@ -39,12 +39,15 @@ npm run preview        # opennextjs-cloudflare build + wrangler dev
 Two options:
 
 1. **Workers Builds (recommended — replaces Vercel's git integration).**
-   In the Cloudflare dashboard: *Workers & Pages → Create → Import a
-   repository*, pick this repo, and set:
+   The repo is connected to the Worker `rate-calculator-v3`. Its build
+   settings (Worker → *Settings → Build*) must be:
    - Build command: `npx opennextjs-cloudflare build`
    - Deploy command: `npx wrangler deploy`
+   - Branch: whichever branch carries this migrated code (`main` once merged)
 
-   Every push to the connected branch then builds and deploys automatically.
+   Every push to that branch then builds and deploys automatically. Plain
+   `npm run build` will NOT work as the build command — the OpenNext step is
+   what produces `.open-next/worker.js` for deployment.
 
 2. **From your machine:**
    ```bash
@@ -54,10 +57,12 @@ Two options:
 
 One-time production setup (either path):
 
-```bash
-npx wrangler secret put SESSION_SECRET    # strong random string
-npm run db:migrate:remote                 # apply migrations to remote D1 (already applied)
-```
+- **`SESSION_SECRET` (required)** — the app refuses logins in production
+  without it. Set it in the dashboard (*Worker → Settings → Variables and
+  Secrets → Add → type "Secret"*) with a long random value, or run
+  `npx wrangler secret put SESSION_SECRET`. Generate a value with:
+  `openssl rand -base64 32`
+- D1 schema: `npm run db:migrate:remote` (already applied to `rate-calculator-db`)
 
 ## Migrating data from the old MongoDB deployment
 

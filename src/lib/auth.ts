@@ -10,7 +10,19 @@ const SESSION_COOKIE = "stl_session";
 const SESSION_MAX_AGE = 30 * 24 * 60 * 60; // 30 days in seconds
 
 function getSecretKey() {
-  const secret = process.env.SESSION_SECRET || "stuntlisting-bookkeeper-dev-secret-change-in-production";
+  const secret = process.env.SESSION_SECRET;
+  if (!secret) {
+    // Fail closed in production: the dev fallback is public in this repo, so
+    // running without a real secret would let anyone forge admin sessions.
+    if (process.env.NODE_ENV === "production") {
+      throw new Error(
+        "SESSION_SECRET is not set. Add it to the Worker: Cloudflare dashboard → rate-calculator-v3 → Settings → Variables and Secrets (type: Secret), or run `npx wrangler secret put SESSION_SECRET`."
+      );
+    }
+    return new TextEncoder().encode(
+      "stuntlisting-bookkeeper-dev-secret-change-in-production"
+    );
+  }
   return new TextEncoder().encode(secret);
 }
 

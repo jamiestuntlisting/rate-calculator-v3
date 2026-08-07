@@ -8,9 +8,17 @@ const SESSION_COOKIE = "stl_session";
 const PUBLIC_PATHS = ["/login", "/api/auth/login", "/api/auth/logout", "/api/auth/me"];
 
 function getSecretKey() {
-  const secret =
-    process.env.SESSION_SECRET ||
-    "stuntlisting-bookkeeper-dev-secret-change-in-production";
+  const secret = process.env.SESSION_SECRET;
+  if (!secret) {
+    // Fail closed in production (see src/lib/auth.ts). Thrown inside the
+    // verify try/catch below, so requests just get treated as signed out.
+    if (process.env.NODE_ENV === "production") {
+      throw new Error("SESSION_SECRET is not set");
+    }
+    return new TextEncoder().encode(
+      "stuntlisting-bookkeeper-dev-secret-change-in-production"
+    );
+  }
   return new TextEncoder().encode(secret);
 }
 
