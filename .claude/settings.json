@@ -1,0 +1,38 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(npm run *)",
+      "Bash(npm install*)",
+      "Bash(npm i *)",
+      "Bash(npm ci*)",
+      "Bash(npm view *)",
+      "Bash(npx tsc*)",
+      "Bash(npx eslint*)",
+      "Bash(npx next *)",
+      "Bash(npx opennextjs-cloudflare *)",
+      "Bash(npx wrangler d1 *)",
+      "Bash(npx wrangler r2 *)",
+      "Bash(npx wrangler secret put *)",
+      "Bash(npx wrangler deploy*)",
+      "Bash(npx wrangler types*)",
+      "Bash(npx wrangler tail*)",
+      "Bash(npx wrangler whoami*)",
+      "Bash(node *)",
+      "Bash(git status*)",
+      "Bash(git diff*)",
+      "Bash(git log*)",
+      "Bash(git show*)",
+      "Bash(git fetch*)",
+      "Bash(git pull*)",
+      "Bash(git add *)",
+      "Bash(git commit *)",
+      "Bash(git checkout *)",
+      "Bash(git branch*)",
+      "Bash(git merge *)",
+      "Bash(git push origin *)",
+      "Bash(curl http://localhost*)",
+      "Bash(curl -s http://localhost*)",
+      "Bash(curl * http://localhost:*)"
+    ]
+  }
+}
