@@ -22,7 +22,7 @@
     {
       "binding": "DB",
       "database_name": "rate-calculator-db",
-      "database_id": "b3a532d8-066a-496b-97a2-33f23c0d5978",
+      "database_id": "f1a039c5-d470-4464-acd8-be5343d99470",
       "migrations_dir": "migrations"
     }
   ],

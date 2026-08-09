@@ -21,7 +21,7 @@ See README.md for commands; schema in `migrations/`; data layer in
 | Worker overview | https://dash.cloudflare.com/?to=/:account/workers/services/view/rate-calculator-v3 |
 | Worker settings (secrets/vars) | https://dash.cloudflare.com/?to=/:account/workers/services/view/rate-calculator-v3/production/settings |
 | Builds & deployments | https://dash.cloudflare.com/?to=/:account/workers/services/view/rate-calculator-v3/production/deployments |
-| D1 database | https://dash.cloudflare.com/?to=/:account/workers/d1/databases/b3a532d8-066a-496b-97a2-33f23c0d5978 |
+| D1 database | https://dash.cloudflare.com/?to=/:account/workers/d1/databases/f1a039c5-d470-4464-acd8-be5343d99470 |
 | R2 bucket | https://dash.cloudflare.com/?to=/:account/r2/default/buckets/rate-calculator-uploads |
 | Cloudflare API tokens | https://dash.cloudflare.com/profile/api-tokens |
 | Old Vercel project (being retired) | https://vercel.com/james-northrups-projects/rate-calculator-v3 |
