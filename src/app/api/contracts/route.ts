@@ -5,6 +5,7 @@ import {
   MULTIPLIERS,
   MEAL_PENALTIES,
   FORCED_CALL,
+  EFFECTIVE_DATE,
 } from "@/lib/rate-constants";
 
 const CONTRACT_LABELS: Record<keyof typeof RATES, string> = {
@@ -27,7 +28,7 @@ export async function GET() {
 
   return NextResponse.json({
     agreement: "SAG-AFTRA Theatrical Basic Agreement 2025-2026",
-    effectiveDate: "2025-07-01",
+    effectiveDate: EFFECTIVE_DATE,
     contracts,
     overtime: {
       straightTimeEnd: OVERTIME.straightTimeEnd,
