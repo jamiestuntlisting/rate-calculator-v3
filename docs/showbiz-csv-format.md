@@ -1,0 +1,46 @@
+# ShowBiz "SAG Cards Export" CSV format
+
+Notes from `ShowBiz_SAG_Cards_Export_042826.csv` (414 cards), used by the
+weekly-contract test bench.
+
+- **Encoding**: UTF-16 (LE, with BOM). Convert before parsing.
+- **Rows**: one SAG card per line, `\n` separated, **280 columns, no header row**.
+- **Multi-day fields**: several columns pack one value per worked day into a
+  single field, separated by **ASCII Group Separator `\x1d` (0x1D)**, often
+  with leading/trailing empty entries. Example: `\x1d\x1d\x1d11.00\x1d8.50\x1d\x1d`
+  means two worked days at 11.00 and 8.50 hours.
+
+## Columns that carry data
+
+| Idx | Meaning | Example |
+| --- | --- | --- |
+| 9 | Card sequence number | `1` |
+| 12 | Card id | `S770` |
+| 54 / 57 | Performer first / last name | `Derric` / `Stotts` |
+| 100–103 | Payroll co., production co., project | `Media Services`, `Surfer's Paradise` |
+| 142 | Contract category | `A: Daily Performer`, `B: TV` |
+| 157 | Week-ending / card date | `February 26, 2021` |
+| 158 | Studio | `ABC Studios New York` |
+| 159 | Production title | `Law & Order: Special Victims Unit` |
+| 182 | **Employment type** | `Day Player`, `3 Day Player`, `Weekly Player` |
+| 184 | Contract type | `TV`, `Theatrical` |
+| 185 | Guaranteed hours | `8.00` (daily), `44.00` / `48.00` (weekly) |
+| 188 | Contract rate | `$1,912.00` |
+| 189 | Derived day/hour rate | `$239.00` |
+| 190 | Adjustment amount | `$260.00` |
+| 191 / 192 | 6th / 7th day flags | `6th Day`, `7th Day` |
+| 194 | Extra items | `Covid Test`, `Fitting`, `Loc Allowance` |
+| 196 | Role description | `Stunt Double: Baltimore` |
+| 200 | SAG category | `H: Stunt Performer`, `K: Stunt Coordinator` |
+| 201 | Studio / Distant | `Studio` |
+| 209 | Gross total | `$2,810.00` |
+| 211 | Subtotal before adjustments | `$2,550.00` |
+| 214 | Base scale rate | `$1,030.00` |
+| 252 | **Dates worked** (multi-day) | `2/23`, `2/24` |
+| 253 | Days worked count | `2` |
+| 257 | **Hours worked per day** (multi-day) | `11.00`, `8.50` |
+| 260 / 266 / 271 | Per-day time values (multi-day) | `16.75`, `17.50` |
+| 276 | **Day codes** (multi-day) | `SW`, `WF` — Start / Work / Finish |
+
+`Weekly Player` rows with 44.00 or 48.00 guaranteed hours are the cases the
+weekly calculation must reproduce.

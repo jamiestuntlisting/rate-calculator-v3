@@ -14,6 +14,7 @@ import { isAdminEmail } from "@/lib/admin-emails";
 const navLinks = [
   { href: "/", label: "Rate Calculator", adminOnly: false },
   { href: "/other-work", label: "Other Work Days", adminOnly: false },
+  { href: "/upload-g", label: "Upload a G", adminOnly: false },
   { href: "/tracker", label: "Payment Tracker", adminOnly: false },
   { href: "/analytics", label: "Analytics", adminOnly: false },
   { href: "/residuals", label: "Residuals", adminOnly: false },
