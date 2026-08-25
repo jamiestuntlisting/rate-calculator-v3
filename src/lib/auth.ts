@@ -1,5 +1,6 @@
 import { SignJWT, jwtVerify } from "jose";
 import { cookies } from "next/headers";
+import { getSessionSecretKey } from "./session-secret";
 
 // Re-export the admin allowlist from the client-safe module so server code
 // can still do `import { isAdminEmail } from "@/lib/auth"` without forcing
@@ -8,23 +9,6 @@ export { ADMIN_EMAILS, isAdminEmail } from "./admin-emails";
 
 const SESSION_COOKIE = "stl_session";
 const SESSION_MAX_AGE = 30 * 24 * 60 * 60; // 30 days in seconds
-
-function getSecretKey() {
-  const secret = process.env.SESSION_SECRET;
-  if (!secret) {
-    // Fail closed in production: the dev fallback is public in this repo, so
-    // running without a real secret would let anyone forge admin sessions.
-    if (process.env.NODE_ENV === "production") {
-      throw new Error(
-        "SESSION_SECRET is not set. Add it to the Worker serving this app: Cloudflare dashboard → Workers → rate-calculator → Settings → Variables and Secrets (type: Secret), or run `npx wrangler secret put SESSION_SECRET`."
-      );
-    }
-    return new TextEncoder().encode(
-      "stuntlisting-bookkeeper-dev-secret-change-in-production"
-    );
-  }
-  return new TextEncoder().encode(secret);
-}
 
 export interface SessionPayload {
   userId: string; // MongoDB User _id
@@ -42,7 +26,7 @@ export async function createSession(payload: SessionPayload): Promise<string> {
     .setProtectedHeader({ alg: "HS256" })
     .setIssuedAt()
     .setExpirationTime(`${SESSION_MAX_AGE}s`)
-    .sign(getSecretKey());
+    .sign(await getSessionSecretKey());
 
   return jwt;
 }
@@ -50,7 +34,7 @@ export async function createSession(payload: SessionPayload): Promise<string> {
 /** Verify and decode a session token */
 export async function verifySession(token: string): Promise<SessionPayload | null> {
   try {
-    const { payload } = await jwtVerify(token, getSecretKey());
+    const { payload } = await jwtVerify(token, await getSessionSecretKey());
     return payload as unknown as SessionPayload;
   } catch {
     return null;

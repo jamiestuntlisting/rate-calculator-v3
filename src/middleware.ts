@@ -7,19 +7,19 @@ const SESSION_COOKIE = "stl_session";
 // Routes that don't require authentication
 const PUBLIC_PATHS = ["/login", "/api/auth/login", "/api/auth/logout", "/api/auth/me"];
 
-function getSecretKey() {
+function getEnvSecretKey(): Uint8Array | null {
   const secret = process.env.SESSION_SECRET;
-  if (!secret) {
-    // Fail closed in production (see src/lib/auth.ts). Thrown inside the
-    // verify try/catch below, so requests just get treated as signed out.
-    if (process.env.NODE_ENV === "production") {
-      throw new Error("SESSION_SECRET is not set");
-    }
+  if (secret) return new TextEncoder().encode(secret);
+  if (process.env.NODE_ENV !== "production") {
     return new TextEncoder().encode(
       "stuntlisting-bookkeeper-dev-secret-change-in-production"
     );
   }
-  return new TextEncoder().encode(secret);
+  // No env secret: the app may be running on the D1-stored secret
+  // (src/lib/session-secret.ts). This edge middleware can't reach D1, so it
+  // only gates on cookie presence and every API route / server data path
+  // re-verifies the JWT with the real secret via getSession().
+  return null;
 }
 
 // NOTE: This stays on the `middleware.ts` convention (edge runtime) rather
@@ -56,9 +56,13 @@ export async function middleware(request: NextRequest) {
     return NextResponse.redirect(new URL("/login", request.url));
   }
 
-  // Verify JWT
+  // Verify JWT when the secret is available to the middleware
+  const secretKey = getEnvSecretKey();
+  if (!secretKey) {
+    return NextResponse.next();
+  }
   try {
-    await jwtVerify(token, getSecretKey());
+    await jwtVerify(token, secretKey);
     return NextResponse.next();
   } catch {
     // Token is invalid or expired — clear cookie and redirect
