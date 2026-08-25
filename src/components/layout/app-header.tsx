@@ -18,6 +18,7 @@ const navLinks = [
   { href: "/tracker", label: "Tracker", adminOnly: false },
   { href: "/analytics", label: "Analytics", adminOnly: false },
   { href: "/residuals", label: "Residuals", adminOnly: false },
+  { href: "/membership", label: "Membership", adminOnly: false },
 ];
 
 /** Admin-only tools, grouped under a single Admin menu. */

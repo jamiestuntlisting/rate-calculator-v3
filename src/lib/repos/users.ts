@@ -10,6 +10,10 @@ export interface UserRecord {
   role: "user" | "admin";
   lastLogin: string | null;
   stlAccessToken: string | null;
+  /** Manually chosen tier; wins over Stripe/StuntListing when set. */
+  tierOverride: "free" | "standard" | "plus" | null;
+  /** 0/1 — we transcribe this member's Exhibit Gs for them. */
+  transcriptionAddOn: number;
   createdAt: string;
   updatedAt: string;
 }
@@ -19,6 +23,16 @@ export async function findUserById(id: string): Promise<UserRecord | null> {
   return db
     .prepare("SELECT * FROM users WHERE _id = ?1")
     .bind(id)
+    .first<UserRecord>();
+}
+
+export async function findUserByStuntlistingId(
+  stuntlistingUserId: string
+): Promise<UserRecord | null> {
+  const db = await getDb();
+  return db
+    .prepare("SELECT * FROM users WHERE stuntlistingUserId = ?1")
+    .bind(stuntlistingUserId)
     .first<UserRecord>();
 }
 
@@ -111,6 +125,24 @@ export async function findOrCreateUserByStuntlistingId(
     .first<UserRecord>();
   if (!row) throw new Error("Failed to find or create user");
   return row;
+}
+
+/** Set the member's plan. No payment is taken — see docs on PLAN_PRICES. */
+export async function updateMembership(
+  userId: string,
+  tierOverride: "free" | "standard" | "plus" | null,
+  transcriptionAddOn: boolean
+): Promise<UserRecord | null> {
+  const db = await getDb();
+  return db
+    .prepare(
+      `UPDATE users
+         SET tierOverride = ?1, transcriptionAddOn = ?2, tier = COALESCE(?1, tier), updatedAt = ?3
+       WHERE _id = ?4
+       RETURNING *`
+    )
+    .bind(tierOverride, transcriptionAddOn ? 1 : 0, nowIso(), userId)
+    .first<UserRecord>();
 }
 
 export async function listUsers(): Promise<UserRecord[]> {

@@ -50,7 +50,11 @@ export async function GET() {
         if (profile) {
           // Stripe is authoritative (keyed on email); the StuntListing
           // profile fields are the fallback. See src/lib/membership.ts.
-          const membership = await resolveMembershipTier(session.email, profile);
+          const membership = await resolveMembershipTier(
+            session.email,
+            profile,
+            user?.tierOverride ?? null
+          );
           const currentTier = membership.tier;
 
           // If tier changed, update the session cookie

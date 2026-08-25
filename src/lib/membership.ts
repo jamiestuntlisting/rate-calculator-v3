@@ -8,7 +8,7 @@ export interface StuntListingProfileFields {
 
 export interface MembershipResult {
   tier: Tier;
-  source: "stripe" | "stuntlisting";
+  source: "stripe" | "stuntlisting" | "manual";
   detail: string;
 }
 
@@ -32,8 +32,18 @@ export function tierFromProfile(profile: StuntListingProfileFields): Tier {
  */
 export async function resolveMembershipTier(
   email: string,
-  profile: StuntListingProfileFields
+  profile: StuntListingProfileFields,
+  /** A tier the member picked by hand; nothing outranks it. */
+  tierOverride?: Tier | null
 ): Promise<MembershipResult> {
+  if (tierOverride) {
+    return {
+      tier: tierOverride,
+      source: "manual",
+      detail: "membership set by hand (no billing yet)",
+    };
+  }
+
   const profileTier = tierFromProfile(profile);
 
   const stripe = await getTierFromStripe(email);

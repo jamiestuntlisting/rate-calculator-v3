@@ -16,7 +16,15 @@ import {
 } from "@/components/ui/select";
 import { toast } from "sonner";
 import { ArrowRight, FileText, Loader2 } from "lucide-react";
-import type { WorkRecord } from "@/types";
+/** An Exhibit G from the performer's Upload a G library. */
+interface GUploadItem {
+  _id: string;
+  displayTitle: string;
+  path: string;
+  contentType: string;
+  createdAt: string;
+  transcription: unknown | null;
+}
 
 interface UserListItem {
   id: string;
@@ -40,7 +48,7 @@ export default function AdminTranscribePage() {
   const [users, setUsers] = useState<UserListItem[]>([]);
   const [loadingUsers, setLoadingUsers] = useState(true);
   const [selectedUserId, setSelectedUserId] = useState<string>("");
-  const [records, setRecords] = useState<WorkRecord[]>([]);
+  const [records, setRecords] = useState<GUploadItem[]>([]);
   const [loadingRecords, setLoadingRecords] = useState(false);
   const [navigating, setNavigating] = useState(false);
 
@@ -64,12 +72,12 @@ export default function AdminTranscribePage() {
       .finally(() => setLoadingUsers(false));
   }, [user]);
 
-  // Load a user's attachment-only records via the view-as mechanism
+  // Load the performer's uploaded Exhibit Gs that have no transcription yet.
+  // view-as makes /api/g-uploads resolve to their account.
   const loadRecords = useCallback(async (userId: string) => {
     setLoadingRecords(true);
     setRecords([]);
     try {
-      // Activate view-as so /api/work-records returns the target user's records
       const vaRes = await fetch("/api/admin/view-as", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -80,17 +88,15 @@ export default function AdminTranscribePage() {
         return;
       }
 
-      const res = await fetch(
-        "/api/work-records?recordStatus=attachment_only&limit=100&sort=workDate&order=desc"
-      );
+      const res = await fetch("/api/g-uploads");
       if (!res.ok) {
-        toast.error("Failed to load records");
+        toast.error("Failed to load uploads");
         return;
       }
-      const data = await res.json();
-      setRecords(data.records || []);
+      const data = (await res.json()) as { uploads: GUploadItem[] };
+      setRecords((data.uploads || []).filter((u) => !u.transcription));
     } catch {
-      toast.error("Failed to load records");
+      toast.error("Failed to load uploads");
     } finally {
       setLoadingRecords(false);
     }
@@ -105,13 +111,12 @@ export default function AdminTranscribePage() {
     }
   };
 
-  const handleTranscribe = async (recordId: string) => {
+  const handleTranscribe = async (uploadId: string) => {
     if (!selectedUserId) return;
     setNavigating(true);
-    // view-as is already active from loadRecords; reload state so the banner shows,
-    // then navigate to the existing work detail page where the admin can transcribe.
-    // window.location.href triggers a full reload so AuthProvider re-reads view-as state.
-    window.location.href = `/work/${recordId}`;
+    // view-as is already active, so the transcription view opens against the
+    // performer's account. A full load lets AuthProvider re-read that state.
+    window.location.href = `/upload-g/${uploadId}`;
   };
 
   if (authLoading) return null;
@@ -141,9 +146,9 @@ export default function AdminTranscribePage() {
         </div>
         <h1 className="text-2xl font-bold">Transcribe Exhibit G</h1>
         <p className="text-sm text-muted-foreground mt-1">
-          Pick a performer, then select one of their attached-but-not-transcribed
-          Exhibit G records. The next screen shows the attachment on top and the
-          transcription form below — saved data writes to the performer&apos;s account.
+          Pick a performer, then choose one of the Exhibit Gs they have
+          uploaded but not transcribed. The next screen opens their G with the
+          transcription fields — what you save writes to their account.
         </p>
       </div>
 
@@ -180,7 +185,7 @@ export default function AdminTranscribePage() {
         <Card>
           <CardHeader>
             <CardTitle className="text-lg">
-              2. Pick an untranscribed record
+              2. Pick an untranscribed Exhibit G
               {selectedUser && (
                 <span className="text-muted-foreground font-normal text-sm ml-2">
                   for {displayName(selectedUser)}
@@ -195,45 +200,47 @@ export default function AdminTranscribePage() {
               </div>
             ) : records.length === 0 ? (
               <p className="text-muted-foreground text-sm">
-                No attachment-only records for this performer.
+                Nothing left to transcribe — this performer has no untranscribed
+                Exhibit G uploads.
               </p>
             ) : (
               <div className="space-y-2">
-                {records.map((r) => {
-                  const exhibitG = r.documents?.find(
-                    (d) => d.documentType === "exhibit_g"
-                  );
-                  return (
-                    <div
-                      key={r._id}
-                      className="flex items-center gap-3 p-3 rounded border border-border/50 hover:bg-[#1a1a1a] transition-colors"
-                    >
+                {records.map((r) => (
+                  <div
+                    key={r._id}
+                    className="flex items-center gap-3 p-3 rounded border border-border/50 hover:bg-[#1a1a1a] transition-colors"
+                  >
+                    {r.contentType?.startsWith("image/") ? (
+                      /* eslint-disable-next-line @next/next/no-img-element */
+                      <img
+                        src={r.path}
+                        alt=""
+                        className="h-12 w-12 rounded object-cover shrink-0 bg-muted"
+                      />
+                    ) : (
                       <FileText className="h-5 w-5 text-muted-foreground shrink-0" />
-                      <div className="flex-1 min-w-0">
-                        <div className="text-sm font-medium truncate">
-                          {r.showName || "(no show name)"}
-                        </div>
-                        <div className="text-xs text-muted-foreground">
-                          {formatDateSafe(r.workDate)}
-                          {exhibitG && (
-                            <span className="ml-2">· {exhibitG.originalName}</span>
-                          )}
-                        </div>
+                    )}
+                    <div className="flex-1 min-w-0">
+                      <div className="text-sm font-medium truncate">
+                        {r.displayTitle}
                       </div>
-                      <Badge variant="outline" className="text-xs">
-                        attachment only
-                      </Badge>
-                      <Button
-                        size="sm"
-                        onClick={() => handleTranscribe(r._id)}
-                        disabled={navigating}
-                      >
-                        Transcribe
-                        <ArrowRight className="h-4 w-4 ml-1" />
-                      </Button>
+                      <div className="text-xs text-muted-foreground">
+                        Uploaded {formatDateSafe(r.createdAt)}
+                      </div>
                     </div>
-                  );
-                })}
+                    <Badge variant="outline" className="text-xs">
+                      not transcribed
+                    </Badge>
+                    <Button
+                      size="sm"
+                      onClick={() => handleTranscribe(r._id)}
+                      disabled={navigating}
+                    >
+                      Transcribe
+                      <ArrowRight className="h-4 w-4 ml-1" />
+                    </Button>
+                  </div>
+                ))}
               </div>
             )}
           </CardContent>

@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { upsertUserByStuntlistingId } from "@/lib/repos/users";
+import { upsertUserByStuntlistingId, findUserByStuntlistingId } from "@/lib/repos/users";
 import { resolveMembershipTier } from "@/lib/membership";
 import {
   createSession,
@@ -105,7 +105,12 @@ export async function POST(request: Request) {
     // Determine membership tier — Stripe is authoritative, keyed on email,
     // with the StuntListing profile fields as the fallback.
     step = "checking membership";
-    const membership = await resolveMembershipTier(userEmail, profile);
+    const existing = await findUserByStuntlistingId(String(profile.id));
+    const membership = await resolveMembershipTier(
+      userEmail,
+      profile,
+      existing?.tierOverride ?? null
+    );
     const membershipTier = membership.tier;
     const isSubscriptionActive = membershipTier !== "free";
     console.log(
