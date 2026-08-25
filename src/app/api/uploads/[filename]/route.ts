@@ -18,15 +18,18 @@ export async function GET(
       return NextResponse.json({ error: "File not found" }, { status: 404 });
     }
 
-    return new NextResponse(object.body as unknown as BodyInit, {
-      headers: {
-        "Content-Type":
-          object.httpMetadata?.contentType || "application/octet-stream",
-        "Content-Length": String(object.size),
-        ETag: object.httpEtag,
-        "Cache-Control": "public, max-age=31536000",
-      },
-    });
+    // Let R2 populate the content headers and stream the body as-is. Setting
+    // Content-Length by hand truncates the response when the platform
+    // re-encodes or compresses the stream.
+    const headers = new Headers();
+    object.writeHttpMetadata(headers);
+    headers.set("ETag", object.httpEtag);
+    headers.set("Cache-Control", "public, max-age=31536000, immutable");
+    if (!headers.has("Content-Type")) {
+      headers.set("Content-Type", "application/octet-stream");
+    }
+
+    return new Response(object.body as unknown as BodyInit, { headers });
   } catch {
     return NextResponse.json({ error: "File not found" }, { status: 404 });
   }

@@ -2,7 +2,7 @@
 
 import { use, useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
-import { ArrowLeft, Loader2, Minus, Plus, RotateCw, Save } from "lucide-react";
+import { ArrowLeft, Loader2, RotateCw, Save } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { toast } from "sonner";
@@ -16,7 +16,7 @@ interface GUpload {
   transcription: Transcription | null;
 }
 
-/** One transcribed line of the Exhibit G. */
+/** The performer's own line on the Exhibit G. */
 interface TranscriptionRow {
   performer: string;
   character: string;
@@ -32,52 +32,31 @@ interface TranscriptionRow {
   notes: string;
 }
 
-/**
- * How the image lines up with the transcription grid. The user tunes these
- * once per Exhibit G and every row strip stays locked to its fields.
- */
-interface Layout {
-  zoom: number;
-  /** Pixels of the (zoomed) image per transcription row. */
-  rowHeight: number;
-  /** Distance from the top of the image to the first data row. */
-  offsetY: number;
-  /** Horizontal pan, for wide forms. */
-  panX: number;
-  /** Height of the frozen header band. */
-  headerHeight: number;
-  /** Distance from the top of the image to the header band. */
-  headerOffset: number;
-}
-
 interface Transcription {
-  layout: Layout;
   rows: TranscriptionRow[];
+  /** Remembered so the G opens exactly where it was left. */
+  view?: {
+    zoom: number;
+    scrollX: number;
+    headerY: number;
+    rowY: number;
+  };
 }
 
 const FIELDS: Array<{ key: keyof TranscriptionRow; label: string; width: string }> = [
-  { key: "performer", label: "Performer", width: "10rem" },
-  { key: "character", label: "Character", width: "10rem" },
-  { key: "callTime", label: "Call", width: "6rem" },
-  { key: "ndMealIn", label: "ND In", width: "6rem" },
-  { key: "ndMealOut", label: "ND Out", width: "6rem" },
-  { key: "firstMealStart", label: "1st Meal Out", width: "6rem" },
-  { key: "firstMealFinish", label: "1st Meal In", width: "6rem" },
-  { key: "secondMealStart", label: "2nd Meal Out", width: "6rem" },
-  { key: "secondMealFinish", label: "2nd Meal In", width: "6rem" },
-  { key: "dismissOnSet", label: "Dismiss Set", width: "6rem" },
-  { key: "dismissMakeupWardrobe", label: "Dismiss M/W", width: "6rem" },
-  { key: "notes", label: "Notes", width: "12rem" },
+  { key: "performer", label: "Performer", width: "11rem" },
+  { key: "character", label: "Character", width: "11rem" },
+  { key: "callTime", label: "Call", width: "6.5rem" },
+  { key: "ndMealIn", label: "ND In", width: "6.5rem" },
+  { key: "ndMealOut", label: "ND Out", width: "6.5rem" },
+  { key: "firstMealStart", label: "1st Meal Out", width: "6.5rem" },
+  { key: "firstMealFinish", label: "1st Meal In", width: "6.5rem" },
+  { key: "secondMealStart", label: "2nd Meal Out", width: "6.5rem" },
+  { key: "secondMealFinish", label: "2nd Meal In", width: "6.5rem" },
+  { key: "dismissOnSet", label: "Dismiss Set", width: "6.5rem" },
+  { key: "dismissMakeupWardrobe", label: "Dismiss M/W", width: "6.5rem" },
+  { key: "notes", label: "Notes", width: "14rem" },
 ];
-
-const DEFAULT_LAYOUT: Layout = {
-  zoom: 1.6,
-  rowHeight: 44,
-  offsetY: 260,
-  panX: 0,
-  headerHeight: 80,
-  headerOffset: 150,
-};
 
 function emptyRow(): TranscriptionRow {
   return {
@@ -96,28 +75,10 @@ function emptyRow(): TranscriptionRow {
   };
 }
 
-/**
- * Position an image so that the band starting at `y` (in zoomed pixels) is
- * flush with the top of its clipping box, honouring the saved rotation.
- * Rotating about the top-left corner pushes the image out of the box, so
- * each quarter-turn gets a compensating translation.
- */
-function sliceTransform(
-  y: number,
-  panX: number,
-  rotation: number,
-  displayW: number,
-  displayH: number
-): string {
-  let cx = 0;
-  let cy = 0;
-  if (rotation === 90) cx = displayH;
-  else if (rotation === 180) {
-    cx = displayW;
-    cy = displayH;
-  } else if (rotation === 270) cy = displayW;
-
-  return `translate(${-panX}px, ${-y}px) translate(${cx}px, ${cy}px) rotate(${rotation}deg)`;
+/** Distance between two active touches, for pinch-zoom. */
+function touchDistance(touches: React.TouchList): number {
+  const [a, b] = [touches[0], touches[1]];
+  return Math.hypot(a.clientX - b.clientX, a.clientY - b.clientY);
 }
 
 export default function TranscribePage({
@@ -130,13 +91,19 @@ export default function TranscribePage({
   const [upload, setUpload] = useState<GUpload | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
-  const [layout, setLayout] = useState<Layout>(DEFAULT_LAYOUT);
-  const [rows, setRows] = useState<TranscriptionRow[]>([emptyRow()]);
+  const [row, setRow] = useState<TranscriptionRow>(emptyRow());
   const [natural, setNatural] = useState({ w: 0, h: 0 });
   const [rotation, setRotation] = useState(0);
+  const [zoom, setZoom] = useState(1);
 
-  const fieldScrollRef = useRef<HTMLDivElement>(null);
-  const headerScrollRef = useRef<HTMLDivElement>(null);
+  const headerRef = useRef<HTMLDivElement>(null);
+  const rowRef = useRef<HTMLDivElement>(null);
+  const fieldsRef = useRef<HTMLDivElement>(null);
+  // Guards the two-way horizontal sync from feeding back on itself.
+  const syncing = useRef(false);
+  const pinch = useRef<{ distance: number; zoom: number } | null>(null);
+  const restored = useRef(false);
+  const savedView = useRef<Transcription["view"] | null>(null);
 
   useEffect(() => {
     (async () => {
@@ -146,9 +113,10 @@ export default function TranscribePage({
         const data = (await res.json()) as GUpload;
         setUpload(data);
         setRotation(data.rotation);
-        if (data.transcription) {
-          setLayout({ ...DEFAULT_LAYOUT, ...data.transcription.layout });
-          if (data.transcription.rows?.length) setRows(data.transcription.rows);
+        if (data.transcription?.rows?.[0]) setRow(data.transcription.rows[0]);
+        if (data.transcription?.view) {
+          savedView.current = data.transcription.view;
+          setZoom(data.transcription.view.zoom || 1);
         }
       } catch {
         toast.error("Couldn't load that Exhibit G");
@@ -158,11 +126,97 @@ export default function TranscribePage({
     })();
   }, [id]);
 
-  // Displayed size of the image at the current zoom, accounting for rotation.
-  const baseW = natural.w * layout.zoom;
-  const baseH = natural.h * layout.zoom;
+  // Fit the width of the form to the pane the first time it loads, so the
+  // whole G is visible before the user starts zooming in.
+  useEffect(() => {
+    if (!natural.w || restored.current) return;
+    restored.current = true;
+
+    const view = savedView.current;
+    const paneWidth = headerRef.current?.clientWidth ?? 0;
+    const rotated = rotation % 180 !== 0;
+    const contentWidth = rotated ? natural.h : natural.w;
+
+    if (view) {
+      setZoom(view.zoom);
+      requestAnimationFrame(() => {
+        if (headerRef.current) {
+          headerRef.current.scrollLeft = view.scrollX;
+          headerRef.current.scrollTop = view.headerY;
+        }
+        if (rowRef.current) {
+          rowRef.current.scrollLeft = view.scrollX;
+          rowRef.current.scrollTop = view.rowY;
+        }
+      });
+    } else if (paneWidth && contentWidth) {
+      setZoom(paneWidth / contentWidth);
+    }
+  }, [natural, rotation]);
+
+  const baseW = natural.w * zoom;
+  const baseH = natural.h * zoom;
   const displayW = rotation % 180 === 0 ? baseW : baseH;
   const displayH = rotation % 180 === 0 ? baseH : baseW;
+
+  /** Rotating about the top-left corner needs a compensating shift back in. */
+  const rotationTransform = (() => {
+    if (rotation === 90) return `translate(${displayW}px, 0) rotate(90deg)`;
+    if (rotation === 180)
+      return `translate(${displayW}px, ${displayH}px) rotate(180deg)`;
+    if (rotation === 270) return `translate(0, ${displayH}px) rotate(270deg)`;
+    return "none";
+  })();
+
+  /** Horizontal position is shared; vertical position is each pane's own. */
+  const syncHorizontal = (from: "header" | "row") => {
+    if (syncing.current) return;
+    syncing.current = true;
+
+    const source = from === "header" ? headerRef.current : rowRef.current;
+    const target = from === "header" ? rowRef.current : headerRef.current;
+    if (source && target) target.scrollLeft = source.scrollLeft;
+
+    // Nudge the field strip to roughly the same part of the form.
+    if (source && fieldsRef.current) {
+      const imageRange = source.scrollWidth - source.clientWidth;
+      const fieldRange =
+        fieldsRef.current.scrollWidth - fieldsRef.current.clientWidth;
+      if (imageRange > 0 && fieldRange > 0) {
+        fieldsRef.current.scrollLeft =
+          (source.scrollLeft / imageRange) * fieldRange;
+      }
+    }
+
+    requestAnimationFrame(() => {
+      syncing.current = false;
+    });
+  };
+
+  const onTouchStart = (e: React.TouchEvent) => {
+    if (e.touches.length === 2) {
+      pinch.current = { distance: touchDistance(e.touches), zoom };
+    }
+  };
+
+  const onTouchMove = (e: React.TouchEvent) => {
+    if (e.touches.length === 2 && pinch.current) {
+      e.preventDefault();
+      const ratio = touchDistance(e.touches) / pinch.current.distance;
+      setZoom(Math.min(8, Math.max(0.1, pinch.current.zoom * ratio)));
+    }
+  };
+
+  const onTouchEnd = () => {
+    pinch.current = null;
+  };
+
+  // Desktop: ctrl/⌘ + wheel zooms, like a photo viewer.
+  const onWheel = (e: React.WheelEvent) => {
+    if (!e.ctrlKey && !e.metaKey) return;
+    e.preventDefault();
+    setZoom((z) => Math.min(8, Math.max(0.1, z * (e.deltaY < 0 ? 1.08 : 0.93))));
+  };
 
   const save = useCallback(async () => {
     setSaving(true);
@@ -170,16 +224,26 @@ export default function TranscribePage({
       const res = await fetch(`/api/g-uploads/${id}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ transcription: { layout, rows } }),
+        body: JSON.stringify({
+          transcription: {
+            rows: [row],
+            view: {
+              zoom,
+              scrollX: rowRef.current?.scrollLeft ?? 0,
+              headerY: headerRef.current?.scrollTop ?? 0,
+              rowY: rowRef.current?.scrollTop ?? 0,
+            },
+          },
+        }),
       });
       if (!res.ok) throw new Error();
-      toast.success("Transcription saved");
+      toast.success("Saved");
     } catch {
-      toast.error("Couldn't save the transcription");
+      toast.error("Couldn't save");
     } finally {
       setSaving(false);
     }
-  }, [id, layout, rows]);
+  }, [id, row, zoom]);
 
   const rotate = async () => {
     const next = (rotation + 90) % 360;
@@ -191,27 +255,7 @@ export default function TranscribePage({
         body: JSON.stringify({ rotation: next }),
       });
     } catch {
-      /* rotation is cosmetic; a failed save just reverts on reload */
-    }
-  };
-
-  const setField = (
-    index: number,
-    key: keyof TranscriptionRow,
-    value: string
-  ) => {
-    setRows((prev) =>
-      prev.map((r, i) => (i === index ? { ...r, [key]: value } : r))
-    );
-  };
-
-  const nudge = (patch: Partial<Layout>) =>
-    setLayout((prev) => ({ ...prev, ...patch }));
-
-  // Keep the frozen header's horizontal position tied to the field grid.
-  const onFieldsScroll = () => {
-    if (headerScrollRef.current && fieldScrollRef.current) {
-      headerScrollRef.current.scrollLeft = fieldScrollRef.current.scrollLeft;
+      /* cosmetic only */
     }
   };
 
@@ -236,47 +280,87 @@ export default function TranscribePage({
 
   const isPdf = upload.contentType === "application/pdf";
 
-  return (
-    <div className="px-4 py-6 max-w-[1800px] mx-auto">
-      {/* Measures the image so slices can be positioned in real pixels. */}
-      {/* eslint-disable-next-line @next/next/no-img-element */}
-      <img
-        src={upload.path}
-        alt=""
-        className="hidden"
-        onLoad={(e) =>
-          setNatural({
-            w: e.currentTarget.naturalWidth,
-            h: e.currentTarget.naturalHeight,
-          })
-        }
-      />
+  const pane = (
+    which: "header" | "row",
+    ref: React.RefObject<HTMLDivElement | null>,
+    height: string
+  ) => (
+    <div
+      ref={ref}
+      onScroll={() => syncHorizontal(which)}
+      onTouchStart={onTouchStart}
+      onTouchMove={onTouchMove}
+      onTouchEnd={onTouchEnd}
+      onWheel={onWheel}
+      className={`overflow-auto overscroll-contain bg-white ${height}`}
+      style={{ touchAction: "pan-x pan-y" }}
+    >
+      <div
+        style={{
+          width: displayW || "100%",
+          height: displayH || 200,
+          position: "relative",
+        }}
+      >
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img
+          src={upload.path}
+          alt={which === "header" ? "Exhibit G header" : "Your row"}
+          draggable={false}
+          className="absolute top-0 left-0 max-w-none select-none"
+          style={{
+            width: baseW || undefined,
+            transformOrigin: "top left",
+            transform: rotationTransform,
+          }}
+          onLoad={(e) =>
+            setNatural((prev) =>
+              prev.w
+                ? prev
+                : {
+                    w: e.currentTarget.naturalWidth,
+                    h: e.currentTarget.naturalHeight,
+                  }
+            )
+          }
+        />
+      </div>
+    </div>
+  );
 
-      <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
-        <div className="flex items-center gap-3">
+  return (
+    <div className="px-3 py-4 max-w-[1800px] mx-auto">
+      <div className="flex flex-wrap items-center justify-between gap-3 mb-3">
+        <div className="flex items-center gap-2 min-w-0">
           <Link
             href="/upload-g"
-            className="p-2 rounded hover:bg-accent"
+            className="p-2 rounded hover:bg-accent shrink-0"
             aria-label="Back to uploads"
           >
             <ArrowLeft className="h-4 w-4" />
           </Link>
-          <div>
-            <h1 className="text-xl font-bold leading-tight">
+          <div className="min-w-0">
+            <h1 className="text-lg font-bold leading-tight truncate">
               {upload.displayTitle}
             </h1>
             <p className="text-xs text-muted-foreground">
-              Line the rows up once, then type across.
+              Top pane: the column headings. Bottom pane: scroll to your row.
+              They scroll sideways together.
             </p>
           </div>
         </div>
 
-        <div className="flex items-center gap-2">
-          <Button variant="outline" size="sm" onClick={rotate}>
-            <RotateCw className="h-4 w-4 mr-2" />
-            Rotate
-          </Button>
-          <Button size="sm" onClick={save} disabled={saving}>
+        <div className="flex items-center gap-2 shrink-0">
+          <button
+            type="button"
+            onClick={rotate}
+            aria-label="Rotate"
+            title="Rotate"
+            className="h-12 w-12 flex items-center justify-center rounded-lg border border-border hover:bg-accent active:scale-95 transition"
+          >
+            <RotateCw className="h-6 w-6" />
+          </button>
+          <Button onClick={save} disabled={saving}>
             {saving ? (
               <Loader2 className="h-4 w-4 mr-2 animate-spin" />
             ) : (
@@ -293,218 +377,76 @@ export default function TranscribePage({
             This upload is a PDF — open it in a new tab to read it while you
             transcribe.
           </p>
-          <a href={upload.path} target="_blank" rel="noreferrer" className="underline">
+          <a
+            href={upload.path}
+            target="_blank"
+            rel="noreferrer"
+            className="underline"
+          >
             Open PDF
           </a>
         </div>
       ) : (
         <>
-          {/* Alignment controls */}
-          <div className="flex flex-wrap items-end gap-4 rounded-lg border border-border p-3 mb-4 text-sm">
-            <Stepper
-              label="Zoom"
-              value={`${layout.zoom.toFixed(2)}×`}
-              onDown={() => nudge({ zoom: Math.max(0.3, layout.zoom - 0.1) })}
-              onUp={() => nudge({ zoom: Math.min(6, layout.zoom + 0.1) })}
-            />
-            <Stepper
-              label="Row height"
-              value={`${layout.rowHeight}px`}
-              onDown={() => nudge({ rowHeight: Math.max(16, layout.rowHeight - 2) })}
-              onUp={() => nudge({ rowHeight: layout.rowHeight + 2 })}
-            />
-            <Stepper
-              label="First row"
-              value={`${layout.offsetY}px`}
-              onDown={() => nudge({ offsetY: layout.offsetY - 4 })}
-              onUp={() => nudge({ offsetY: layout.offsetY + 4 })}
-            />
-            <Stepper
-              label="Header band"
-              value={`${layout.headerOffset}px`}
-              onDown={() => nudge({ headerOffset: layout.headerOffset - 4 })}
-              onUp={() => nudge({ headerOffset: layout.headerOffset + 4 })}
-            />
-            <Stepper
-              label="Header height"
-              value={`${layout.headerHeight}px`}
-              onDown={() =>
-                nudge({ headerHeight: Math.max(20, layout.headerHeight - 4) })
-              }
-              onUp={() => nudge({ headerHeight: layout.headerHeight + 4 })}
-            />
-            <div className="flex-1 min-w-[12rem]">
-              <label className="block text-xs text-muted-foreground mb-1">
-                Pan across
-              </label>
-              <input
-                type="range"
-                min={0}
-                max={Math.max(0, displayW - 400)}
-                value={layout.panX}
-                onChange={(e) => nudge({ panX: Number(e.target.value) })}
-                className="w-full"
-              />
+          <div className="rounded-lg border border-border overflow-hidden">
+            <div className="px-2 py-1 text-[11px] uppercase tracking-wide text-muted-foreground bg-muted/40">
+              Column headings
             </div>
+            {pane("header", headerRef, "h-[22vh] min-h-[110px]")}
+
+            <div className="px-2 py-1 text-[11px] uppercase tracking-wide text-muted-foreground bg-muted/40 border-t border-border">
+              Your row — scroll up/down to find your line
+            </div>
+            {pane("row", rowRef, "h-[26vh] min-h-[130px]")}
           </div>
 
-          {/* Frozen header band: the column titles on the form itself. */}
-          <div className="sticky top-0 z-20 bg-background border border-border rounded-t-lg overflow-hidden">
-            <div
-              className="relative overflow-hidden bg-muted/30"
-              style={{ height: layout.headerHeight }}
-            >
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img
-                src={upload.path}
-                alt="Exhibit G header"
-                className="absolute top-0 left-0 max-w-none origin-top-left"
-                style={{
-                  width: baseW || undefined,
-                  transform: sliceTransform(
-                    layout.headerOffset,
-                    layout.panX,
-                    rotation,
-                    displayW,
-                    displayH
-                  ),
-                }}
-              />
-            </div>
-
-            {/* Matching field labels, scrolled in step with the grid below. */}
-            <div
-              ref={headerScrollRef}
-              className="flex gap-1 px-2 py-1 border-t border-border overflow-x-hidden bg-background"
-            >
-              <span className="w-8 shrink-0 text-xs text-muted-foreground">#</span>
-              {FIELDS.map((f) => (
-                <span
-                  key={f.key}
-                  style={{ width: f.width }}
-                  className="shrink-0 text-xs font-medium text-muted-foreground"
-                >
-                  {f.label}
-                </span>
-              ))}
-            </div>
-          </div>
-
-          {/* Row strips + fields, locked together line for line. */}
+          {/* Fields for the row framed above. */}
           <div
-            ref={fieldScrollRef}
-            onScroll={onFieldsScroll}
-            className="border border-t-0 border-border rounded-b-lg overflow-x-auto"
+            ref={fieldsRef}
+            className="mt-3 overflow-x-auto rounded-lg border border-border"
           >
-            <div className="min-w-max divide-y divide-border">
-              {rows.map((row, i) => (
-                <div key={i} className="flex items-stretch">
-                  <div className="w-8 shrink-0 flex items-center justify-center text-xs text-muted-foreground bg-muted/20">
-                    {i + 1}
-                  </div>
-
-                  <div className="flex-1">
-                    {/* The slice of the form for this line */}
-                    <div
-                      className="relative overflow-hidden bg-muted/10 border-b border-dashed border-border/60"
-                      style={{ height: layout.rowHeight }}
-                    >
-                      {/* eslint-disable-next-line @next/next/no-img-element */}
-                      <img
-                        src={upload.path}
-                        alt={`Row ${i + 1}`}
-                        className="absolute top-0 left-0 max-w-none origin-top-left"
-                        style={{
-                          width: baseW || undefined,
-                          transform: sliceTransform(
-                            layout.offsetY + i * layout.rowHeight,
-                            layout.panX,
-                            rotation,
-                            displayW,
-                            displayH
-                          ),
-                        }}
-                      />
-                    </div>
-
-                    {/* Its fields */}
-                    <div className="flex gap-1 px-2 py-1">
-                      {FIELDS.map((f) => (
-                        <Input
-                          key={f.key}
-                          value={row[f.key]}
-                          onChange={(e) => setField(i, f.key, e.target.value)}
-                          style={{ width: f.width }}
-                          className="h-8 text-sm shrink-0"
-                          placeholder={f.label}
-                        />
-                      ))}
-                    </div>
-                  </div>
-                </div>
-              ))}
+            <div className="min-w-max p-2">
+              <div className="flex gap-2 mb-1">
+                {FIELDS.map((f) => (
+                  <span
+                    key={f.key}
+                    style={{ width: f.width }}
+                    className="shrink-0 text-xs font-medium text-muted-foreground"
+                  >
+                    {f.label}
+                  </span>
+                ))}
+              </div>
+              <div className="flex gap-2">
+                {FIELDS.map((f) => (
+                  <Input
+                    key={f.key}
+                    value={row[f.key]}
+                    onChange={(e) =>
+                      setRow((prev) => ({ ...prev, [f.key]: e.target.value }))
+                    }
+                    style={{ width: f.width }}
+                    className="h-10 text-sm shrink-0"
+                    placeholder={f.label}
+                    inputMode={
+                      f.key === "performer" ||
+                      f.key === "character" ||
+                      f.key === "notes"
+                        ? "text"
+                        : "numeric"
+                    }
+                  />
+                ))}
+              </div>
             </div>
           </div>
 
-          <div className="flex items-center gap-2 mt-3">
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => setRows((prev) => [...prev, emptyRow()])}
-            >
-              Add row
-            </Button>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => setRows((prev) => prev.slice(0, -1))}
-              disabled={rows.length <= 1}
-            >
-              Remove last
-            </Button>
-            <span className="text-xs text-muted-foreground">
-              {rows.length} row{rows.length === 1 ? "" : "s"}
-            </span>
-          </div>
+          <p className="text-xs text-muted-foreground mt-2">
+            Pinch to zoom (or ⌘/Ctrl + scroll). Drag either pane sideways —
+            both follow. Zoom {Math.round(zoom * 100)}%.
+          </p>
         </>
       )}
-    </div>
-  );
-}
-
-function Stepper({
-  label,
-  value,
-  onDown,
-  onUp,
-}: {
-  label: string;
-  value: string;
-  onDown: () => void;
-  onUp: () => void;
-}) {
-  return (
-    <div>
-      <label className="block text-xs text-muted-foreground mb-1">{label}</label>
-      <div className="flex items-center gap-1">
-        <button
-          type="button"
-          onClick={onDown}
-          className="p-1 rounded border border-border hover:bg-accent"
-          aria-label={`Decrease ${label}`}
-        >
-          <Minus className="h-3 w-3" />
-        </button>
-        <span className="w-16 text-center tabular-nums text-xs">{value}</span>
-        <button
-          type="button"
-          onClick={onUp}
-          className="p-1 rounded border border-border hover:bg-accent"
-          aria-label={`Increase ${label}`}
-        >
-          <Plus className="h-3 w-3" />
-        </button>
-      </div>
     </div>
   );
 }

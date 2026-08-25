@@ -312,7 +312,7 @@ export default function UploadGPage() {
                   <img
                     src={u.path}
                     alt={u.displayTitle}
-                    className="w-full h-full object-cover transition-transform"
+                    className="w-full h-full object-contain transition-transform"
                     style={{ transform: `rotate(${u.rotation}deg)` }}
                   />
                 )}
@@ -345,29 +345,33 @@ export default function UploadGPage() {
                   </button>
                 )}
 
-                <div className="flex items-center justify-between">
-                  <span className="text-xs text-muted-foreground">
+                {/* Rotate is used often and delete is destructive, so they sit
+                    at opposite ends with the metadata between them. */}
+                <div className="flex items-center justify-between gap-2">
+                  <button
+                    type="button"
+                    onClick={() => rotate(u)}
+                    aria-label="Rotate"
+                    title="Rotate"
+                    className="h-12 w-12 shrink-0 flex items-center justify-center rounded-lg border border-border hover:bg-accent active:scale-95 transition"
+                  >
+                    <RotateCw className="h-6 w-6" />
+                  </button>
+
+                  <span className="text-xs text-muted-foreground text-center truncate">
                     {formatSize(u.size)}
                     {u.transcription ? " · transcribed" : ""}
                   </span>
-                  <div className="flex gap-1">
-                    <button
-                      type="button"
-                      onClick={() => rotate(u)}
-                      aria-label="Rotate"
-                      className="p-1.5 rounded hover:bg-accent"
-                    >
-                      <RotateCw className="h-3.5 w-3.5" />
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => remove(u)}
-                      aria-label="Delete"
-                      className="p-1.5 rounded hover:bg-accent text-destructive"
-                    >
-                      <Trash2 className="h-3.5 w-3.5" />
-                    </button>
-                  </div>
+
+                  <button
+                    type="button"
+                    onClick={() => remove(u)}
+                    aria-label="Delete"
+                    title="Delete"
+                    className="h-9 w-9 shrink-0 flex items-center justify-center rounded-lg text-destructive hover:bg-destructive/10"
+                  >
+                    <Trash2 className="h-4 w-4" />
+                  </button>
                 </div>
               </div>
             </Card>
@@ -390,7 +394,7 @@ export default function UploadGPage() {
                   <img
                     src={u.path}
                     alt={u.displayTitle}
-                    className="w-full h-full object-cover"
+                    className="w-full h-full object-contain"
                     style={{ transform: `rotate(${u.rotation}deg)` }}
                   />
                 )}
@@ -429,24 +433,24 @@ export default function UploadGPage() {
                 </p>
               </div>
 
-              <div className="flex gap-1">
-                <button
-                  type="button"
-                  onClick={() => rotate(u)}
-                  aria-label="Rotate"
-                  className="p-2 rounded hover:bg-accent"
-                >
-                  <RotateCw className="h-4 w-4" />
-                </button>
-                <button
-                  type="button"
-                  onClick={() => remove(u)}
-                  aria-label="Delete"
-                  className="p-2 rounded hover:bg-accent text-destructive"
-                >
-                  <Trash2 className="h-4 w-4" />
-                </button>
-              </div>
+              <button
+                type="button"
+                onClick={() => rotate(u)}
+                aria-label="Rotate"
+                title="Rotate"
+                className="h-12 w-12 shrink-0 flex items-center justify-center rounded-lg border border-border hover:bg-accent active:scale-95 transition"
+              >
+                <RotateCw className="h-6 w-6" />
+              </button>
+              <button
+                type="button"
+                onClick={() => remove(u)}
+                aria-label="Delete"
+                title="Delete"
+                className="h-9 w-9 ml-4 shrink-0 flex items-center justify-center rounded-lg text-destructive hover:bg-destructive/10"
+              >
+                <Trash2 className="h-4 w-4" />
+              </button>
             </div>
           ))}
         </Card>
