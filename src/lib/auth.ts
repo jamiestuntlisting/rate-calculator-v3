@@ -16,7 +16,7 @@ function getSecretKey() {
     // running without a real secret would let anyone forge admin sessions.
     if (process.env.NODE_ENV === "production") {
       throw new Error(
-        "SESSION_SECRET is not set. Add it to the Worker: Cloudflare dashboard → rate-calculator-v3 → Settings → Variables and Secrets (type: Secret), or run `npx wrangler secret put SESSION_SECRET`."
+        "SESSION_SECRET is not set. Add it to the Worker serving this app: Cloudflare dashboard → Workers → rate-calculator → Settings → Variables and Secrets (type: Secret), or run `npx wrangler secret put SESSION_SECRET`."
       );
     }
     return new TextEncoder().encode(

@@ -39,7 +39,7 @@ npm run preview        # opennextjs-cloudflare build + wrangler dev
 Two options:
 
 1. **Workers Builds (recommended — replaces Vercel's git integration).**
-   The repo is connected to the Worker `rate-calculator-v3`. Its build
+   The repo is connected to the Worker `rate-calculator`. Its build
    settings (Worker → *Settings → Build*) must be:
    - Build command: `npx opennextjs-cloudflare build`
    - Deploy command: `npx wrangler deploy`

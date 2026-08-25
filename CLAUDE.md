@@ -1,5 +1,9 @@
 # StuntListing Bookkeeper — project notes for Claude
 
+Live app: https://rate-calculator.jamie-181.workers.dev (Worker name:
+`rate-calculator`; the worker `rate-calculator-v3` is an orphaned first
+deploy attempt, safe to delete).
+
 Next.js 16 on Cloudflare Workers (OpenNext adapter). Data in Cloudflare D1
 (`rate-calculator-db`), uploaded files in R2 (`rate-calculator-uploads`).
 See README.md for commands; schema in `migrations/`; data layer in
@@ -18,9 +22,9 @@ See README.md for commands; schema in `migrations/`; data layer in
 
 | What | Link |
 | --- | --- |
-| Worker overview | https://dash.cloudflare.com/?to=/:account/workers/services/view/rate-calculator-v3 |
-| Worker settings (secrets/vars) | https://dash.cloudflare.com/?to=/:account/workers/services/view/rate-calculator-v3/production/settings |
-| Builds & deployments | https://dash.cloudflare.com/?to=/:account/workers/services/view/rate-calculator-v3/production/deployments |
+| Worker overview | https://dash.cloudflare.com/?to=/:account/workers/services/view/rate-calculator |
+| Worker settings (secrets/vars) | https://dash.cloudflare.com/?to=/:account/workers/services/view/rate-calculator/production/settings |
+| Builds & deployments | https://dash.cloudflare.com/?to=/:account/workers/services/view/rate-calculator/production/deployments |
 | D1 database | https://dash.cloudflare.com/?to=/:account/workers/d1/databases/f1a039c5-d470-4464-acd8-be5343d99470 |
 | R2 bucket | https://dash.cloudflare.com/?to=/:account/r2/default/buckets/rate-calculator-uploads |
 | Cloudflare API tokens | https://dash.cloudflare.com/profile/api-tokens |
