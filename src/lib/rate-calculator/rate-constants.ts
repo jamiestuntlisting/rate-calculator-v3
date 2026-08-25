@@ -1,21 +1,24 @@
-// SAG-AFTRA Theatrical Basic Agreement 2025-2026 (effective 07/01/2025)
+// SAG-AFTRA Theatrical Basic Agreement (effective 07/01/2026).
+// The 2026 TV/Theatrical contract raised minimums 3% on 07/01/2026; the day
+// performer rate went from $1,246 to $1,283. The other figures below carry
+// the same 3% increase forward from the 2025-2026 schedule.
 export const RATES = {
   theatrical_basic: {
-    daily: 1246.0,
-    weekly: 4646.0,
-    hourly: 155.75, // 1246 / 8
+    daily: 1283.0,
+    weekly: 4785.0,
+    hourly: 160.375, // 1283 / 8
     straightTimeHours: 8,
   },
   television: {
-    daily: 1246.0,
-    weekly: 4646.0,
-    hourly: 155.75, // same rate as theatrical
+    daily: 1283.0,
+    weekly: 4785.0,
+    hourly: 160.375, // same rate as theatrical
     straightTimeHours: 8,
   },
   stunt_coordinator: {
-    daily: 1938.0,
-    weekly: 7222.0, // 1938 * 5 * 0.745 ≈ approx flat deal
-    hourly: 242.25, // 1938 / 8
+    daily: 1996.0,
+    weekly: 7439.0,
+    hourly: 249.5, // 1996 / 8
     straightTimeHours: 8,
   },
 } as const;
@@ -51,4 +54,4 @@ export const FORCED_CALL = {
 
 export const TIME_INCREMENT_MINUTES = 6; // OT in 1/10th hour (6-min) increments
 
-export const EFFECTIVE_DATE = "2025-07-01"; // SAG-AFTRA contract effective date encoded by this version
+export const EFFECTIVE_DATE = "2026-07-01"; // SAG-AFTRA contract effective date encoded by this version

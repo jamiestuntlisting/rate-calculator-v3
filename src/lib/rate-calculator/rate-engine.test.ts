@@ -27,16 +27,16 @@ const baseInput: ExhibitGInput = {
 describe("calculateRate — daily minimum guarantee", () => {
   it("8-hour theatrical day with 30 min meal pays full $1,246 day rate", () => {
     const result = calculateRate(baseInput);
-    expect(result.grandTotal).toBe(1246);
+    expect(result.grandTotal).toBe(1283);
     expect(result.dayMultiplier.applied).toBe(false);
     expect(result.penalties.totalPenalties).toBe(0);
   });
 
   it("stunt coordinator 8-hour day pays full $1,938 day rate", () => {
     const result = calculateRate({ ...baseInput, workStatus: "stunt_coordinator" });
-    expect(result.baseRate).toBe(1938);
-    expect(result.hourlyRate).toBe(242.25);
-    expect(result.grandTotal).toBe(1938);
+    expect(result.baseRate).toBe(1996);
+    expect(result.hourlyRate).toBe(249.5);
+    expect(result.grandTotal).toBe(1996);
   });
 });
 
@@ -49,8 +49,8 @@ describe("calculateRate — overtime tiers", () => {
       firstMealFinish: "13:00",
     });
     expect(result.netWorkHours).toBe(10);
-    // 8 × 155.75 + 2 × 155.75 × 1.5 = 1246 + 467.25
-    expect(result.grandTotal).toBe(1713.25);
+    // 8 × 160.375 + 2 × 160.375 × 1.5 = 1283 + 467.25
+    expect(result.grandTotal).toBe(1764.13);
     expect(result.segments).toHaveLength(2);
   });
 
@@ -62,8 +62,8 @@ describe("calculateRate — overtime tiers", () => {
       firstMealFinish: "13:00",
     });
     expect(result.netWorkHours).toBe(12);
-    // 1246 + 467.25 + (2 × 155.75 × 2) = 1246 + 467.25 + 623
-    expect(result.grandTotal).toBe(2336.25);
+    // 1283 + 467.25 + (2 × 160.375 × 2) = 1283 + 467.25 + 623
+    expect(result.grandTotal).toBe(2405.63);
     expect(result.segments).toHaveLength(3);
   });
 });
@@ -73,19 +73,19 @@ describe("calculateRate — day multipliers", () => {
     const result = calculateRate({ ...baseInput, isSixthDay: true });
     expect(result.dayMultiplier.type).toBe("6th_day");
     expect(result.dayMultiplier.multiplier).toBe(1.5);
-    expect(result.grandTotal).toBe(1869);
+    expect(result.grandTotal).toBe(1924.5);
   });
 
   it("7th day applies 2x — 8 hr day pays $2,492", () => {
     const result = calculateRate({ ...baseInput, isSeventhDay: true });
     expect(result.dayMultiplier.type).toBe("7th_day");
-    expect(result.grandTotal).toBe(2492);
+    expect(result.grandTotal).toBe(2566);
   });
 
   it("holiday applies 2x — 8 hr day pays $2,492", () => {
     const result = calculateRate({ ...baseInput, isHoliday: true });
     expect(result.dayMultiplier.type).toBe("holiday");
-    expect(result.grandTotal).toBe(2492);
+    expect(result.grandTotal).toBe(2566);
   });
 
   it("holiday takes precedence over 7th and 6th day flags", () => {
@@ -161,8 +161,8 @@ describe("calculateRate — forced call penalty", () => {
   it("regular forced call adds $900 (capped at lesser of base rate or $900)", () => {
     const result = calculateRate({ ...baseInput, forcedCall: true });
     expect(result.penalties.forcedCallPenalty).toBe(900);
-    // 1246 (daily min) + 900 forced call
-    expect(result.grandTotal).toBe(2146);
+    // 1283 (daily min) + 900 forced call
+    expect(result.grandTotal).toBe(2183);
   });
 
   it("stunt coordinator forced call still capped at $900", () => {
@@ -177,8 +177,8 @@ describe("calculateRate — forced call penalty", () => {
 
 describe("calculateRate — high stunt adjustment", () => {
   it("stunt adj > base rate: 12 hrs straight, no 1.5x tier, 2x at 13+", () => {
-    // adjusted base = 1246 + 2000 = 3246, hourly = 405.75
-    // 10 hrs all at straight time = 10 × 405.75 = 4057.50
+    // adjusted base = 1283 + 2000 = 3246, hourly = 405.75
+    // 10 hrs all at straight time = 10 × 405.75 = 4103.750
     const result = calculateRate({
       ...baseInput,
       dismissOnSet: "17:00",
@@ -186,24 +186,24 @@ describe("calculateRate — high stunt adjustment", () => {
       firstMealFinish: "13:00",
       stuntAdjustment: 2000,
     });
-    expect(result.adjustedBaseRate).toBe(3246);
+    expect(result.adjustedBaseRate).toBe(3283);
     expect(result.netWorkHours).toBe(10);
-    expect(result.grandTotal).toBe(4057.5);
+    expect(result.grandTotal).toBe(4103.75);
     expect(result.segments).toHaveLength(1);
   });
 
   it("stunt adj <= base rate uses normal OT tiers", () => {
     // stunt adj = base rate exactly → highStunt is FALSE (strict >)
-    // adjusted = 1246 + 1246 = 2492, hourly = 311.50
-    // 10 hrs: 8 × 311.50 + 2 × 311.50 × 1.5 = 2492 + 934.50 = 3426.50
+    // adjusted = 1283 + 1283 = 2566, hourly = 320.75
+    // 10 hrs: 8 × 320.75 + 2 × 320.75 × 1.5 = 2566 + 962.25 = 3528.25
     const result = calculateRate({
       ...baseInput,
       dismissOnSet: "17:00",
       firstMealStart: "12:00",
       firstMealFinish: "13:00",
-      stuntAdjustment: 1246,
+      stuntAdjustment: 1283,
     });
-    expect(result.grandTotal).toBe(3426.5);
+    expect(result.grandTotal).toBe(3528.25);
     expect(result.segments).toHaveLength(2);
   });
 });

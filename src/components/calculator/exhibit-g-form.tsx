@@ -22,13 +22,21 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { DocumentUpload } from "@/components/shared/document-upload";
+import { CollapsibleSection } from "@/components/calculator/collapsible-section";
 import { toast } from "sonner";
 import type { ExhibitGInput, WorkDocument, CalculationBreakdown } from "@/types";
 import type { RateSchedule } from "@/lib/rate-constants";
 import { RATES } from "@/lib/rate-constants";
 import { Save } from "lucide-react";
-import { snapToSixMinutes, isValidTime, formatCurrency } from "@/lib/time-utils";
+import { snapToSixMinutes, formatCurrency } from "@/lib/time-utils";
 import { calculateRate } from "@/lib/rate-engine";
+
+/** Agreement names carry their current daily rate, straight from RATES. */
+const AGREEMENT_LABELS: Record<RateSchedule, string> = {
+  theatrical_basic: `Theatrical Basic (${formatCurrency(RATES.theatrical_basic.daily)}/day)`,
+  television: `Television (${formatCurrency(RATES.television.daily)}/day)`,
+  stunt_coordinator: `Stunt Coordinator (${formatCurrency(RATES.stunt_coordinator.daily)}/day)`,
+};
 
 /** Get current time as HH:MM string, snapped to 6-min increments */
 function getCurrentTimeSnapped(): string {
@@ -114,6 +122,8 @@ export function ExhibitGForm() {
   const [liveMode, setLiveMode] = useState<"counter" | "6min">("6min");
   // Tick counter to trigger recalc for live rate
   const [liveTick, setLiveTick] = useState(0);
+  // Minutes between steps in the time pickers: 6 (a tenth of an hour) or 15.
+  const [timeGranularity, setTimeGranularity] = useState<6 | 15>(6);
 
   const isStuntCoordinator = input.workStatus === "stunt_coordinator";
 
@@ -178,11 +188,10 @@ export function ExhibitGForm() {
     return { mealTotals, forcedCallPenalty, totalPenalties };
   }, [liveBreakdown]);
 
-  const handleTimeBlur = (field: keyof ExhibitGInput, value: string) => {
-    if (value && isValidTime(value)) {
-      update(field, snapToSixMinutes(value));
-    }
-  };
+  // Time pickers step in tenths of an hour by default; some productions
+  // work in quarters. Typed times are kept exactly as entered — the engine
+  // rounds worked time up to the next tenth, in the performer's favour.
+  const timeStep = timeGranularity * 60;
 
   const handleTimeFocus = (field: keyof ExhibitGInput, currentValue: string | null) => {
     if (!currentValue) {
@@ -393,69 +402,87 @@ export function ExhibitGForm() {
         <div className="space-y-6">
       <Card>
         <CardContent className="space-y-6 pt-6">
-          {/* Show Info */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div className="space-y-1">
-              <Label htmlFor="showName">Show Title</Label>
-              <Input
-                id="showName"
-                value={input.showName}
-                onChange={(e) => update("showName", e.target.value)}
-                placeholder="e.g., Action Movie 3"
-              />
-            </div>
-            <div className="space-y-1">
-              <Label htmlFor="workDate">Work Date</Label>
-              <Input
-                id="workDate"
-                type="date"
-                value={input.workDate}
-                onChange={(e) => update("workDate", e.target.value)}
-              />
-            </div>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {!isStuntCoordinator && (
+          {/* Job details — collapsed by default so work times lead. */}
+          <CollapsibleSection
+            title="Job Details"
+            defaultOpen={!input.showName}
+            summary={
+              [
+                input.showName,
+                input.workDate,
+                input.characterName,
+                AGREEMENT_LABELS[input.workStatus],
+              ]
+                .filter(Boolean)
+                .join(" · ") || "Show title, date, character, agreement"
+            }
+          >
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="space-y-1">
-                <Label htmlFor="characterName">Character Name</Label>
+                <Label htmlFor="showName" className="text-base">Show Title</Label>
                 <Input
-                  id="characterName"
-                  value={input.characterName}
-                  onChange={(e) => update("characterName", e.target.value)}
-                  placeholder="e.g., Stunt Double - Lead"
+                  id="showName"
+                  value={input.showName}
+                  onChange={(e) => update("showName", e.target.value)}
+                  placeholder="e.g., Action Movie 3"
+                  className="text-lg h-12"
                 />
               </div>
-            )}
-            <div className="space-y-1">
-              <Label htmlFor="workStatus">Agreement Type</Label>
-              <Select
-                value={input.workStatus}
-                onValueChange={(v) => update("workStatus", v as RateSchedule)}
-              >
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="theatrical_basic">Theatrical Basic ($1,246/day)</SelectItem>
-                  <SelectItem value="television">Television ($1,246/day)</SelectItem>
-                  <SelectItem value="stunt_coordinator">Stunt Coordinator ($1,938/day)</SelectItem>
-                </SelectContent>
-              </Select>
+              <div className="space-y-1">
+                <Label htmlFor="workDate" className="text-base">Work Date</Label>
+                <Input
+                  id="workDate"
+                  type="date"
+                  value={input.workDate}
+                  onChange={(e) => update("workDate", e.target.value)}
+                  className="text-lg h-12"
+                />
+              </div>
             </div>
-          </div>
 
-          {/* Exhibit G Attachment — right under Agreement Type */}
-          <div>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {!isStuntCoordinator && (
+                <div className="space-y-1">
+                  <Label htmlFor="characterName" className="text-base">Character Name</Label>
+                  <Input
+                    id="characterName"
+                    value={input.characterName}
+                    onChange={(e) => update("characterName", e.target.value)}
+                    placeholder="e.g., Stunt Double - Lead"
+                    className="text-lg h-12"
+                  />
+                </div>
+              )}
+              <div className="space-y-1">
+                <Label htmlFor="workStatus" className="text-base">Agreement Type</Label>
+                <Select
+                  value={input.workStatus}
+                  onValueChange={(v) => update("workStatus", v as RateSchedule)}
+                >
+                  <SelectTrigger className="text-lg h-12">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {(
+                      Object.keys(AGREEMENT_LABELS) as RateSchedule[]
+                    ).map((key) => (
+                      <SelectItem key={key} value={key} className="text-base">
+                        {AGREEMENT_LABELS[key]}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+
+            {/* Exhibit G attachment lives with the job details */}
             <DocumentUpload
               documents={exhibitGDocs}
               onUpload={handleExhibitGUpload}
               onRemove={handleExhibitGRemove}
               documentTypes={["exhibit_g"]}
             />
-          </div>
-
-          <Separator />
+          </CollapsibleSection>
 
           {/* Stunt Coordinator Flat Rate Display */}
           {isStuntCoordinator && (
@@ -475,11 +502,34 @@ export function ExhibitGForm() {
           {/* Work Times — hidden for stunt coordinator (flat deal) */}
           {!isStuntCoordinator && (<>
           <div>
-            <h3 className="font-semibold mb-4">Work Times</h3>
+            <div className="flex items-center justify-between gap-3 mb-4">
+              <h3 className="font-semibold text-xl">Work Times</h3>
+              <div
+                className="flex rounded-md border border-border overflow-hidden text-sm"
+                role="group"
+                aria-label="Time picker increments"
+              >
+                {([6, 15] as const).map((minutes) => (
+                  <button
+                    key={minutes}
+                    type="button"
+                    onClick={() => setTimeGranularity(minutes)}
+                    aria-pressed={timeGranularity === minutes}
+                    className={`px-3 py-1.5 ${
+                      timeGranularity === minutes
+                        ? "bg-accent font-medium"
+                        : "hover:bg-accent/50 text-muted-foreground"
+                    }`}
+                  >
+                    {minutes} min
+                  </button>
+                ))}
+              </div>
+            </div>
             <div className="space-y-0">
               <div className="flex items-center justify-between gap-4 p-2 rounded bg-muted/50">
-                <Label htmlFor="callTime" className="text-sm shrink-0">Call Time</Label>
-                <Input id="callTime" type="time" value={input.callTime} onChange={(e) => update("callTime", e.target.value)} onFocus={() => handleTimeFocus("callTime", input.callTime || null)} onBlur={() => handleTimeBlur("callTime", input.callTime)} onKeyDown={(e) => handleTimeKeyDown("callTime", e)} className="w-40" />
+                <Label htmlFor="callTime" className="text-base shrink-0">Call Time</Label>
+                <Input id="callTime" type="time" step={timeStep} value={input.callTime} onChange={(e) => update("callTime", e.target.value)} onFocus={() => handleTimeFocus("callTime", input.callTime || null)} onKeyDown={(e) => handleTimeKeyDown("callTime", e)} className="w-44 text-lg h-12" />
               </div>
               {/* Meals */}
               <div className="border-t border-b py-3 my-1 space-y-3">
@@ -487,17 +537,17 @@ export function ExhibitGForm() {
                 <div className="space-y-0">
                   <div className="flex items-center space-x-2 p-2">
                     <Checkbox id="showNdMeal" checked={showNdMeal} onCheckedChange={(v) => { setShowNdMeal(!!v); if (!v) { update("ndMealIn", null); update("ndMealOut", null); } }} />
-                    <Label htmlFor="showNdMeal" className="text-sm font-normal">ND (Non-Deductible) Meal</Label>
+                    <Label htmlFor="showNdMeal" className="text-base font-normal">ND (Non-Deductible) Meal</Label>
                   </div>
                   {showNdMeal && (
                     <div className="pl-6 space-y-0">
                       <div className="flex items-center justify-between gap-4 p-2 rounded bg-muted/50">
-                        <Label htmlFor="ndMealIn" className="text-sm shrink-0">ND Meal In</Label>
-                        <Input id="ndMealIn" type="time" value={input.ndMealIn || ""} onChange={(e) => update("ndMealIn", e.target.value || null)} onFocus={() => handleTimeFocus("ndMealIn", input.ndMealIn)} onBlur={() => handleTimeBlur("ndMealIn", input.ndMealIn || "")} onKeyDown={(e) => handleTimeKeyDown("ndMealIn", e)} className="w-40" />
+                        <Label htmlFor="ndMealIn" className="text-base shrink-0">ND Meal In</Label>
+                        <Input id="ndMealIn" type="time" step={timeStep} value={input.ndMealIn || ""} onChange={(e) => update("ndMealIn", e.target.value || null)} onFocus={() => handleTimeFocus("ndMealIn", input.ndMealIn)} onKeyDown={(e) => handleTimeKeyDown("ndMealIn", e)} className="w-44 text-lg h-12" />
                       </div>
                       <div className="flex items-center justify-between gap-4 p-2">
-                        <Label htmlFor="ndMealOut" className="text-sm shrink-0">ND Meal Out</Label>
-                        <Input id="ndMealOut" type="time" value={input.ndMealOut || ""} onChange={(e) => update("ndMealOut", e.target.value || null)} onFocus={() => handleTimeFocus("ndMealOut", input.ndMealOut)} onBlur={() => handleTimeBlur("ndMealOut", input.ndMealOut || "")} onKeyDown={(e) => handleTimeKeyDown("ndMealOut", e)} className="w-40" />
+                        <Label htmlFor="ndMealOut" className="text-base shrink-0">ND Meal Out</Label>
+                        <Input id="ndMealOut" type="time" step={timeStep} value={input.ndMealOut || ""} onChange={(e) => update("ndMealOut", e.target.value || null)} onFocus={() => handleTimeFocus("ndMealOut", input.ndMealOut)} onKeyDown={(e) => handleTimeKeyDown("ndMealOut", e)} className="w-44 text-lg h-12" />
                       </div>
                     </div>
                   )}
@@ -506,17 +556,17 @@ export function ExhibitGForm() {
                 <div className="space-y-0">
                   <div className="flex items-center space-x-2 p-2">
                     <Checkbox id="showFirstMeal" checked={showFirstMeal} onCheckedChange={(v) => { setShowFirstMeal(!!v); if (!v) { update("firstMealStart", null); update("firstMealFinish", null); setShowSecondMeal(false); update("secondMealStart", null); update("secondMealFinish", null); } }} />
-                    <Label htmlFor="showFirstMeal" className="text-sm font-normal">1st Meal</Label>
+                    <Label htmlFor="showFirstMeal" className="text-base font-normal">1st Meal</Label>
                   </div>
                   {showFirstMeal && (
                     <div className="pl-6 space-y-0">
                       <div className="flex items-center justify-between gap-4 p-2 rounded bg-muted/50">
-                        <Label htmlFor="firstMealStart" className="text-sm shrink-0">1st Meal Start</Label>
-                        <Input id="firstMealStart" type="time" value={input.firstMealStart || ""} onChange={(e) => update("firstMealStart", e.target.value || null)} onFocus={() => handleTimeFocus("firstMealStart", input.firstMealStart)} onBlur={() => handleTimeBlur("firstMealStart", input.firstMealStart || "")} onKeyDown={(e) => handleTimeKeyDown("firstMealStart", e)} className="w-40" />
+                        <Label htmlFor="firstMealStart" className="text-base shrink-0">1st Meal Start</Label>
+                        <Input id="firstMealStart" type="time" step={timeStep} value={input.firstMealStart || ""} onChange={(e) => update("firstMealStart", e.target.value || null)} onFocus={() => handleTimeFocus("firstMealStart", input.firstMealStart)} onKeyDown={(e) => handleTimeKeyDown("firstMealStart", e)} className="w-44 text-lg h-12" />
                       </div>
                       <div className="flex items-center justify-between gap-4 p-2">
-                        <Label htmlFor="firstMealFinish" className="text-sm shrink-0">1st Meal Finish</Label>
-                        <Input id="firstMealFinish" type="time" value={input.firstMealFinish || ""} onChange={(e) => update("firstMealFinish", e.target.value || null)} onFocus={() => handleTimeFocus("firstMealFinish", input.firstMealFinish)} onBlur={() => handleTimeBlur("firstMealFinish", input.firstMealFinish || "")} onKeyDown={(e) => handleTimeKeyDown("firstMealFinish", e)} className="w-40" />
+                        <Label htmlFor="firstMealFinish" className="text-base shrink-0">1st Meal Finish</Label>
+                        <Input id="firstMealFinish" type="time" step={timeStep} value={input.firstMealFinish || ""} onChange={(e) => update("firstMealFinish", e.target.value || null)} onFocus={() => handleTimeFocus("firstMealFinish", input.firstMealFinish)} onKeyDown={(e) => handleTimeKeyDown("firstMealFinish", e)} className="w-44 text-lg h-12" />
                       </div>
                     </div>
                   )}
@@ -526,17 +576,17 @@ export function ExhibitGForm() {
                 <div className="space-y-0">
                   <div className="flex items-center space-x-2 p-2">
                     <Checkbox id="showSecondMeal" checked={showSecondMeal} onCheckedChange={(v) => { setShowSecondMeal(!!v); if (!v) { update("secondMealStart", null); update("secondMealFinish", null); } }} />
-                    <Label htmlFor="showSecondMeal" className="text-sm font-normal">2nd Meal</Label>
+                    <Label htmlFor="showSecondMeal" className="text-base font-normal">2nd Meal</Label>
                   </div>
                   {showSecondMeal && (
                     <div className="pl-6 space-y-0">
                       <div className="flex items-center justify-between gap-4 p-2 rounded bg-muted/50">
-                        <Label htmlFor="secondMealStart" className="text-sm shrink-0">2nd Meal Start</Label>
-                        <Input id="secondMealStart" type="time" value={input.secondMealStart || ""} onChange={(e) => update("secondMealStart", e.target.value || null)} onFocus={() => handleTimeFocus("secondMealStart", input.secondMealStart)} onBlur={() => handleTimeBlur("secondMealStart", input.secondMealStart || "")} onKeyDown={(e) => handleTimeKeyDown("secondMealStart", e)} className="w-40" />
+                        <Label htmlFor="secondMealStart" className="text-base shrink-0">2nd Meal Start</Label>
+                        <Input id="secondMealStart" type="time" step={timeStep} value={input.secondMealStart || ""} onChange={(e) => update("secondMealStart", e.target.value || null)} onFocus={() => handleTimeFocus("secondMealStart", input.secondMealStart)} onKeyDown={(e) => handleTimeKeyDown("secondMealStart", e)} className="w-44 text-lg h-12" />
                       </div>
                       <div className="flex items-center justify-between gap-4 p-2">
-                        <Label htmlFor="secondMealFinish" className="text-sm shrink-0">2nd Meal Finish</Label>
-                        <Input id="secondMealFinish" type="time" value={input.secondMealFinish || ""} onChange={(e) => update("secondMealFinish", e.target.value || null)} onFocus={() => handleTimeFocus("secondMealFinish", input.secondMealFinish)} onBlur={() => handleTimeBlur("secondMealFinish", input.secondMealFinish || "")} onKeyDown={(e) => handleTimeKeyDown("secondMealFinish", e)} className="w-40" />
+                        <Label htmlFor="secondMealFinish" className="text-base shrink-0">2nd Meal Finish</Label>
+                        <Input id="secondMealFinish" type="time" step={timeStep} value={input.secondMealFinish || ""} onChange={(e) => update("secondMealFinish", e.target.value || null)} onFocus={() => handleTimeFocus("secondMealFinish", input.secondMealFinish)} onKeyDown={(e) => handleTimeKeyDown("secondMealFinish", e)} className="w-44 text-lg h-12" />
                       </div>
                     </div>
                   )}
@@ -545,21 +595,21 @@ export function ExhibitGForm() {
               </div>
 
               <div className="flex items-center justify-between gap-4 p-2">
-                <Label htmlFor="dismissOnSet" className="text-sm shrink-0">Dismiss On Set</Label>
+                <Label htmlFor="dismissOnSet" className="text-base shrink-0">Dismiss On Set</Label>
                 <Input
                   id="dismissOnSet"
-                  type="time"
+                  type="time" step={timeStep}
                   value={input.dismissOnSet}
                   onChange={(e) => update("dismissOnSet", e.target.value)}
                   onFocus={() => handleTimeFocus("dismissOnSet", input.dismissOnSet || null)}
-                  onBlur={() => handleTimeBlur("dismissOnSet", input.dismissOnSet)}
+                 
                   onKeyDown={(e) => handleTimeKeyDown("dismissOnSet", e)}
-                  className="w-40"
+                  className="w-44 text-lg h-12"
                 />
               </div>
               <div className="flex items-center justify-between gap-4 p-2 rounded bg-muted/50">
-                <Label htmlFor="dismissMakeupWardrobe" className="text-sm shrink-0">Wrapped</Label>
-                <Input id="dismissMakeupWardrobe" type="time" value={input.dismissMakeupWardrobe || ""} onChange={(e) => update("dismissMakeupWardrobe", e.target.value || null)} onFocus={() => handleTimeFocus("dismissMakeupWardrobe", input.dismissMakeupWardrobe)} onBlur={() => handleTimeBlur("dismissMakeupWardrobe", input.dismissMakeupWardrobe || "")} onKeyDown={(e) => handleTimeKeyDown("dismissMakeupWardrobe", e)} className="w-40" />
+                <Label htmlFor="dismissMakeupWardrobe" className="text-base shrink-0">Wrapped</Label>
+                <Input id="dismissMakeupWardrobe" type="time" step={timeStep} value={input.dismissMakeupWardrobe || ""} onChange={(e) => update("dismissMakeupWardrobe", e.target.value || null)} onFocus={() => handleTimeFocus("dismissMakeupWardrobe", input.dismissMakeupWardrobe)} onKeyDown={(e) => handleTimeKeyDown("dismissMakeupWardrobe", e)} className="w-44 text-lg h-12" />
               </div>
 
               {/* Stunt Adjustment */}
@@ -621,28 +671,28 @@ export function ExhibitGForm() {
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
               <div className="flex items-center space-x-2">
                 <Checkbox id="forcedCall" checked={input.forcedCall} onCheckedChange={(v) => update("forcedCall", !!v)} />
-                <Label htmlFor="forcedCall" className="text-sm font-normal">Forced Call</Label>
+                <Label htmlFor="forcedCall" className="text-base font-normal">Forced Call</Label>
               </div>
               <div className="flex items-center space-x-2">
                 <Checkbox id="isSixthDay" checked={input.isSixthDay} onCheckedChange={(v) => {
                   if (v) { update("isSeventhDay", false); update("isHoliday", false); }
                   update("isSixthDay", !!v);
                 }} />
-                <Label htmlFor="isSixthDay" className="text-sm font-normal">6th Consecutive Day</Label>
+                <Label htmlFor="isSixthDay" className="text-base font-normal">6th Consecutive Day</Label>
               </div>
               <div className="flex items-center space-x-2">
                 <Checkbox id="isSeventhDay" checked={input.isSeventhDay} onCheckedChange={(v) => {
                   if (v) { update("isSixthDay", false); update("isHoliday", false); }
                   update("isSeventhDay", !!v);
                 }} />
-                <Label htmlFor="isSeventhDay" className="text-sm font-normal">7th Consecutive Day</Label>
+                <Label htmlFor="isSeventhDay" className="text-base font-normal">7th Consecutive Day</Label>
               </div>
               <div className="flex items-center space-x-2">
                 <Checkbox id="isHoliday" checked={input.isHoliday} onCheckedChange={(v) => {
                   if (v) { update("isSixthDay", false); update("isSeventhDay", false); }
                   update("isHoliday", !!v);
                 }} />
-                <Label htmlFor="isHoliday" className="text-sm font-normal">Holiday</Label>
+                <Label htmlFor="isHoliday" className="text-base font-normal">Holiday</Label>
               </div>
             </div>
           </div>
@@ -676,7 +726,7 @@ export function ExhibitGForm() {
                   checked={showLiveRate}
                   onCheckedChange={(v) => setShowLiveRate(!!v)}
                 />
-                <Label htmlFor="showLiveRate" className="text-sm font-normal">
+                <Label htmlFor="showLiveRate" className="text-base font-normal">
                   Live rate
                 </Label>
               </div>
@@ -697,17 +747,30 @@ export function ExhibitGForm() {
 
           <Separator />
 
-          {/* Notes */}
-          <div>
-            <Label htmlFor="notes">Notes</Label>
-            <Textarea id="notes" value={input.notes} onChange={(e) => update("notes", e.target.value)} placeholder="What do you need to remember about this work day?" rows={3} />
-          </div>
-
-          <Separator />
+          {/* Notes and attachments — folded away unless needed. */}
+          <CollapsibleSection
+            title="Notes"
+            summary={input.notes || "Anything to remember about this day"}
+          >
+            <Textarea
+              id="notes"
+              value={input.notes}
+              onChange={(e) => update("notes", e.target.value)}
+              placeholder="What do you need to remember about this work day?"
+              rows={3}
+              className="text-lg"
+            />
+          </CollapsibleSection>
 
           {/* Documents — hide wardrobe_photo for stunt coordinator */}
-          <div>
-            <h3 className="font-semibold mb-3">Documents & Photos</h3>
+          <CollapsibleSection
+            title="Documents & Photos"
+            summary={
+              documents.length
+                ? `${documents.length} attached`
+                : "Call sheets, contracts, paystubs, photos"
+            }
+          >
             <DocumentUpload
               documents={documents}
               onUpload={handleDocUpload}
@@ -717,7 +780,7 @@ export function ExhibitGForm() {
                 : ["call_sheet", "contract", "wardrobe_photo", "other", "paystub"]
               }
             />
-          </div>
+          </CollapsibleSection>
 
           {/* Action Button */}
           <div className="pt-4">

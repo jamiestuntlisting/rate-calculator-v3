@@ -16,7 +16,7 @@ import { DocumentUpload } from "@/components/shared/document-upload";
 import { toast } from "sonner";
 import type { WorkDocument, OtherWorkCategory } from "@/types";
 import { OTHER_WORK_CATEGORY_LABELS } from "@/types";
-import { Save, ArrowLeft } from "lucide-react";
+import { Save } from "lucide-react";
 
 export default function OtherWorkPage() {
   const router = useRouter();
@@ -85,14 +85,9 @@ export default function OtherWorkPage() {
 
   return (
     <div className="max-w-3xl mx-auto space-y-6">
-      <Button variant="ghost" onClick={() => router.push("/")}>
-        <ArrowLeft className="mr-2 h-4 w-4" />
-        Back
-      </Button>
-
       <Card>
         <CardHeader>
-          <CardTitle className="text-xl">Other Work Day</CardTitle>
+          <CardTitle className="text-2xl">Non-SAG</CardTitle>
         </CardHeader>
         <CardContent className="space-y-6">
           {/* Work Category */}

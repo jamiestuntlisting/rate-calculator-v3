@@ -2,13 +2,17 @@
 
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { snapToSixMinutes, isValidTime } from "@/lib/time-utils";
+
+/** Minutes between steps in the time picker. */
+export type TimeGranularity = 6 | 15;
 
 interface TimeInputProps {
   label: string;
   value: string;
   onChange: (value: string) => void;
   id?: string;
+  /** 6 (a tenth of an hour) by default; 15 for productions that use quarters. */
+  granularity?: TimeGranularity;
 }
 
 export function TimeInput({
@@ -16,27 +20,26 @@ export function TimeInput({
   value,
   onChange,
   id,
+  granularity = 6,
 }: TimeInputProps) {
   const inputId = id || label.toLowerCase().replace(/\s+/g, "-");
 
-  const handleBlur = () => {
-    if (value && isValidTime(value)) {
-      onChange(snapToSixMinutes(value));
-    }
-  };
-
   return (
     <div className="space-y-1">
-      <Label htmlFor={inputId} className="text-sm">
+      <Label htmlFor={inputId} className="text-base">
         {label}
       </Label>
       <Input
         id={inputId}
         type="time"
+        // `step` is in seconds; it makes the picker wheel move in whole
+        // increments instead of one minute at a time. Typed values are left
+        // exactly as entered — the engine rounds worked time up to the next
+        // tenth of an hour, which is the performer's favour.
+        step={granularity * 60}
         value={value}
         onChange={(e) => onChange(e.target.value)}
-        onBlur={handleBlur}
-        className="w-full"
+        className="w-full text-lg h-12"
       />
     </div>
   );
