@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { getSession, isAdminEmail, createSession, setSessionCookie } from "@/lib/auth";
 import { findUserById } from "@/lib/repos/users";
+import { resolveMembershipTier } from "@/lib/membership";
 
 /**
  * GET /api/auth/me
@@ -47,17 +48,10 @@ export async function GET() {
         const profile = profileData.data?.getMyProfile;
 
         if (profile) {
-          const subscriptionType = (profile.subscription_type || "free").toLowerCase();
-          const isSubscriptionActive = profile.is_subscription_active === true;
-
-          let currentTier: "free" | "standard" | "plus" = "free";
-          if (isSubscriptionActive) {
-            if (subscriptionType.includes("plus")) {
-              currentTier = "plus";
-            } else if (subscriptionType.includes("standard")) {
-              currentTier = "standard";
-            }
-          }
+          // Stripe is authoritative (keyed on email); the StuntListing
+          // profile fields are the fallback. See src/lib/membership.ts.
+          const membership = await resolveMembershipTier(session.email, profile);
+          const currentTier = membership.tier;
 
           // If tier changed, update the session cookie
           if (currentTier !== session.tier) {

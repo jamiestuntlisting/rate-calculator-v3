@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { upsertUserByStuntlistingId } from "@/lib/repos/users";
+import { resolveMembershipTier } from "@/lib/membership";
 import {
   createSession,
   isAdminEmail,
@@ -101,18 +102,15 @@ export async function POST(request: Request) {
     const userEmail = (profile.email || email).toLowerCase().trim();
     const isAdmin = isAdminEmail(userEmail);
 
-    // Determine membership tier from StuntListing subscription fields
-    const subscriptionType = (profile.subscription_type || "free").toLowerCase();
-    const isSubscriptionActive = profile.is_subscription_active === true;
-
-    let membershipTier: "free" | "standard" | "plus" = "free";
-    if (isSubscriptionActive) {
-      if (subscriptionType.includes("plus")) {
-        membershipTier = "plus";
-      } else if (subscriptionType.includes("standard")) {
-        membershipTier = "standard";
-      }
-    }
+    // Determine membership tier — Stripe is authoritative, keyed on email,
+    // with the StuntListing profile fields as the fallback.
+    step = "checking membership";
+    const membership = await resolveMembershipTier(userEmail, profile);
+    const membershipTier = membership.tier;
+    const isSubscriptionActive = membershipTier !== "free";
+    console.log(
+      `tier for ${userEmail}: ${membershipTier} (${membership.source}) — ${membership.detail}`
+    );
 
     // 3. Check membership tier — only Plus or admins can access
     if (membershipTier !== "plus" && !isAdmin) {
