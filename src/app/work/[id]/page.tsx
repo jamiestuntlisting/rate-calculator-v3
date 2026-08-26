@@ -26,7 +26,9 @@ import { Separator } from "@/components/ui/separator";
 import { RateBreakdown } from "@/components/calculation/rate-breakdown";
 import { formatCurrency } from "@/lib/time-utils";
 import { toast } from "sonner";
-import type { WorkRecord } from "@/types";
+import type { WorkDocument, WorkRecord } from "@/types";
+import { DOCUMENT_TYPE_LABELS } from "@/types";
+import { ExhibitGViewer } from "@/components/shared/exhibit-g-viewer";
 import { ArrowLeft, Save, Upload, Trash2, Pencil, X } from "lucide-react";
 
 const STATUS_LABELS: Record<string, string> = {
@@ -139,6 +141,22 @@ export default function WorkDetailPage() {
 
   const isOtherWorkType = record?.workType === "other";
   const isStuntCoordinator = record?.workStatus === "stunt_coordinator";
+
+  /**
+   * The attachment to read while filling the fields in. An Exhibit G wins;
+   * failing that any viewable file, since people do photograph a call sheet
+   * or a timecard and work from that.
+   */
+  const transcribeDoc: WorkDocument | null = (() => {
+    const viewable = (record?.documents ?? []).filter((doc) =>
+      /\.(jpe?g|png|gif|webp|pdf)$/i.test(doc.filename)
+    );
+    return (
+      viewable.find((doc) => doc.documentType === "exhibit_g") ??
+      viewable[0] ??
+      null
+    );
+  })();
 
   const startEditing = () => {
     if (!record) return;
@@ -441,19 +459,10 @@ export default function WorkDetailPage() {
 
   return (
     <div className="max-w-3xl mx-auto space-y-6">
-      <div className="flex items-center justify-between">
+      <div>
         <Button variant="ghost" onClick={() => router.push("/tracker")}>
           <ArrowLeft className="mr-2 h-4 w-4" />
           Back to Tracker
-        </Button>
-        <Button
-          variant="ghost"
-          size="sm"
-          className="text-destructive"
-          onClick={handleDelete}
-        >
-          <Trash2 className="mr-2 h-4 w-4" />
-          Delete
         </Button>
       </div>
 
@@ -520,6 +529,31 @@ export default function WorkDetailPage() {
             </div>
           </CardHeader>
           <CardContent>
+            {/* Editing is where transcription happens: the card stays on
+                screen above the fields, so figures are copied across rather
+                than remembered between two screens. */}
+            {editing &&
+              (transcribeDoc ? (
+                <div className="sticky top-14 z-20 bg-card pb-3 mb-4">
+                  <ExhibitGViewer
+                    src={`/api/uploads/${transcribeDoc.filename}`}
+                    alt={transcribeDoc.originalName}
+                    isPdf={/\.pdf$/i.test(transcribeDoc.filename)}
+                    label={`${DOCUMENT_TYPE_LABELS[transcribeDoc.documentType]} — ${transcribeDoc.originalName}`}
+                    height="42vh"
+                  />
+                  <p className="text-xs text-muted-foreground mt-2">
+                    Pinch or use the controls to get in close, and rotate if
+                    it came in sideways. Fill the fields below from the card.
+                  </p>
+                </div>
+              ) : (
+                <p className="text-xs text-muted-foreground mb-4">
+                  Nothing attached to transcribe from — add an Exhibit G under
+                  Photos &amp; Documents and it will open here.
+                </p>
+              ))}
+
             {isOtherWorkType ? (
               /* ── Other Work Type ── */
               editing ? (
@@ -1001,6 +1035,25 @@ export default function WorkDetailPage() {
           )}
         </CardContent>
       </Card>
+
+      {/* Deleting sits past everything else and names what it removes, so
+          it takes a deliberate scroll rather than a mis-tap next to Back. */}
+      <div className="pt-6 mt-2 border-t border-border/50">
+        <p className="text-sm font-medium">Delete this work day</p>
+        <p className="text-xs text-muted-foreground mt-1 mb-3">
+          Removes the record and everything attached to it. This cannot be
+          undone.
+        </p>
+        <Button
+          variant="outline"
+          size="sm"
+          className="text-destructive border-destructive/40 hover:bg-destructive/10 hover:text-destructive"
+          onClick={handleDelete}
+        >
+          <Trash2 className="mr-2 h-4 w-4" />
+          Delete work day
+        </Button>
+      </div>
     </div>
   );
 }
