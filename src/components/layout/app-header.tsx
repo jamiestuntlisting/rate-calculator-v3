@@ -63,6 +63,7 @@ const NAV_SECTIONS: NavSection[] = [
       { href: "/admin", label: "Admin" },
       { href: "/admin/transcribe", label: "Transcribe" },
       { href: "/admin/names", label: "Names" },
+      { href: "/admin/tasks", label: "Tasks" },
       { href: "/admin/upcoming", label: "Upcoming" },
       { href: "/admin/api", label: "API" },
       { href: "/test-bench", label: "Test Bench" },

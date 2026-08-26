@@ -7,7 +7,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { FileText, ArrowRight, Sparkles, Code2, Ban } from "lucide-react";
+import { FileText, ArrowRight, Sparkles, Code2, Ban, ListTodo } from "lucide-react";
 import { useAuth } from "@/context/auth-context";
 import { isAdminEmail } from "@/lib/admin-emails";
 
@@ -23,6 +23,12 @@ const ADMIN_PAGES = [
     title: "Names",
     detail: "Block misspelled show titles and character names.",
     icon: Ban,
+  },
+  {
+    href: "/admin/tasks",
+    title: "Tasks",
+    detail: "What still needs doing, and who it is waiting on.",
+    icon: ListTodo,
   },
   {
     href: "/admin/upcoming",
