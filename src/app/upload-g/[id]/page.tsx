@@ -20,15 +20,22 @@ interface GUpload {
 interface TranscriptionRow {
   performer: string;
   character: string;
+  /** The card's MAKE-UP / HAIR / WRDRBE column — where the day's clock starts. */
   callTime: string;
+  /**
+   * REPORT ON SET. Recorded because the card has a column for it and a
+   * transcriber reading across needs somewhere to put it; the rate is worked
+   * out from the makeup call, so nothing downstream reads this yet.
+   */
+  reportOnSet: string;
+  dismissOnSet: string;
+  dismissMakeupWardrobe: string;
   ndMealIn: string;
   ndMealOut: string;
   firstMealStart: string;
   firstMealFinish: string;
   secondMealStart: string;
   secondMealFinish: string;
-  dismissOnSet: string;
-  dismissMakeupWardrobe: string;
   notes: string;
 }
 
@@ -50,18 +57,23 @@ interface Transcription {
   };
 }
 
+/**
+ * In the order the columns run across the card, so transcribing is a straight
+ * read left to right rather than a hunt for the matching box.
+ */
 const FIELDS: Array<{ key: keyof TranscriptionRow; label: string; width: string }> = [
-  { key: "performer", label: "Performer", width: "11rem" },
+  { key: "performer", label: "Cast", width: "11rem" },
   { key: "character", label: "Character", width: "11rem" },
-  { key: "callTime", label: "Call", width: "6.5rem" },
+  { key: "callTime", label: "Make-up Hair Wrdrbe", width: "7.5rem" },
+  { key: "reportOnSet", label: "Report on Set", width: "7.5rem" },
+  { key: "dismissOnSet", label: "Dismiss on Set", width: "7.5rem" },
+  { key: "dismissMakeupWardrobe", label: "Dismiss MU/Hair Wrdrbe", width: "7.5rem" },
   { key: "ndMealIn", label: "ND In", width: "6.5rem" },
   { key: "ndMealOut", label: "ND Out", width: "6.5rem" },
   { key: "firstMealStart", label: "1st Meal Out", width: "6.5rem" },
   { key: "firstMealFinish", label: "1st Meal In", width: "6.5rem" },
   { key: "secondMealStart", label: "2nd Meal Out", width: "6.5rem" },
   { key: "secondMealFinish", label: "2nd Meal In", width: "6.5rem" },
-  { key: "dismissOnSet", label: "Dismiss Set", width: "6.5rem" },
-  { key: "dismissMakeupWardrobe", label: "Dismiss M/W", width: "6.5rem" },
   { key: "notes", label: "Notes", width: "14rem" },
 ];
 
@@ -70,14 +82,15 @@ function emptyRow(): TranscriptionRow {
     performer: "",
     character: "",
     callTime: "",
+    reportOnSet: "",
+    dismissOnSet: "",
+    dismissMakeupWardrobe: "",
     ndMealIn: "",
     ndMealOut: "",
     firstMealStart: "",
     firstMealFinish: "",
     secondMealStart: "",
     secondMealFinish: "",
-    dismissOnSet: "",
-    dismissMakeupWardrobe: "",
     notes: "",
   };
 }
@@ -454,12 +467,14 @@ export default function TranscribePage({
             className="mt-3 overflow-x-auto rounded-lg border border-border"
           >
             <div className="min-w-max p-2">
-              <div className="flex gap-2 mb-1">
+              {/* Bottom-aligned: the card's headings stack onto two or three
+                  lines, and each should sit right above its own box. */}
+              <div className="flex items-end gap-2 mb-1">
                 {FIELDS.map((f) => (
                   <span
                     key={f.key}
                     style={{ width: f.width }}
-                    className="shrink-0 text-xs font-medium text-muted-foreground"
+                    className="shrink-0 text-xs font-medium leading-tight text-muted-foreground"
                   >
                     {f.label}
                   </span>
