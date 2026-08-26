@@ -37,6 +37,7 @@ const NAV_SECTIONS: NavSection[] = [
     children: [
       { href: "/upload-g", label: "Exhibit G" },
       { href: "/", label: "Rate Calculator" },
+      { href: "/weekly", label: "Weekly" },
     ],
   },
   {
