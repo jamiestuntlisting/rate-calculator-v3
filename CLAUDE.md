@@ -51,7 +51,14 @@ state stays in step.
   `from-work-records.ts` for the performer's own logged days — five or more
   on one show is what makes a weekly contract, and `/weekly` offers those
   runs at the top. `/admin/weekly-bench` runs an export through it card by
-  card. Deriving a day's overtime tier from `segment.multiplier` is wrong:
+  card; it opens on a bundled reference export (`src/lib/showbiz-sample.ts`,
+  gzipped and base64'd — regenerate with `scripts/build-showbiz-sample.py`),
+  which should always read 132 of 133, the one miss being S1234. An admin can
+  override it from the bench ("Make this the default"), which stores the
+  replacement across `showbiz_sample_*` rows in `app_config` and takes
+  precedence over the bundle. This repository is public, so only bundle an
+  export that is safe to publish.
+  Deriving a day's overtime tier from `segment.multiplier` is wrong:
   on a 6th or 7th day the daily engine raises every segment to the day
   multiplier, so straight hours read 1.5 — go by the segment label. Watch the two
   adjustment columns: 202 is per-day stunt adjustments and feeds the overtime

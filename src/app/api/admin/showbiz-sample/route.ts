@@ -4,7 +4,6 @@ import { isAdminEmail } from "@/lib/auth";
 import {
   readShowbizSample,
   readShowbizSampleName,
-  SHOWBIZ_SAMPLE,
   writeShowbizSample,
 } from "@/lib/showbiz-sample";
 
@@ -28,16 +27,10 @@ export async function GET() {
     }
 
     const csv = await readShowbizSample();
-    if (csv === null) {
-      return NextResponse.json(
-        { error: "No reference export has been loaded" },
-        { status: 404 }
-      );
-    }
 
-    // Name whatever is actually stored, so saving a different export does
+    // Name whatever is actually in force, so saving a different export does
     // not leave the bench labelled with the old one.
-    const filename = (await readShowbizSampleName()) ?? SHOWBIZ_SAMPLE.filename;
+    const filename = await readShowbizSampleName();
 
     return new Response(csv, {
       headers: {
