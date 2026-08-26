@@ -22,6 +22,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { DocumentUpload } from "@/components/shared/document-upload";
+import { ExhibitGDropzone } from "@/components/shared/exhibit-g-dropzone";
 import { SuggestInput } from "@/components/shared/suggest-input";
 import { CollapsibleSection } from "@/components/calculator/collapsible-section";
 import { TimeSelect } from "@/components/calculator/time-select";
@@ -317,11 +318,11 @@ export function ExhibitGForm() {
   const hasExhibitGPreview = exhibitGDocs.length > 0;
 
   return (
-    <div className={hasExhibitGPreview ? "max-w-7xl mx-auto" : "max-w-3xl mx-auto space-y-6"}>
+    <div className={hasExhibitGPreview ? "max-w-3xl lg:max-w-7xl mx-auto" : "max-w-3xl mx-auto space-y-6"}>
       <div className={hasExhibitGPreview ? "grid grid-cols-1 lg:grid-cols-2 gap-6" : ""}>
         {/* Left column: Exhibit G Preview (only when docs uploaded, desktop) */}
         {hasExhibitGPreview && (
-          <div className="space-y-4 lg:sticky lg:top-4 lg:self-start">
+          <div className="hidden lg:block space-y-4 lg:sticky lg:top-4 lg:self-start">
             {exhibitGDocs.map((doc, i) => {
               const ext = doc.filename.split(".").pop()?.toLowerCase() || "";
               const isImage = ["jpg", "jpeg", "png", "gif", "webp"].includes(ext);
@@ -366,17 +367,15 @@ export function ExhibitGForm() {
         <div className="space-y-6">
       <Card>
         <CardContent className="space-y-6 pt-6">
-          {/* The Exhibit G itself leads the page — everything else describes it. */}
-          <div className="flex flex-col items-center gap-2 pb-2 border-b border-border/50">
-            <h2 className="text-xl font-semibold">Exhibit G</h2>
-            <p className="text-sm text-muted-foreground text-center">
-              Attach the G for this day, or fill the times in below.
-            </p>
-            <DocumentUpload
+          {/* The Exhibit G leads the page and takes up most of it. A G we
+              can read beats a day typed in from memory, so this is the one
+              thing that should be impossible to walk past. */}
+          <div className="space-y-3 pb-5 border-b border-border/50">
+            <h2 className="text-xl font-semibold text-center">Exhibit G</h2>
+            <ExhibitGDropzone
               documents={exhibitGDocs}
               onUpload={handleExhibitGUpload}
               onRemove={handleExhibitGRemove}
-              documentTypes={["exhibit_g"]}
             />
           </div>
 
