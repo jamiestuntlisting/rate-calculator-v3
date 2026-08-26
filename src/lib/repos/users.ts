@@ -14,6 +14,8 @@ export interface UserRecord {
   tierOverride: "free" | "standard" | "plus" | null;
   /** 0/1 — we transcribe this member's Exhibit Gs for them. */
   transcriptionAddOn: number;
+  /** How that transcription is paid for: 'monthly', 'per_g', or null. */
+  transcriptionBilling: "monthly" | "per_g" | null;
   createdAt: string;
   updatedAt: string;
 }
@@ -131,17 +133,27 @@ export async function findOrCreateUserByStuntlistingId(
 export async function updateMembership(
   userId: string,
   tierOverride: "free" | "standard" | "plus" | null,
-  transcriptionAddOn: boolean
+  transcriptionBilling: "monthly" | "per_g" | null
 ): Promise<UserRecord | null> {
   const db = await getDb();
   return db
     .prepare(
       `UPDATE users
-         SET tierOverride = ?1, transcriptionAddOn = ?2, tier = COALESCE(?1, tier), updatedAt = ?3
-       WHERE _id = ?4
+         SET tierOverride = ?1,
+             transcriptionBilling = ?2,
+             transcriptionAddOn = ?3,
+             tier = COALESCE(?1, tier),
+             updatedAt = ?4
+       WHERE _id = ?5
        RETURNING *`
     )
-    .bind(tierOverride, transcriptionAddOn ? 1 : 0, nowIso(), userId)
+    .bind(
+      tierOverride,
+      transcriptionBilling,
+      transcriptionBilling ? 1 : 0,
+      nowIso(),
+      userId
+    )
     .first<UserRecord>();
 }
 

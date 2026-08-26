@@ -162,3 +162,19 @@ export async function deleteGUpload(
     .first<GUploadRow>();
   return row ? toDoc(row) : null;
 }
+
+/** How many of this member's Exhibit Gs we transcribed since `sinceIso`. */
+export async function countTranscribedSince(
+  userId: string,
+  sinceIso: string
+): Promise<number> {
+  const db = await getDb();
+  const row = await db
+    .prepare(
+      `SELECT COUNT(*) AS n FROM g_uploads
+        WHERE userId = ?1 AND transcription IS NOT NULL AND updatedAt >= ?2`
+    )
+    .bind(userId, sinceIso)
+    .first<{ n: number }>();
+  return row?.n ?? 0;
+}

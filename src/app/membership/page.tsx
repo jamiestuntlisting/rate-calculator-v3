@@ -6,13 +6,21 @@ import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 import {
   FEATURES,
+  PER_G_BREAK_EVEN,
+  PLAN_PRICES,
   PLANS,
   findPlan,
   type PlanId,
 } from "@/lib/membership-plans";
 
+interface MembershipState {
+  planId: PlanId;
+  transcribedThisMonth: number;
+  monthToDateCharges: number;
+}
+
 export default function MembershipPage() {
-  const [current, setCurrent] = useState<PlanId | null>(null);
+  const [membership, setMembership] = useState<MembershipState | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState<PlanId | null>(null);
 
@@ -21,8 +29,7 @@ export default function MembershipPage() {
       try {
         const res = await fetch("/api/membership");
         if (!res.ok) throw new Error();
-        const data = (await res.json()) as { planId: PlanId };
-        setCurrent(data.planId);
+        setMembership((await res.json()) as MembershipState);
       } catch {
         toast.error("Couldn't load your membership");
       } finally {
@@ -40,7 +47,11 @@ export default function MembershipPage() {
         body: JSON.stringify({ planId }),
       });
       if (!res.ok) throw new Error();
-      setCurrent(planId);
+      setMembership((prev) =>
+        prev
+          ? { ...prev, planId }
+          : { planId, transcribedThisMonth: 0, monthToDateCharges: 0 }
+      );
       toast.success(`You're on ${findPlan(planId).name}`);
     } catch {
       toast.error("Couldn't change your membership");
@@ -52,7 +63,7 @@ export default function MembershipPage() {
   /** Whether a plan includes a given feature. */
   const includes = (planId: PlanId, feature: (typeof FEATURES)[number]) => {
     const plan = findPlan(planId);
-    if (feature.addOnOnly) return plan.transcriptionAddOn;
+    if (feature.transcriptionOnly) return plan.transcription !== null;
     if (feature.tier === "free") return true;
     return plan.tier === "plus" || plan.tier === "standard";
   };
@@ -64,8 +75,8 @@ export default function MembershipPage() {
         <p className="text-muted-foreground mt-2">
           {loading
             ? "Checking your membership…"
-            : current
-              ? `You're on ${findPlan(current).name}.`
+            : membership
+              ? `You're on ${findPlan(membership.planId).name}.`
               : "Pick the membership that fits how you work."}
         </p>
         <p className="text-sm text-muted-foreground mt-1">
@@ -73,9 +84,9 @@ export default function MembershipPage() {
         </p>
       </div>
 
-      <div className="grid gap-4 md:grid-cols-3 mb-10">
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4 mb-6">
         {PLANS.map((plan) => {
-          const isCurrent = current === plan.id;
+          const isCurrent = membership?.planId === plan.id;
           return (
             <div
               key={plan.id}
@@ -91,6 +102,11 @@ export default function MembershipPage() {
                 <span className="text-3xl font-bold">${plan.price}</span>
                 <span className="text-muted-foreground text-sm">/month</span>
               </p>
+              {plan.perGPrice !== undefined && (
+                <p className="text-sm font-medium mt-1">
+                  + ${plan.perGPrice} per Exhibit G
+                </p>
+              )}
               {plan.priceNote && (
                 <p className="text-xs text-muted-foreground mt-1">
                   {plan.priceNote}
@@ -120,6 +136,26 @@ export default function MembershipPage() {
         })}
       </div>
 
+      {/* What pay-as-you-go has cost so far this month. */}
+      {membership?.planId === "plus_per_g" && (
+        <div className="rounded-xl border border-border p-4 mb-6 flex flex-wrap items-center justify-between gap-3">
+          <div>
+            <p className="font-medium">This month</p>
+            <p className="text-sm text-muted-foreground">
+              {membership.transcribedThisMonth} Exhibit G
+              {membership.transcribedThisMonth === 1 ? "" : "s"} transcribed ·
+              ${membership.monthToDateCharges} in transcription charges
+            </p>
+          </div>
+          {membership.transcribedThisMonth >= PER_G_BREAK_EVEN && (
+            <p className="text-sm text-muted-foreground">
+              At {PER_G_BREAK_EVEN}+ Gs a month, Plus + Transcription (
+              ${PLAN_PRICES.transcriptionAddOn}/mo, unlimited) costs less.
+            </p>
+          )}
+        </div>
+      )}
+
       <div className="rounded-xl border border-border overflow-hidden">
         <table className="w-full text-sm">
           <thead>
@@ -129,7 +165,7 @@ export default function MembershipPage() {
                 <th
                   key={plan.id}
                   className={`p-3 font-medium text-center ${
-                    current === plan.id ? "text-primary" : ""
+                    membership?.planId === plan.id ? "text-primary" : ""
                   }`}
                 >
                   {plan.name}
