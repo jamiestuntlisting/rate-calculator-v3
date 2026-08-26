@@ -23,6 +23,7 @@ import {
 } from "@/components/ui/select";
 import { DocumentUpload } from "@/components/shared/document-upload";
 import { CollapsibleSection } from "@/components/calculator/collapsible-section";
+import { TimeSelect } from "@/components/calculator/time-select";
 import { toast } from "sonner";
 import type { ExhibitGInput, WorkDocument, CalculationBreakdown } from "@/types";
 import type { RateSchedule } from "@/lib/rate-constants";
@@ -122,8 +123,6 @@ export function ExhibitGForm() {
   const [liveMode, setLiveMode] = useState<"counter" | "6min">("6min");
   // Tick counter to trigger recalc for live rate
   const [liveTick, setLiveTick] = useState(0);
-  // Minutes between steps in the time pickers: 6 (a tenth of an hour) or 15.
-  const [timeGranularity, setTimeGranularity] = useState<6 | 15>(6);
 
   const isStuntCoordinator = input.workStatus === "stunt_coordinator";
 
@@ -188,44 +187,14 @@ export function ExhibitGForm() {
     return { mealTotals, forcedCallPenalty, totalPenalties };
   }, [liveBreakdown]);
 
-  // Time pickers step in tenths of an hour by default; some productions
-  // work in quarters. Typed times are kept exactly as entered — the engine
-  // rounds worked time up to the next tenth, in the performer's favour.
-  const timeStep = timeGranularity * 60;
 
-  const handleTimeFocus = (field: keyof ExhibitGInput, currentValue: string | null) => {
-    if (!currentValue) {
-      update(field, "12:00");
-    }
+  const handleDocUpload = (doc: WorkDocument) => {
+    setDocuments((prev) => [...prev, doc]);
   };
 
-  /** Press 'a' or 'p' in any time field to set AM or PM */
-  const handleTimeKeyDown = useCallback((field: keyof ExhibitGInput, e: React.KeyboardEvent<HTMLInputElement>) => {
-    const key = e.key.toLowerCase();
-    if (key !== "a" && key !== "p") return;
-
-    const val = e.currentTarget.value;
-    if (!val) return;
-
-    const parts = val.split(":");
-    if (parts.length !== 2) return;
-
-    let hour = parseInt(parts[0], 10);
-    const min = parts[1];
-
-    if (key === "a" && hour >= 12) {
-      hour -= 12;
-    } else if (key === "p" && hour < 12) {
-      hour += 12;
-    } else {
-      e.preventDefault();
-      return; // already correct period
-    }
-
-    const newValue = `${String(hour).padStart(2, "0")}:${min}`;
-    update(field, newValue);
-    e.preventDefault();
-  }, [update]);
+  const handleDocRemove = (index: number) => {
+    setDocuments((prev) => prev.filter((_, i) => i !== index));
+  };
 
   const handleSaveDraft = async () => {
     if (!input.showName || !input.workDate) {
@@ -332,14 +301,6 @@ export function ExhibitGForm() {
     } finally {
       setSavingDraft(false);
     }
-  };
-
-  const handleDocUpload = (doc: WorkDocument) => {
-    setDocuments((prev) => [...prev, doc]);
-  };
-
-  const handleDocRemove = (index: number) => {
-    setDocuments((prev) => prev.filter((_, i) => i !== index));
   };
 
   const handleExhibitGUpload = (doc: WorkDocument) => {
@@ -502,34 +463,11 @@ export function ExhibitGForm() {
           {/* Work Times — hidden for stunt coordinator (flat deal) */}
           {!isStuntCoordinator && (<>
           <div>
-            <div className="flex items-center justify-between gap-3 mb-4">
-              <h3 className="font-semibold text-xl">Work Times</h3>
-              <div
-                className="flex rounded-md border border-border overflow-hidden text-sm"
-                role="group"
-                aria-label="Time picker increments"
-              >
-                {([6, 15] as const).map((minutes) => (
-                  <button
-                    key={minutes}
-                    type="button"
-                    onClick={() => setTimeGranularity(minutes)}
-                    aria-pressed={timeGranularity === minutes}
-                    className={`px-3 py-1.5 ${
-                      timeGranularity === minutes
-                        ? "bg-accent font-medium"
-                        : "hover:bg-accent/50 text-muted-foreground"
-                    }`}
-                  >
-                    {minutes} min
-                  </button>
-                ))}
-              </div>
-            </div>
+            <h3 className="font-semibold text-xl mb-4">Work Times</h3>
             <div className="space-y-0">
               <div className="flex items-center justify-between gap-4 p-2 rounded bg-muted/50">
                 <Label htmlFor="callTime" className="text-base shrink-0">Call Time</Label>
-                <Input id="callTime" type="time" step={timeStep} value={input.callTime} onChange={(e) => update("callTime", e.target.value)} onFocus={() => handleTimeFocus("callTime", input.callTime || null)} onKeyDown={(e) => handleTimeKeyDown("callTime", e)} className="w-44 text-lg h-12" />
+                <TimeSelect id="callTime" value={input.callTime} onChange={(v) => update("callTime", v)} />
               </div>
               {/* Meals */}
               <div className="border-t border-b py-3 my-1 space-y-3">
@@ -543,11 +481,11 @@ export function ExhibitGForm() {
                     <div className="pl-6 space-y-0">
                       <div className="flex items-center justify-between gap-4 p-2 rounded bg-muted/50">
                         <Label htmlFor="ndMealIn" className="text-base shrink-0">ND Meal In</Label>
-                        <Input id="ndMealIn" type="time" step={timeStep} value={input.ndMealIn || ""} onChange={(e) => update("ndMealIn", e.target.value || null)} onFocus={() => handleTimeFocus("ndMealIn", input.ndMealIn)} onKeyDown={(e) => handleTimeKeyDown("ndMealIn", e)} className="w-44 text-lg h-12" />
+                        <TimeSelect id="ndMealIn" value={input.ndMealIn || ""} onChange={(v) => update("ndMealIn", v || null)} clearable />
                       </div>
                       <div className="flex items-center justify-between gap-4 p-2">
                         <Label htmlFor="ndMealOut" className="text-base shrink-0">ND Meal Out</Label>
-                        <Input id="ndMealOut" type="time" step={timeStep} value={input.ndMealOut || ""} onChange={(e) => update("ndMealOut", e.target.value || null)} onFocus={() => handleTimeFocus("ndMealOut", input.ndMealOut)} onKeyDown={(e) => handleTimeKeyDown("ndMealOut", e)} className="w-44 text-lg h-12" />
+                        <TimeSelect id="ndMealOut" value={input.ndMealOut || ""} onChange={(v) => update("ndMealOut", v || null)} clearable />
                       </div>
                     </div>
                   )}
@@ -562,11 +500,11 @@ export function ExhibitGForm() {
                     <div className="pl-6 space-y-0">
                       <div className="flex items-center justify-between gap-4 p-2 rounded bg-muted/50">
                         <Label htmlFor="firstMealStart" className="text-base shrink-0">1st Meal Start</Label>
-                        <Input id="firstMealStart" type="time" step={timeStep} value={input.firstMealStart || ""} onChange={(e) => update("firstMealStart", e.target.value || null)} onFocus={() => handleTimeFocus("firstMealStart", input.firstMealStart)} onKeyDown={(e) => handleTimeKeyDown("firstMealStart", e)} className="w-44 text-lg h-12" />
+                        <TimeSelect id="firstMealStart" value={input.firstMealStart || ""} onChange={(v) => update("firstMealStart", v || null)} clearable />
                       </div>
                       <div className="flex items-center justify-between gap-4 p-2">
                         <Label htmlFor="firstMealFinish" className="text-base shrink-0">1st Meal Finish</Label>
-                        <Input id="firstMealFinish" type="time" step={timeStep} value={input.firstMealFinish || ""} onChange={(e) => update("firstMealFinish", e.target.value || null)} onFocus={() => handleTimeFocus("firstMealFinish", input.firstMealFinish)} onKeyDown={(e) => handleTimeKeyDown("firstMealFinish", e)} className="w-44 text-lg h-12" />
+                        <TimeSelect id="firstMealFinish" value={input.firstMealFinish || ""} onChange={(v) => update("firstMealFinish", v || null)} clearable />
                       </div>
                     </div>
                   )}
@@ -582,11 +520,11 @@ export function ExhibitGForm() {
                     <div className="pl-6 space-y-0">
                       <div className="flex items-center justify-between gap-4 p-2 rounded bg-muted/50">
                         <Label htmlFor="secondMealStart" className="text-base shrink-0">2nd Meal Start</Label>
-                        <Input id="secondMealStart" type="time" step={timeStep} value={input.secondMealStart || ""} onChange={(e) => update("secondMealStart", e.target.value || null)} onFocus={() => handleTimeFocus("secondMealStart", input.secondMealStart)} onKeyDown={(e) => handleTimeKeyDown("secondMealStart", e)} className="w-44 text-lg h-12" />
+                        <TimeSelect id="secondMealStart" value={input.secondMealStart || ""} onChange={(v) => update("secondMealStart", v || null)} clearable />
                       </div>
                       <div className="flex items-center justify-between gap-4 p-2">
                         <Label htmlFor="secondMealFinish" className="text-base shrink-0">2nd Meal Finish</Label>
-                        <Input id="secondMealFinish" type="time" step={timeStep} value={input.secondMealFinish || ""} onChange={(e) => update("secondMealFinish", e.target.value || null)} onFocus={() => handleTimeFocus("secondMealFinish", input.secondMealFinish)} onKeyDown={(e) => handleTimeKeyDown("secondMealFinish", e)} className="w-44 text-lg h-12" />
+                        <TimeSelect id="secondMealFinish" value={input.secondMealFinish || ""} onChange={(v) => update("secondMealFinish", v || null)} clearable />
                       </div>
                     </div>
                   )}
@@ -596,20 +534,11 @@ export function ExhibitGForm() {
 
               <div className="flex items-center justify-between gap-4 p-2">
                 <Label htmlFor="dismissOnSet" className="text-base shrink-0">Dismiss On Set</Label>
-                <Input
-                  id="dismissOnSet"
-                  type="time" step={timeStep}
-                  value={input.dismissOnSet}
-                  onChange={(e) => update("dismissOnSet", e.target.value)}
-                  onFocus={() => handleTimeFocus("dismissOnSet", input.dismissOnSet || null)}
-                 
-                  onKeyDown={(e) => handleTimeKeyDown("dismissOnSet", e)}
-                  className="w-44 text-lg h-12"
-                />
+                <TimeSelect id="dismissOnSet" value={input.dismissOnSet} onChange={(v) => update("dismissOnSet", v)} />
               </div>
               <div className="flex items-center justify-between gap-4 p-2 rounded bg-muted/50">
                 <Label htmlFor="dismissMakeupWardrobe" className="text-base shrink-0">Wrapped</Label>
-                <Input id="dismissMakeupWardrobe" type="time" step={timeStep} value={input.dismissMakeupWardrobe || ""} onChange={(e) => update("dismissMakeupWardrobe", e.target.value || null)} onFocus={() => handleTimeFocus("dismissMakeupWardrobe", input.dismissMakeupWardrobe)} onKeyDown={(e) => handleTimeKeyDown("dismissMakeupWardrobe", e)} className="w-44 text-lg h-12" />
+                <TimeSelect id="dismissMakeupWardrobe" value={input.dismissMakeupWardrobe || ""} onChange={(v) => update("dismissMakeupWardrobe", v || null)} clearable />
               </div>
 
               {/* Stunt Adjustment */}

@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { TimeSelect } from "@/components/calculator/time-select";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import {
@@ -658,28 +659,29 @@ export default function WorkDetailPage() {
                         </div>
                         <div className="space-y-1">
                           <Label className="text-sm text-muted-foreground">Call Time</Label>
-                          <Input
-                            type="time"
+                          <TimeSelect
+                            id="edit-callTime"
                             value={editData.callTime}
-                            onChange={(e) => setEditData(d => ({ ...d, callTime: e.target.value }))}
+                            onChange={(v) => setEditData(d => ({ ...d, callTime: v }))}
                           />
                         </div>
                       </div>
                       <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
                         <div className="space-y-1">
                           <Label className="text-sm text-muted-foreground">Dismiss On Set</Label>
-                          <Input
-                            type="time"
+                          <TimeSelect
+                            id="edit-dismissOnSet"
                             value={editData.dismissOnSet}
-                            onChange={(e) => setEditData(d => ({ ...d, dismissOnSet: e.target.value }))}
+                            onChange={(v) => setEditData(d => ({ ...d, dismissOnSet: v }))}
                           />
                         </div>
                         <div className="space-y-1">
                           <Label className="text-sm text-muted-foreground">Wrapped</Label>
-                          <Input
-                            type="time"
+                          <TimeSelect
+                            id="edit-dismissMakeupWardrobe"
                             value={editData.dismissMakeupWardrobe || ""}
-                            onChange={(e) => setEditData(d => ({ ...d, dismissMakeupWardrobe: e.target.value || null }))}
+                            onChange={(v) => setEditData(d => ({ ...d, dismissMakeupWardrobe: v || null }))}
+                            clearable
                           />
                         </div>
                       </div>
@@ -696,18 +698,20 @@ export default function WorkDetailPage() {
                         </div>
                         <div className="space-y-1">
                           <Label className="text-sm text-muted-foreground">1st Meal Start</Label>
-                          <Input
-                            type="time"
+                          <TimeSelect
+                            id="edit-firstMealStart"
                             value={editData.firstMealStart || ""}
-                            onChange={(e) => setEditData(d => ({ ...d, firstMealStart: e.target.value || null }))}
+                            onChange={(v) => setEditData(d => ({ ...d, firstMealStart: v || null }))}
+                            clearable
                           />
                         </div>
                         <div className="space-y-1">
                           <Label className="text-sm text-muted-foreground">1st Meal Finish</Label>
-                          <Input
-                            type="time"
+                          <TimeSelect
+                            id="edit-firstMealFinish"
                             value={editData.firstMealFinish || ""}
-                            onChange={(e) => setEditData(d => ({ ...d, firstMealFinish: e.target.value || null }))}
+                            onChange={(v) => setEditData(d => ({ ...d, firstMealFinish: v || null }))}
+                            clearable
                           />
                         </div>
                       </div>
