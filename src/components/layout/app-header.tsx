@@ -11,22 +11,79 @@ import { cn } from "@/lib/utils";
 import { useAuth, type ViewAsUser } from "@/context/auth-context";
 import { isAdminEmail } from "@/lib/admin-emails";
 
-const navLinks = [
-  { href: "/", label: "Rate Calculator", adminOnly: false },
-  // Non-SAG lives behind a button on the Rate Calculator, not in the nav.
-  { href: "/upload-g", label: "Exhibit G", adminOnly: false },
-  { href: "/tracker", label: "Tracker", adminOnly: false },
-  { href: "/analytics", label: "Analytics", adminOnly: false },
-  { href: "/residuals", label: "Residuals", adminOnly: false },
-  { href: "/membership", label: "Membership", adminOnly: false },
+/**
+ * Two layers: a section across the top, its pages beneath. Account pages
+ * (membership, preferences) live in the user menu, not here — they are about
+ * the person rather than the work.
+ *
+ * Non-SAG is reached from a button on the Rate Calculator.
+ */
+interface NavChild {
+  href: string;
+  label: string;
+}
+
+interface NavSection {
+  id: string;
+  label: string;
+  adminOnly?: boolean;
+  children: NavChild[];
+}
+
+const NAV_SECTIONS: NavSection[] = [
+  {
+    id: "work",
+    label: "Work",
+    children: [
+      { href: "/upload-g", label: "Exhibit G" },
+      { href: "/", label: "Rate Calculator" },
+    ],
+  },
+  {
+    id: "income",
+    label: "Income",
+    children: [
+      { href: "/tracker", label: "Tracker" },
+      { href: "/analytics", label: "Summary" },
+    ],
+  },
+  {
+    id: "residuals",
+    label: "Residuals",
+    children: [
+      { href: "/residuals", label: "Residuals" },
+      { href: "/residuals/upload", label: "Upload Residuals" },
+    ],
+  },
+  {
+    id: "admin",
+    label: "Admin",
+    adminOnly: true,
+    children: [
+      { href: "/admin", label: "Admin" },
+      { href: "/admin/transcribe", label: "Transcribe" },
+      { href: "/admin/names", label: "Names" },
+      { href: "/admin/upcoming", label: "Upcoming" },
+      { href: "/admin/api", label: "API" },
+      { href: "/test-bench", label: "Test Bench" },
+    ],
+  },
 ];
 
-/** Admin-only tools, grouped under a single Admin menu. */
-const adminLinks = [
-  { href: "/admin", label: "Admin" },
-  { href: "/admin/transcribe", label: "Transcribe" },
-  { href: "/test-bench", label: "Test Bench" },
+/** Pages reached from the user menu rather than the tabs. */
+const ACCOUNT_LINKS: NavChild[] = [
+  { href: "/membership", label: "Membership" },
+  { href: "/preferences", label: "Preferences" },
 ];
+
+/** Which page a path belongs to — the Rate Calculator owns the bare root. */
+function matchesChild(pathname: string, href: string): boolean {
+  if (href === "/") return pathname === "/";
+  if (href === "/residuals") {
+    return pathname === "/residuals" || /^\/residuals\/(?!upload)/.test(pathname);
+  }
+  return pathname === href || pathname.startsWith(`${href}/`);
+}
 
 interface UserListItem {
   id: string;
@@ -48,6 +105,12 @@ export function AppHeader() {
 
   // Don't show full nav on login page
   const isLoginPage = pathname === "/login";
+
+  const canSeeAdmin = Boolean(user && (isAdmin || isAdminEmail(user.email)));
+  const sections = NAV_SECTIONS.filter((s) => !s.adminOnly || canSeeAdmin);
+  const activeSection =
+    sections.find((s) => s.children.some((c) => matchesChild(pathname, c.href))) ??
+    sections[0];
 
   // Fetch user list when admin opens the user menu
   useEffect(() => {
@@ -115,80 +178,23 @@ export function AppHeader() {
               <span className="text-muted-foreground font-normal text-sm ml-2">Bookkeeper</span>
             </Link>
 
-            {/* Desktop nav — only show when logged in */}
+            {/* Desktop nav — top layer only; pages sit in the bar below */}
             {user && !isLoginPage && (
-              <nav className="hidden md:flex items-center gap-4">
-                {navLinks.map((link) => (
+              <nav className="hidden md:flex items-center gap-5">
+                {sections.map((section) => (
                   <Link
-                    key={link.href}
-                    href={link.href}
+                    key={section.id}
+                    href={section.children[0].href}
                     className={cn(
-                      "text-sm font-medium transition-colors hover:text-primary",
-                      (link.href === "/" ? pathname === "/" : pathname.startsWith(link.href))
+                      "text-sm font-semibold transition-colors hover:text-primary",
+                      section.id === activeSection?.id
                         ? "text-primary"
                         : "text-muted-foreground"
                     )}
                   >
-                    {link.label}
+                    {section.label}
                   </Link>
                 ))}
-
-                {/* Admin tools live in their own menu so they stay out of
-                    the way of everyday navigation. */}
-                {(isAdmin || isAdminEmail(user.email)) && (
-                  <div
-                    className="relative"
-                    onMouseLeave={() => setAdminMenuOpen(false)}
-                  >
-                    <button
-                      type="button"
-                      onClick={() => setAdminMenuOpen((v) => !v)}
-                      onMouseEnter={() => setAdminMenuOpen(true)}
-                      aria-expanded={adminMenuOpen}
-                      aria-haspopup="menu"
-                      className={cn(
-                        "flex items-center gap-1 text-sm font-medium transition-colors hover:text-primary",
-                        adminLinks.some((l) => pathname.startsWith(l.href))
-                          ? "text-primary"
-                          : "text-muted-foreground"
-                      )}
-                    >
-                      Admin
-                      <ChevronDown
-                        className={cn(
-                          "h-3.5 w-3.5 transition-transform",
-                          adminMenuOpen && "rotate-180"
-                        )}
-                      />
-                    </button>
-
-                    {adminMenuOpen && (
-                      <div
-                        role="menu"
-                        className="absolute left-0 top-full pt-2 z-50"
-                      >
-                        <div className="min-w-44 rounded-lg border border-border bg-background shadow-lg py-1">
-                          {adminLinks.map((link) => (
-                            <Link
-                              key={link.href}
-                              href={link.href}
-                              role="menuitem"
-                              onClick={() => setAdminMenuOpen(false)}
-                              className={cn(
-                                "block px-3 py-2 text-sm hover:bg-accent",
-                                pathname === link.href
-                                  ? "text-primary"
-                                  : "text-foreground"
-                              )}
-                            >
-                              {link.label}
-                            </Link>
-                          ))}
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                )}
               </nav>
             )}
           </div>
@@ -200,28 +206,24 @@ export function AppHeader() {
                 {/* Desktop user menu */}
                 <div className="hidden md:flex items-center gap-2 relative">
                   {/* Admin user switcher button */}
-                  {isAdmin ? (
-                    <button
-                      onClick={() => setUserMenuOpen(!userMenuOpen)}
-                      className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors px-2 py-1 rounded"
-                    >
+                  <button
+                    onClick={() => setUserMenuOpen(!userMenuOpen)}
+                    aria-expanded={userMenuOpen}
+                    aria-haspopup="menu"
+                    className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors px-2 py-1 rounded"
+                  >
+                    {isAdmin ? (
                       <Shield className="h-4 w-4 text-amber-500" />
-                      <span className="max-w-[150px] truncate">
-                        {user.firstName || user.email}
-                      </span>
-                      <ChevronDown className="h-3 w-3" />
-                    </button>
-                  ) : (
-                    <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                    ) : (
                       <User className="h-4 w-4" />
-                      <span className="max-w-[150px] truncate">
-                        {user.firstName || user.email}
-                      </span>
-                    </div>
-                  )}
+                    )}
+                    <span className="max-w-[150px] truncate">
+                      {user.firstName || user.email}
+                    </span>
+                    <ChevronDown className="h-3 w-3" />
+                  </button>
 
-                  {/* Admin dropdown */}
-                  {userMenuOpen && isAdmin && (
+                  {userMenuOpen && (
                     <>
                       {/* Backdrop to close */}
                       <div
@@ -230,10 +232,32 @@ export function AppHeader() {
                       />
                       <div className="absolute right-0 top-full mt-2 z-50 w-72 bg-[#1a1a1a] border border-border/50 rounded-lg shadow-xl overflow-hidden">
                         <div className="px-3 py-2 border-b border-border/30">
+                          <p className="text-sm text-foreground truncate">
+                            {displayName(user)}
+                          </p>
+                          <p className="text-xs text-muted-foreground truncate">
+                            {user.email}
+                          </p>
+                        </div>
+
+                        {ACCOUNT_LINKS.map((link) => (
+                          <Link
+                            key={link.href}
+                            href={link.href}
+                            onClick={() => setUserMenuOpen(false)}
+                            className="block px-3 py-2 text-sm text-foreground hover:bg-[#222] transition-colors"
+                          >
+                            {link.label}
+                          </Link>
+                        ))}
+
+                        {isAdmin && (
+                        <div className="px-3 py-2 border-y border-border/30 mt-1">
                           <p className="text-xs text-muted-foreground font-medium uppercase tracking-wider">
                             View as member
                           </p>
                         </div>
+                        )}
 
                         {/* Back to my data option */}
                         {viewingAs && (
@@ -246,7 +270,7 @@ export function AppHeader() {
                           </button>
                         )}
 
-                        <div className="max-h-64 overflow-y-auto">
+                        <div className={cn("max-h-64 overflow-y-auto", !isAdmin && "hidden")}>
                           {loadingUsers ? (
                             <div className="px-3 py-4 text-sm text-muted-foreground text-center">
                               Loading members...
@@ -329,45 +353,50 @@ export function AppHeader() {
                       </span>
                     </div>
 
-                    <nav className="flex flex-col gap-4">
-                      {navLinks.map((link) => (
-                        <Link
-                          key={link.href}
-                          href={link.href}
-                          onClick={() => setMobileOpen(false)}
-                          className={cn(
-                            "text-lg font-medium transition-colors hover:text-primary",
-                            pathname === link.href
-                              ? "text-primary"
-                              : "text-muted-foreground"
-                          )}
-                        >
-                          {link.label}
-                        </Link>
-                      ))}
-
-                      {(isAdmin || isAdminEmail(user.email)) && (
-                        <div className="pt-2 mt-2 border-t border-border/50 flex flex-col gap-4">
+                    <nav className="flex flex-col gap-5">
+                      {sections.map((section) => (
+                        <div key={section.id} className="flex flex-col gap-2">
                           <p className="text-xs text-muted-foreground font-medium uppercase tracking-wider">
-                            Admin
+                            {section.label}
                           </p>
-                          {adminLinks.map((link) => (
+                          {section.children.map((child) => (
                             <Link
-                              key={link.href}
-                              href={link.href}
+                              key={child.href}
+                              href={child.href}
                               onClick={() => setMobileOpen(false)}
                               className={cn(
                                 "text-lg font-medium transition-colors hover:text-primary",
-                                pathname === link.href
+                                matchesChild(pathname, child.href)
                                   ? "text-primary"
                                   : "text-muted-foreground"
                               )}
                             >
-                              {link.label}
+                              {child.label}
                             </Link>
                           ))}
                         </div>
-                      )}
+                      ))}
+
+                      <div className="flex flex-col gap-2 pt-2 border-t border-border/50">
+                        <p className="text-xs text-muted-foreground font-medium uppercase tracking-wider">
+                          Account
+                        </p>
+                        {ACCOUNT_LINKS.map((link) => (
+                          <Link
+                            key={link.href}
+                            href={link.href}
+                            onClick={() => setMobileOpen(false)}
+                            className={cn(
+                              "text-lg font-medium transition-colors hover:text-primary",
+                              matchesChild(pathname, link.href)
+                                ? "text-primary"
+                                : "text-muted-foreground"
+                            )}
+                          >
+                            {link.label}
+                          </Link>
+                        ))}
+                      </div>
                     </nav>
 
                     {/* Mobile admin: user switcher */}
@@ -445,6 +474,27 @@ export function AppHeader() {
             )}
           </div>
         </div>
+        {/* Second layer: the pages inside the active section */}
+        {user && !isLoginPage && activeSection && (
+          <div className="hidden md:block border-t border-border/40 bg-[#0d0d0d]">
+            <div className="container mx-auto px-4 flex h-10 items-center gap-4 overflow-x-auto">
+              {activeSection.children.map((child) => (
+                <Link
+                  key={child.href}
+                  href={child.href}
+                  className={cn(
+                    "text-sm whitespace-nowrap transition-colors hover:text-primary",
+                    matchesChild(pathname, child.href)
+                      ? "text-primary font-medium"
+                      : "text-muted-foreground"
+                  )}
+                >
+                  {child.label}
+                </Link>
+              ))}
+            </div>
+          </div>
+        )}
       </header>
     </>
   );

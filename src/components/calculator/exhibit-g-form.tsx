@@ -22,6 +22,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { DocumentUpload } from "@/components/shared/document-upload";
+import { SuggestInput } from "@/components/shared/suggest-input";
 import { CollapsibleSection } from "@/components/calculator/collapsible-section";
 import { TimeSelect } from "@/components/calculator/time-select";
 import { toast } from "sonner";
@@ -365,6 +366,20 @@ export function ExhibitGForm() {
         <div className="space-y-6">
       <Card>
         <CardContent className="space-y-6 pt-6">
+          {/* The Exhibit G itself leads the page — everything else describes it. */}
+          <div className="flex flex-col items-center gap-2 pb-2 border-b border-border/50">
+            <h2 className="text-xl font-semibold">Exhibit G</h2>
+            <p className="text-sm text-muted-foreground text-center">
+              Attach the G for this day, or fill the times in below.
+            </p>
+            <DocumentUpload
+              documents={exhibitGDocs}
+              onUpload={handleExhibitGUpload}
+              onRemove={handleExhibitGRemove}
+              documentTypes={["exhibit_g"]}
+            />
+          </div>
+
           {/* Job details — collapsed by default so work times lead. */}
           <CollapsibleSection
             title="Job Details"
@@ -383,7 +398,8 @@ export function ExhibitGForm() {
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="space-y-1">
                 <Label htmlFor="showName" className="text-base">Show Title</Label>
-                <Input
+                <SuggestInput
+                  kind="show"
                   id="showName"
                   value={input.showName}
                   onChange={(e) => update("showName", e.target.value)}
@@ -407,7 +423,8 @@ export function ExhibitGForm() {
               {!isStuntCoordinator && (
                 <div className="space-y-1">
                   <Label htmlFor="characterName" className="text-base">Character Name</Label>
-                  <Input
+                  <SuggestInput
+                    kind="character"
                     id="characterName"
                     value={input.characterName}
                     onChange={(e) => update("characterName", e.target.value)}
@@ -438,13 +455,6 @@ export function ExhibitGForm() {
               </div>
             </div>
 
-            {/* Exhibit G attachment lives with the job details */}
-            <DocumentUpload
-              documents={exhibitGDocs}
-              onUpload={handleExhibitGUpload}
-              onRemove={handleExhibitGRemove}
-              documentTypes={["exhibit_g"]}
-            />
           </CollapsibleSection>
 
           {/* Stunt Coordinator Flat Rate Display */}

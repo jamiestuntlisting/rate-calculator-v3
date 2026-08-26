@@ -5,6 +5,7 @@ import {
   updateWorkRecord,
 } from "@/lib/repos/work-records";
 import { requireAuth, getEffectiveUserId } from "@/lib/api-auth";
+import { recordName } from "@/lib/repos/name-suggestions";
 
 export async function GET(
   _request: Request,
@@ -50,6 +51,14 @@ export async function PUT(
 
     // Prevent userId from being overwritten
     delete data.userId;
+
+    // Keep the suggestion lists current, and resolve blocked spellings.
+    if (typeof data.showName === "string") {
+      data.showName = await recordName("show", data.showName);
+    }
+    if (typeof data.characterName === "string") {
+      data.characterName = await recordName("character", data.characterName);
+    }
 
     const record = await updateWorkRecord(
       id,

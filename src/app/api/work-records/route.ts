@@ -5,6 +5,7 @@ import {
 } from "@/lib/repos/work-records";
 import { calculatePaymentDueDate } from "@/lib/time-utils";
 import { requireAuth, getEffectiveUserId } from "@/lib/api-auth";
+import { recordName } from "@/lib/repos/name-suggestions";
 
 export async function GET(request: NextRequest) {
   try {
@@ -103,9 +104,16 @@ export async function POST(request: Request) {
           (d: { documentType?: string }) => d.documentType === "exhibit_g"
         ));
 
+    // Remember the spellings for autocomplete, and use the canonical one if
+    // an admin has blocked what was typed.
+    const showName = await recordName("show", data.showName);
+    const characterName = await recordName("character", data.characterName ?? "");
+
     const record = await createWorkRecord(
       {
         ...data,
+        showName,
+        characterName,
         recordStatus,
         paymentDueDate,
         missingExhibitG: !hasExhibitG && data.workType !== "other",
