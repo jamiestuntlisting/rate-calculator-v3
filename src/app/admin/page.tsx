@@ -7,7 +7,15 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { FileText, ArrowRight, Sparkles, Code2, Ban, ListTodo } from "lucide-react";
+import {
+  FileText,
+  ArrowRight,
+  Sparkles,
+  Code2,
+  Ban,
+  ListTodo,
+  FlaskConical,
+} from "lucide-react";
 import { useAuth } from "@/context/auth-context";
 import { isAdminEmail } from "@/lib/admin-emails";
 
@@ -23,6 +31,12 @@ const ADMIN_PAGES = [
     title: "Names",
     detail: "Block misspelled show titles and character names.",
     icon: Ban,
+  },
+  {
+    href: "/admin/weekly-bench",
+    title: "Weekly bench",
+    detail: "Check our weekly calculation against a ShowBiz export.",
+    icon: FlaskConical,
   },
   {
     href: "/admin/tasks",

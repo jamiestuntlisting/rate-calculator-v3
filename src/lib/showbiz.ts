@@ -20,21 +20,28 @@ const COL = {
   studio: 158,
   production: 159,
   employmentType: 182,
+  /** Hours at 1.5x from exceeding the weekly guarantee. */
+  weeklyOvertimeHours: 183,
   contractType: 184,
   guaranteedHours: 185,
   contractRate: 188,
   derivedRate: 189,
-  adjustment: 190,
+  /** Allowances and meal penalties, added after the subtotal. */
+  postSubtotalAdjustments: 190,
   sixthDay: 191,
   seventhDay: 192,
   extras: 194,
   role: 196,
   sagCategory: 200,
   location: 201,
-  perDayDollarsA: 203,
-  perDayDollarsB: 204,
-  perDayHoursA: 205,
-  perDayHoursB: 206,
+  /** Per-day stunt adjustments; the week's figure is their sum. */
+  adjustmentsPerDay: 202,
+  /** Hours at 1.5x from daily overtime. */
+  dailyOvertimeHours: 205,
+  /** Hours at 2x. */
+  doubleTimeHours: 206,
+  /** Hours at 1.5x from penalties. */
+  penaltyOvertimeHours: 207,
   gross: 209,
   subtotal: 211,
   baseScaleRate: 214,
@@ -64,7 +71,18 @@ export interface ShowbizCard {
   contractRate: number;
   derivedRate: number;
   baseScaleRate: number;
-  adjustment: number;
+  /**
+   * Per-day stunt adjustments (col 202). The week's adjustment figure is the
+   * sum of these — not col 190, which is a different number that lands after
+   * the subtotal.
+   */
+  adjustmentsPerDay: number[];
+  dailyOvertimeHours: number;
+  doubleTimeHours: number;
+  penaltyOvertimeHours: number;
+  weeklyOvertimeHours: number;
+  /** Allowances and meal penalties added after the subtotal (col 190). */
+  postSubtotalAdjustments: number;
   isSixthDay: boolean;
   isSeventhDay: boolean;
   extras: string;
@@ -72,8 +90,6 @@ export interface ShowbizCard {
   datesWorked: string[];
   hoursPerDay: number[];
   dayCodes: string[];
-  perDayDollars: number[];
-  perDayHours: number[];
   /** What ShowBiz paid — the number our calculation has to reproduce. */
   gross: number;
   subtotal: number;
@@ -174,7 +190,12 @@ export function parseShowbizCsv(text: string): ShowbizCard[] {
       contractRate: parseMoney(get(COL.contractRate)),
       derivedRate: parseMoney(get(COL.derivedRate)),
       baseScaleRate: parseMoney(get(COL.baseScaleRate)),
-      adjustment: parseMoney(get(COL.adjustment)),
+      adjustmentsPerDay: splitDays(get(COL.adjustmentsPerDay)).map(parseMoney),
+      dailyOvertimeHours: parseMoney(get(COL.dailyOvertimeHours)),
+      doubleTimeHours: parseMoney(get(COL.doubleTimeHours)),
+      penaltyOvertimeHours: parseMoney(get(COL.penaltyOvertimeHours)),
+      weeklyOvertimeHours: parseMoney(get(COL.weeklyOvertimeHours)),
+      postSubtotalAdjustments: parseMoney(get(COL.postSubtotalAdjustments)),
       isSixthDay: get(COL.sixthDay).toLowerCase().includes("6th"),
       isSeventhDay: get(COL.seventhDay).toLowerCase().includes("7th"),
       extras: get(COL.extras),
@@ -182,14 +203,6 @@ export function parseShowbizCsv(text: string): ShowbizCard[] {
       datesWorked: splitDays(get(COL.datesWorked)),
       hoursPerDay: splitDays(get(COL.hoursPerDay)).map(parseMoney),
       dayCodes: splitDays(get(COL.dayCodes)),
-      perDayDollars: [
-        ...splitDays(get(COL.perDayDollarsA)),
-        ...splitDays(get(COL.perDayDollarsB)),
-      ].map(parseMoney),
-      perDayHours: [
-        ...splitDays(get(COL.perDayHoursA)),
-        ...splitDays(get(COL.perDayHoursB)),
-      ].map(parseMoney),
       gross: parseMoney(get(COL.gross)),
       subtotal: parseMoney(get(COL.subtotal)),
     });

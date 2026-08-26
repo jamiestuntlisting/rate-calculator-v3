@@ -23,16 +23,19 @@ weekly-contract test bench.
 | 158 | Studio | `ABC Studios New York` |
 | 159 | Production title | `Law & Order: Special Victims Unit` |
 | 182 | **Employment type** | `Day Player`, `3 Day Player`, `Weekly Player` |
+| 183 | Weekly-overtime hours (1.5x) | `6.00` |
 | 184 | Contract type | `TV`, `Theatrical` |
 | 185 | Guaranteed hours | `8.00` (daily), `44.00` / `48.00` (weekly) |
 | 188 | Contract rate | `$1,912.00` |
 | 189 | Derived day/hour rate | `$239.00` |
-| 190 | Adjustment amount | `$260.00` |
+| 190 | Adjustment amount, added **after** the subtotal | `$260.00` |
 | 191 / 192 | 6th / 7th day flags | `6th Day`, `7th Day` |
 | 194 | Extra items | `Covid Test`, `Fitting`, `Loc Allowance` |
 | 196 | Role description | `Stunt Double: Baltimore` |
 | 200 | SAG category | `H: Stunt Performer`, `K: Stunt Coordinator` |
 | 201 | Studio / Distant | `Studio` |
+| 202 | **Per-day stunt adjustments** (multi-day) | `100.00` — the week's figure is their sum |
+| 205 / 206 / 207 | Daily-overtime (1.5x) / double-time (2x) / penalty (1.5x) hours | `1.60`, `6.70` |
 | 209 | Gross total | `$2,810.00` |
 | 211 | Subtotal before adjustments | `$2,550.00` |
 | 214 | Base scale rate | `$1,030.00` |
@@ -44,3 +47,10 @@ weekly-contract test bench.
 
 `Weekly Player` rows with 44.00 or 48.00 guaranteed hours are the cases the
 weekly calculation must reproduce.
+
+Two adjustment columns are easy to confuse, and swapping them still yields a
+plausible gross: **202** is the per-day stunt adjustment that feeds the
+overtime rate and the 6th/7th-day premiums, while **190** is allowances and
+meal penalties added after the subtotal. `src/lib/weekly/from-showbiz.ts`
+maps a parsed card onto the weekly engine and is the one place that mapping
+is written down in code.
