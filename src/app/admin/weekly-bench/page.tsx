@@ -1,14 +1,22 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { ChevronDown, ChevronRight, Loader2, Upload } from "lucide-react";
+import {
+  Check,
+  ChevronDown,
+  ChevronRight,
+  Loader2,
+  RotateCcw,
+  Upload,
+} from "lucide-react";
 import { toast } from "sonner";
 import { useAuth } from "@/context/auth-context";
 import { isAdminEmail } from "@/lib/admin-emails";
 import { decodeShowbizFile, isWeeklyCard, parseShowbizCsv } from "@/lib/showbiz";
+import { SHOWBIZ_SAMPLE } from "@/lib/showbiz-sample-meta";
 import {
   checkWeeklyCards,
   type WeeklyCardCheck,
@@ -30,6 +38,8 @@ interface RunResult extends WeeklyCheckSummary {
   fileName: string;
   /** Cards in the file that are not weekly, so none go missing quietly. */
   skipped: number;
+  /** The bundled reference export rather than one the admin picked. */
+  isSample: boolean;
 }
 
 export default function WeeklyBenchPage() {
@@ -37,17 +47,17 @@ export default function WeeklyBenchPage() {
   const router = useRouter();
   const fileInput = useRef<HTMLInputElement>(null);
   const [running, setRunning] = useState(false);
+  const [saving, setSaving] = useState(false);
+  /** The CSV text currently loaded, so it can be made the default. */
+  const [loadedCsv, setLoadedCsv] = useState<string | null>(null);
   const [result, setResult] = useState<RunResult | null>(null);
   const [onlyDifferences, setOnlyDifferences] = useState(false);
   const [expanded, setExpanded] = useState<string | null>(null);
 
-  const run = async (file: File) => {
-    setRunning(true);
-    setExpanded(null);
-    try {
-      // Parsed in the browser: the export carries real names and pay, and
-      // nothing here needs it on the server.
-      const text = decodeShowbizFile(await file.arrayBuffer());
+  /** Run one export's text through the engine, whatever it came from. */
+  const runText = useCallback(
+    (text: string, fileName: string, isSample: boolean) => {
+      setLoadedCsv(text);
       const all = parseShowbizCsv(text);
       if (all.length === 0) {
         toast.error("No cards found — is that a SAG Cards export?");
@@ -58,10 +68,72 @@ export default function WeeklyBenchPage() {
       const weekly = all.filter(isWeeklyCard);
       setResult({
         ...checkWeeklyCards(weekly),
-        fileName: file.name,
+        fileName,
         skipped: all.length - weekly.length,
+        isSample,
       });
       setOnlyDifferences(false);
+    },
+    []
+  );
+
+  /**
+   * The reference export runs on arrival, so the bench always has something
+   * in it — a regression in the weekly engine is visible without anyone
+   * having to go and find a CSV first.
+   */
+  const loadSample = useCallback(async () => {
+    setRunning(true);
+    setExpanded(null);
+    try {
+      const res = await fetch("/api/admin/showbiz-sample");
+      if (!res.ok) {
+        // Nothing stored yet — the bench just waits for a file.
+        if (res.status === 404) return;
+        throw new Error();
+      }
+      const name =
+        res.headers.get("X-Export-Filename") || SHOWBIZ_SAMPLE.filename;
+      runText(await res.text(), name, true);
+    } catch (error) {
+      console.error("weekly bench sample error:", error);
+      toast.error("Couldn't load the reference export");
+    } finally {
+      setRunning(false);
+    }
+  }, [runText]);
+
+  useEffect(() => {
+    loadSample();
+  }, [loadSample]);
+
+  /** Keep this export as the one the bench opens with from now on. */
+  const saveAsDefault = async () => {
+    if (!loadedCsv || !result) return;
+    setSaving(true);
+    try {
+      const res = await fetch("/api/admin/showbiz-sample", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ csv: loadedCsv, filename: result.fileName }),
+      });
+      if (!res.ok) throw new Error();
+      setResult((prev) => (prev ? { ...prev, isSample: true } : prev));
+      toast.success("Saved as the reference export");
+    } catch {
+      toast.error("Couldn't save that as the default");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const run = async (file: File) => {
+    setRunning(true);
+    setExpanded(null);
+    try {
+      // Parsed in the browser: an export carries real names and pay, and
+      // nothing here needs it on the server.
+      runText(decodeShowbizFile(await file.arrayBuffer()), file.name, false);
     } catch (error) {
       console.error("weekly bench error:", error);
       toast.error("Couldn't read that file");
@@ -96,9 +168,10 @@ export default function WeeklyBenchPage() {
         </button>
         <h1 className="text-2xl font-bold">Weekly bench</h1>
         <p className="text-sm text-muted-foreground mt-1">
-          Upload a ShowBiz SAG Cards export and every weekly card in it is run
-          through our calculation and compared against what payroll actually
-          paid. The file is read in your browser and never uploaded.
+          Every weekly card in a ShowBiz SAG Cards export is run through our
+          calculation and compared against what payroll actually paid. The
+          reference export runs by default; swap in your own to check another.
+          A file you pick is read in your browser and never uploaded.
         </p>
       </div>
 
@@ -117,20 +190,49 @@ export default function WeeklyBenchPage() {
               if (file) run(file);
             }}
           />
-          <Button
-            onClick={() => fileInput.current?.click()}
-            disabled={running}
-            className="w-full sm:w-auto"
-          >
-            {running ? (
-              <Loader2 className="h-4 w-4 animate-spin" />
-            ) : (
-              <Upload className="h-4 w-4" />
+          <div className="flex flex-wrap gap-2">
+            <Button
+              onClick={() => fileInput.current?.click()}
+              disabled={running}
+              className="w-full sm:w-auto"
+            >
+              {running ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <Upload className="h-4 w-4" />
+              )}
+              {running ? "Running…" : "Use another export"}
+            </Button>
+            {result && !result.isSample && (
+              <>
+                <Button
+                  variant="outline"
+                  onClick={saveAsDefault}
+                  disabled={running || saving}
+                  className="w-full sm:w-auto"
+                >
+                  {saving ? (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  ) : (
+                    <Check className="h-4 w-4" />
+                  )}
+                  Make this the default
+                </Button>
+                <Button
+                  variant="ghost"
+                  onClick={loadSample}
+                  disabled={running || saving}
+                  className="w-full sm:w-auto"
+                >
+                  <RotateCcw className="h-4 w-4" />
+                  Back to the default
+                </Button>
+              </>
             )}
-            {running ? "Running…" : "Choose an export"}
-          </Button>
+          </div>
           {result && (
             <p className="text-xs text-muted-foreground mt-3 break-all">
+              {result.isSample ? "Reference export · " : ""}
               {result.fileName}
               {result.skipped > 0 &&
                 ` — ${result.skipped} non-weekly card${
