@@ -370,8 +370,7 @@ export function ExhibitGForm() {
           {/* The Exhibit G leads the page and takes up most of it. A G we
               can read beats a day typed in from memory, so this is the one
               thing that should be impossible to walk past. */}
-          <div className="space-y-3 pb-5 border-b border-border/50">
-            <h2 className="text-xl font-semibold text-center">Exhibit G</h2>
+          <div className="pb-5 border-b border-border/50">
             <ExhibitGDropzone
               documents={exhibitGDocs}
               onUpload={handleExhibitGUpload}
@@ -555,16 +554,14 @@ export function ExhibitGForm() {
 
               {/* Stunt Adjustment */}
               <div className="border-t pt-3 mt-3">
-                <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between sm:gap-4">
-                  <div className="min-w-0">
-                    <Label htmlFor="stuntAdjustment" className="text-sm">Stunt Adjustment</Label>
-                    <p className="text-xs text-muted-foreground">Meal penalties calculated from times above</p>
-                  </div>
-                  <div className="relative w-40 max-w-full shrink-0">
+                <div className="flex items-center justify-between gap-4 p-2">
+                  <Label htmlFor="stuntAdjustment" className="text-base shrink-0">Stunt Adjustment</Label>
+                  <div className="relative flex-1 min-w-0 max-w-[15rem]">
                     <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground">$</span>
-                    <Input id="stuntAdjustment" type="number" min="0" step="50" value={input.stuntAdjustment || ""} onChange={(e) => update("stuntAdjustment", parseFloat(e.target.value) || 0)} className="pl-7 w-40" placeholder="0.00" />
+                    <Input id="stuntAdjustment" type="number" min="0" step="50" value={input.stuntAdjustment || ""} onChange={(e) => update("stuntAdjustment", parseFloat(e.target.value) || 0)} className="pl-7 w-full" placeholder="0.00" />
                   </div>
                 </div>
+                <p className="text-xs text-muted-foreground px-2">Meal penalties calculated from times above</p>
               </div>
             </div>
           </div>

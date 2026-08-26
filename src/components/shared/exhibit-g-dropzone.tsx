@@ -1,7 +1,7 @@
 "use client";
 
 import { useRef, useState } from "react";
-import { Camera, FileText, Loader2, Plus, Upload, X } from "lucide-react";
+import { FileText, Loader2, Plus, Upload, X } from "lucide-react";
 import { toast } from "sonner";
 import type { WorkDocument } from "@/types";
 
@@ -39,7 +39,6 @@ export function ExhibitGDropzone({
   disabled = false,
 }: ExhibitGDropzoneProps) {
   const browseRef = useRef<HTMLInputElement>(null);
-  const cameraRef = useRef<HTMLInputElement>(null);
   /** Nested children fire their own dragleave, so count instead of toggling. */
   const dragDepth = useRef(0);
   const [dragging, setDragging] = useState(false);
@@ -112,17 +111,6 @@ export function ExhibitGDropzone({
         onChange={onPick}
         disabled={busy}
       />
-      <input
-        ref={cameraRef}
-        type="file"
-        accept="image/*"
-        // Opens the camera straight away on a phone; ignored on desktop.
-        capture="environment"
-        className="hidden"
-        onChange={onPick}
-        disabled={busy}
-      />
-
       <div
         role="button"
         tabIndex={disabled ? -1 : 0}
@@ -176,17 +164,6 @@ export function ExhibitGDropzone({
           </>
         )}
       </div>
-
-      {/* The shot people are already taking on set, one tap away. */}
-      <button
-        type="button"
-        disabled={busy}
-        onClick={() => cameraRef.current?.click()}
-        className="w-full flex items-center justify-center gap-2 rounded-lg border border-border px-4 py-3 text-sm font-medium hover:bg-accent disabled:opacity-50 sm:hidden"
-      >
-        <Camera className="h-4 w-4" />
-        Take a photo
-      </button>
 
       {documents.length > 0 && (
         <div className="space-y-2">
