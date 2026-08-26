@@ -313,16 +313,14 @@ export default function TranscribePage({
             transformOrigin: "top left",
             transform: rotationTransform,
           }}
-          onLoad={(e) =>
+          onLoad={(e) => {
+            // Read the size now: React clears currentTarget once the handler
+            // returns, and the state updater below runs after that.
+            const { naturalWidth, naturalHeight } = e.currentTarget;
             setNatural((prev) =>
-              prev.w
-                ? prev
-                : {
-                    w: e.currentTarget.naturalWidth,
-                    h: e.currentTarget.naturalHeight,
-                  }
-            )
-          }
+              prev.w ? prev : { w: naturalWidth, h: naturalHeight }
+            );
+          }}
         />
       </div>
     </div>
