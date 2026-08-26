@@ -33,10 +33,12 @@ import { snapToSixMinutes, formatCurrency } from "@/lib/time-utils";
 import { calculateRate } from "@/lib/rate-engine";
 
 /** Agreement names carry their current daily rate, straight from RATES. */
+const dayRate = (amount: number) => `$${Math.round(amount).toLocaleString()}/day`;
+
 const AGREEMENT_LABELS: Record<RateSchedule, string> = {
-  theatrical_basic: `Theatrical Basic (${formatCurrency(RATES.theatrical_basic.daily)}/day)`,
-  television: `Television (${formatCurrency(RATES.television.daily)}/day)`,
-  stunt_coordinator: `Stunt Coordinator (${formatCurrency(RATES.stunt_coordinator.daily)}/day)`,
+  theatrical_basic: `Theatrical Basic (${dayRate(RATES.theatrical_basic.daily)})`,
+  television: `Television (${dayRate(RATES.television.daily)})`,
+  stunt_coordinator: `Stunt Coordinator (${dayRate(RATES.stunt_coordinator.daily)})`,
 };
 
 /** Get current time as HH:MM string, snapped to 6-min increments */
@@ -420,7 +422,7 @@ export function ExhibitGForm() {
                   value={input.workStatus}
                   onValueChange={(v) => update("workStatus", v as RateSchedule)}
                 >
-                  <SelectTrigger className="text-lg h-12">
+                  <SelectTrigger className="text-lg h-12 w-full min-w-0">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
@@ -467,7 +469,7 @@ export function ExhibitGForm() {
             <div className="space-y-0">
               <div className="flex items-center justify-between gap-4 p-2 rounded bg-muted/50">
                 <Label htmlFor="callTime" className="text-base shrink-0">Call Time</Label>
-                <TimeSelect id="callTime" value={input.callTime} onChange={(v) => update("callTime", v)} />
+                <div className="flex-1 min-w-0 max-w-[15rem]"><TimeSelect id="callTime" value={input.callTime} onChange={(v) => update("callTime", v)} /></div>
               </div>
               {/* Meals */}
               <div className="border-t border-b py-3 my-1 space-y-3">
@@ -478,14 +480,14 @@ export function ExhibitGForm() {
                     <Label htmlFor="showNdMeal" className="text-base font-normal">ND (Non-Deductible) Meal</Label>
                   </div>
                   {showNdMeal && (
-                    <div className="pl-6 space-y-0">
-                      <div className="flex items-center justify-between gap-4 p-2 rounded bg-muted/50">
-                        <Label htmlFor="ndMealIn" className="text-base shrink-0">ND Meal In</Label>
-                        <TimeSelect id="ndMealIn" value={input.ndMealIn || ""} onChange={(v) => update("ndMealIn", v || null)} clearable />
+                    <div className="grid grid-cols-2 gap-2 px-2 pb-2">
+                      <div>
+                        <Label htmlFor="ndMealIn-hour" className="text-sm text-muted-foreground">In</Label>
+                        <TimeSelect id="ndMealIn" value={input.ndMealIn || ""} onChange={(v) => update("ndMealIn", v || null)} compact />
                       </div>
-                      <div className="flex items-center justify-between gap-4 p-2">
-                        <Label htmlFor="ndMealOut" className="text-base shrink-0">ND Meal Out</Label>
-                        <TimeSelect id="ndMealOut" value={input.ndMealOut || ""} onChange={(v) => update("ndMealOut", v || null)} clearable />
+                      <div>
+                        <Label htmlFor="ndMealOut-hour" className="text-sm text-muted-foreground">Out</Label>
+                        <TimeSelect id="ndMealOut" value={input.ndMealOut || ""} onChange={(v) => update("ndMealOut", v || null)} compact />
                       </div>
                     </div>
                   )}
@@ -497,14 +499,14 @@ export function ExhibitGForm() {
                     <Label htmlFor="showFirstMeal" className="text-base font-normal">1st Meal</Label>
                   </div>
                   {showFirstMeal && (
-                    <div className="pl-6 space-y-0">
-                      <div className="flex items-center justify-between gap-4 p-2 rounded bg-muted/50">
-                        <Label htmlFor="firstMealStart" className="text-base shrink-0">1st Meal Start</Label>
-                        <TimeSelect id="firstMealStart" value={input.firstMealStart || ""} onChange={(v) => update("firstMealStart", v || null)} clearable />
+                    <div className="grid grid-cols-2 gap-2 px-2 pb-2">
+                      <div>
+                        <Label htmlFor="firstMealStart-hour" className="text-sm text-muted-foreground">Out</Label>
+                        <TimeSelect id="firstMealStart" value={input.firstMealStart || ""} onChange={(v) => update("firstMealStart", v || null)} compact />
                       </div>
-                      <div className="flex items-center justify-between gap-4 p-2">
-                        <Label htmlFor="firstMealFinish" className="text-base shrink-0">1st Meal Finish</Label>
-                        <TimeSelect id="firstMealFinish" value={input.firstMealFinish || ""} onChange={(v) => update("firstMealFinish", v || null)} clearable />
+                      <div>
+                        <Label htmlFor="firstMealFinish-hour" className="text-sm text-muted-foreground">In</Label>
+                        <TimeSelect id="firstMealFinish" value={input.firstMealFinish || ""} onChange={(v) => update("firstMealFinish", v || null)} compact />
                       </div>
                     </div>
                   )}
@@ -517,14 +519,14 @@ export function ExhibitGForm() {
                     <Label htmlFor="showSecondMeal" className="text-base font-normal">2nd Meal</Label>
                   </div>
                   {showSecondMeal && (
-                    <div className="pl-6 space-y-0">
-                      <div className="flex items-center justify-between gap-4 p-2 rounded bg-muted/50">
-                        <Label htmlFor="secondMealStart" className="text-base shrink-0">2nd Meal Start</Label>
-                        <TimeSelect id="secondMealStart" value={input.secondMealStart || ""} onChange={(v) => update("secondMealStart", v || null)} clearable />
+                    <div className="grid grid-cols-2 gap-2 px-2 pb-2">
+                      <div>
+                        <Label htmlFor="secondMealStart-hour" className="text-sm text-muted-foreground">Out</Label>
+                        <TimeSelect id="secondMealStart" value={input.secondMealStart || ""} onChange={(v) => update("secondMealStart", v || null)} compact />
                       </div>
-                      <div className="flex items-center justify-between gap-4 p-2">
-                        <Label htmlFor="secondMealFinish" className="text-base shrink-0">2nd Meal Finish</Label>
-                        <TimeSelect id="secondMealFinish" value={input.secondMealFinish || ""} onChange={(v) => update("secondMealFinish", v || null)} clearable />
+                      <div>
+                        <Label htmlFor="secondMealFinish-hour" className="text-sm text-muted-foreground">In</Label>
+                        <TimeSelect id="secondMealFinish" value={input.secondMealFinish || ""} onChange={(v) => update("secondMealFinish", v || null)} compact />
                       </div>
                     </div>
                   )}
@@ -534,11 +536,11 @@ export function ExhibitGForm() {
 
               <div className="flex items-center justify-between gap-4 p-2">
                 <Label htmlFor="dismissOnSet" className="text-base shrink-0">Dismiss On Set</Label>
-                <TimeSelect id="dismissOnSet" value={input.dismissOnSet} onChange={(v) => update("dismissOnSet", v)} />
+                <div className="flex-1 min-w-0 max-w-[15rem]"><TimeSelect id="dismissOnSet" value={input.dismissOnSet} onChange={(v) => update("dismissOnSet", v)} /></div>
               </div>
               <div className="flex items-center justify-between gap-4 p-2 rounded bg-muted/50">
                 <Label htmlFor="dismissMakeupWardrobe" className="text-base shrink-0">Wrapped</Label>
-                <TimeSelect id="dismissMakeupWardrobe" value={input.dismissMakeupWardrobe || ""} onChange={(v) => update("dismissMakeupWardrobe", v || null)} clearable />
+                <div className="flex-1 min-w-0 max-w-[15rem]"><TimeSelect id="dismissMakeupWardrobe" value={input.dismissMakeupWardrobe || ""} onChange={(v) => update("dismissMakeupWardrobe", v || null)} /></div>
               </div>
 
               {/* Stunt Adjustment */}

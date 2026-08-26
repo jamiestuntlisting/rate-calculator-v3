@@ -20,6 +20,8 @@ interface TimeSelectProps {
   onChange: (value: string) => void;
   /** Optional fields can be cleared back to empty. */
   clearable?: boolean;
+  /** Tighter spacing, for two pickers side by side on a phone. */
+  compact?: boolean;
 }
 
 function parse(value: string): { hour12: number; minute: number; pm: boolean } | null {
@@ -47,6 +49,7 @@ export function TimeSelect({
   value,
   onChange,
   clearable = false,
+  compact = false,
 }: TimeSelectProps) {
   const parsed = parse(value);
 
@@ -63,17 +66,18 @@ export function TimeSelect({
   };
 
   const selectClass =
-    "h-12 rounded-md border border-input bg-background px-2 text-lg " +
-    "focus:outline-none focus:ring-2 focus:ring-ring";
+    "flex-1 min-w-0 rounded-md border border-input bg-background " +
+    "focus:outline-none focus:ring-2 focus:ring-ring " +
+    (compact ? "h-11 px-0.5 text-base" : "h-12 px-1 text-lg");
 
   return (
-    <div className="space-y-1">
+    <div className="space-y-1 w-full min-w-0">
       {label && (
         <Label htmlFor={`${id}-hour`} className="text-base">
           {label}
         </Label>
       )}
-      <div className="flex items-center gap-1">
+      <div className={`flex items-center w-full ${compact ? "gap-0.5" : "gap-1"}`}>
         <select
           id={`${id}-hour`}
           aria-label={label ? `${label} hour` : "Hour"}
@@ -93,7 +97,7 @@ export function TimeSelect({
           ))}
         </select>
 
-        <span className="text-lg text-muted-foreground">:</span>
+        <span className="text-muted-foreground text-sm shrink-0">:</span>
 
         <select
           id={`${id}-minute`}
