@@ -32,7 +32,14 @@ interface TranscriptionRow {
   notes: string;
 }
 
+/** What the G is, independent of the times on it. */
+interface TranscriptionDetails {
+  showName: string;
+  workDate: string;
+}
+
 interface Transcription {
+  details?: TranscriptionDetails;
   rows: TranscriptionRow[];
   /** Remembered so the G opens exactly where it was left. */
   view?: {
@@ -92,6 +99,10 @@ export default function TranscribePage({
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [row, setRow] = useState<TranscriptionRow>(emptyRow());
+  const [details, setDetails] = useState<TranscriptionDetails>({
+    showName: "",
+    workDate: "",
+  });
   const [natural, setNatural] = useState({ w: 0, h: 0 });
   const [rotation, setRotation] = useState(0);
   const [zoom, setZoom] = useState(1);
@@ -114,6 +125,7 @@ export default function TranscribePage({
         setUpload(data);
         setRotation(data.rotation);
         if (data.transcription?.rows?.[0]) setRow(data.transcription.rows[0]);
+        if (data.transcription?.details) setDetails(data.transcription.details);
         if (data.transcription?.view) {
           savedView.current = data.transcription.view;
           setZoom(data.transcription.view.zoom || 1);
@@ -226,6 +238,7 @@ export default function TranscribePage({
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           transcription: {
+            details,
             rows: [row],
             view: {
               zoom,
@@ -243,7 +256,7 @@ export default function TranscribePage({
     } finally {
       setSaving(false);
     }
-  }, [id, row, zoom]);
+  }, [id, row, details, zoom]);
 
   const rotate = async () => {
     const next = (rotation + 90) % 360;
@@ -342,8 +355,7 @@ export default function TranscribePage({
               {upload.displayTitle}
             </h1>
             <p className="text-xs text-muted-foreground">
-              Top pane: the column headings. Bottom pane: scroll to your row.
-              They scroll sideways together.
+              Save as much or as little as you like — even just the date.
             </p>
           </div>
         </div>
@@ -366,6 +378,44 @@ export default function TranscribePage({
             )}
             Save
           </Button>
+        </div>
+      </div>
+
+      {/* Save any part of this: the date alone is worth recording. */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-3">
+        <div>
+          <label
+            htmlFor="g-show-name"
+            className="block text-sm text-muted-foreground mb-1"
+          >
+            Show
+          </label>
+          <Input
+            id="g-show-name"
+            value={details.showName}
+            onChange={(e) =>
+              setDetails((d) => ({ ...d, showName: e.target.value }))
+            }
+            placeholder="Names this G and its tracker row"
+            className="h-11 text-base"
+          />
+        </div>
+        <div>
+          <label
+            htmlFor="g-work-date"
+            className="block text-sm text-muted-foreground mb-1"
+          >
+            Work date
+          </label>
+          <Input
+            id="g-work-date"
+            type="date"
+            value={details.workDate}
+            onChange={(e) =>
+              setDetails((d) => ({ ...d, workDate: e.target.value }))
+            }
+            className="h-11 text-base"
+          />
         </div>
       </div>
 

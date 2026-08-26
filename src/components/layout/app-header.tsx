@@ -14,7 +14,7 @@ import { isAdminEmail } from "@/lib/admin-emails";
 const navLinks = [
   { href: "/", label: "Rate Calculator", adminOnly: false },
   // Non-SAG lives behind a button on the Rate Calculator, not in the nav.
-  { href: "/upload-g", label: "Upload a G", adminOnly: false },
+  { href: "/upload-g", label: "Exhibit G", adminOnly: false },
   { href: "/tracker", label: "Tracker", adminOnly: false },
   { href: "/analytics", label: "Analytics", adminOnly: false },
   { href: "/residuals", label: "Residuals", adminOnly: false },

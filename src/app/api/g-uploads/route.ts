@@ -6,6 +6,7 @@ import {
   findGUploadByHash,
   listGUploads,
 } from "@/lib/repos/g-uploads";
+import { createWorkRecord } from "@/lib/repos/work-records";
 import { requireAuth, getEffectiveUserId } from "@/lib/api-auth";
 
 const MIME_TYPES: Record<string, string> = {
@@ -86,6 +87,27 @@ export async function POST(request: Request) {
         customMetadata: { originalName: file.name },
       });
 
+      // An Exhibit G is one work day, so it gets a tracker row straight
+      // away. It sits as attachment-only, dated the day it was uploaded,
+      // until someone transcribes the real date and show off the form.
+      const uploadedOn = new Date().toISOString();
+      const workRecord = await createWorkRecord(
+        {
+          showName: "",
+          workDate: uploadedOn,
+          recordStatus: "attachment_only",
+          documents: [
+            {
+              filename,
+              originalName: file.name,
+              documentType: "exhibit_g",
+              uploadedAt: uploadedOn,
+            },
+          ],
+        },
+        userId
+      );
+
       created.push(
         await createGUpload({
           userId,
@@ -95,6 +117,7 @@ export async function POST(request: Request) {
           contentType,
           size: file.size,
           sha256: hash,
+          workRecordId: workRecord._id,
         })
       );
     }

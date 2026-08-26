@@ -11,6 +11,8 @@ export interface GUploadRow {
   sha256: string;
   rotation: number;
   transcription: string | null;
+  /** The tracker row this Exhibit G belongs to — one G is one work day. */
+  workRecordId: string | null;
   createdAt: string;
   updatedAt: string;
 }
@@ -75,6 +77,7 @@ export interface CreateGUploadInput {
   contentType: string;
   size: number;
   sha256: string;
+  workRecordId?: string | null;
 }
 
 export async function createGUpload(
@@ -85,8 +88,8 @@ export async function createGUpload(
   const row = await db
     .prepare(
       `INSERT INTO g_uploads
-        (_id, userId, title, filename, originalName, contentType, size, sha256, rotation, transcription, createdAt, updatedAt)
-       VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, 0, NULL, ?9, ?9)
+        (_id, userId, title, filename, originalName, contentType, size, sha256, rotation, transcription, workRecordId, createdAt, updatedAt)
+       VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, 0, NULL, ?9, ?10, ?10)
        RETURNING *`
     )
     .bind(
@@ -98,6 +101,7 @@ export async function createGUpload(
       input.contentType,
       input.size,
       input.sha256,
+      input.workRecordId ?? null,
       now
     )
     .first<GUploadRow>();
@@ -110,6 +114,7 @@ export interface UpdateGUploadInput {
   title?: string;
   rotation?: number;
   transcription?: unknown;
+  workRecordId?: string | null;
 }
 
 export async function updateGUpload(
@@ -130,6 +135,10 @@ export async function updateGUpload(
     sets.push("rotation = ?");
     // Normalize to 0/90/180/270 so the UI never has to guess.
     params.push(((Math.round(Number(patch.rotation) / 90) * 90) % 360 + 360) % 360);
+  }
+  if (patch.workRecordId !== undefined) {
+    sets.push("workRecordId = ?");
+    params.push(patch.workRecordId);
   }
   if (patch.transcription !== undefined) {
     sets.push("transcription = ?");

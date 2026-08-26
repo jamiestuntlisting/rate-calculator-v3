@@ -32,10 +32,15 @@ interface GUpload {
 
 type ViewMode = "grid" | "list";
 
-function formatSize(bytes: number): string {
-  if (bytes < 1024) return `${bytes} B`;
-  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(0)} KB`;
-  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+/** 8/14/26 — the way a work date gets written on set. */
+function formatUploadDate(iso: string): string {
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return "";
+  return d.toLocaleDateString("en-US", {
+    month: "numeric",
+    day: "numeric",
+    year: "2-digit",
+  });
 }
 
 export default function UploadGPage() {
@@ -194,7 +199,7 @@ export default function UploadGPage() {
     <div className="container mx-auto px-4 py-8 max-w-6xl">
       <div className="flex flex-wrap items-center justify-between gap-4 mb-6">
         <div>
-          <h1 className="text-3xl font-bold">Upload a G</h1>
+          <h1 className="text-3xl font-bold">Exhibit G</h1>
           <p className="text-muted-foreground text-sm mt-1">
             Exhibit Gs, call sheets and timecards. Tap one to transcribe it.
           </p>
@@ -222,10 +227,12 @@ export default function UploadGPage() {
             </button>
           </div>
 
+          {/* Touch devices only — pointer:coarse covers phones and tablets. */}
           <Button
             variant="outline"
             onClick={() => cameraInputRef.current?.click()}
             disabled={uploading}
+            className="hidden pointer-coarse:inline-flex"
           >
             <Camera className="h-4 w-4 mr-2" />
             Camera
@@ -296,12 +303,12 @@ export default function UploadGPage() {
           No Exhibit Gs yet — add your first one above.
         </p>
       ) : view === "grid" ? (
-        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
           {uploads.map((u) => (
             <Card key={u._id} className="overflow-hidden p-0 gap-0">
               <Link
                 href={`/upload-g/${u._id}`}
-                className="block bg-muted/40 h-44 overflow-hidden relative"
+                className="block bg-muted/40 h-72 sm:h-80 overflow-hidden relative"
               >
                 {isPdf(u) ? (
                   <span className="absolute inset-0 flex items-center justify-center">
@@ -359,7 +366,7 @@ export default function UploadGPage() {
                   </button>
 
                   <span className="text-xs text-muted-foreground text-center truncate">
-                    {formatSize(u.size)}
+                    {formatUploadDate(u.createdAt)}
                     {u.transcription ? " · transcribed" : ""}
                   </span>
 
@@ -383,11 +390,11 @@ export default function UploadGPage() {
             <div key={u._id} className="flex items-center gap-4 p-3">
               <Link
                 href={`/upload-g/${u._id}`}
-                className="h-14 w-14 shrink-0 rounded bg-muted/40 overflow-hidden relative"
+                className="h-40 w-40 shrink-0 rounded bg-muted/40 overflow-hidden relative"
               >
                 {isPdf(u) ? (
                   <span className="absolute inset-0 flex items-center justify-center">
-                    <FileText className="h-6 w-6 text-muted-foreground" />
+                    <FileText className="h-16 w-16 text-muted-foreground" />
                   </span>
                 ) : (
                   // eslint-disable-next-line @next/next/no-img-element
@@ -426,9 +433,8 @@ export default function UploadGPage() {
                     {u.displayTitle}
                   </button>
                 )}
-                <p className="text-xs text-muted-foreground">
-                  {new Date(u.createdAt).toLocaleDateString()} ·{" "}
-                  {formatSize(u.size)}
+                <p className="text-sm text-muted-foreground">
+                  Uploaded {formatUploadDate(u.createdAt)}
                   {u.transcription ? " · transcribed" : ""}
                 </p>
               </div>
