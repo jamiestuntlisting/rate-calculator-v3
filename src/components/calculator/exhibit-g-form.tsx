@@ -380,10 +380,11 @@ export function ExhibitGForm() {
             />
           </div>
 
-          {/* Job details — collapsed by default so work times lead. */}
+          {/* Job details stay folded away so work times lead — the summary
+              line carries whatever has been filled in. */}
           <CollapsibleSection
             title="Job Details"
-            defaultOpen={!input.showName}
+            defaultOpen={false}
             summary={
               [
                 input.showName,
@@ -396,7 +397,7 @@ export function ExhibitGForm() {
             }
           >
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div className="space-y-1">
+              <div className="space-y-1 min-w-0">
                 <Label htmlFor="showName" className="text-base">Show Title</Label>
                 <SuggestInput
                   kind="show"
@@ -407,21 +408,21 @@ export function ExhibitGForm() {
                   className="text-lg h-12"
                 />
               </div>
-              <div className="space-y-1">
+              <div className="space-y-1 min-w-0">
                 <Label htmlFor="workDate" className="text-base">Work Date</Label>
                 <Input
                   id="workDate"
                   type="date"
                   value={input.workDate}
                   onChange={(e) => update("workDate", e.target.value)}
-                  className="text-lg h-12"
+                  className="text-lg h-12 w-full max-w-full"
                 />
               </div>
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               {!isStuntCoordinator && (
-                <div className="space-y-1">
+                <div className="space-y-1 min-w-0">
                   <Label htmlFor="characterName" className="text-base">Character Name</Label>
                   <SuggestInput
                     kind="character"
@@ -433,7 +434,7 @@ export function ExhibitGForm() {
                   />
                 </div>
               )}
-              <div className="space-y-1">
+              <div className="space-y-1 min-w-0">
                 <Label htmlFor="workStatus" className="text-base">Agreement Type</Label>
                 <Select
                   value={input.workStatus}
@@ -555,12 +556,12 @@ export function ExhibitGForm() {
 
               {/* Stunt Adjustment */}
               <div className="border-t pt-3 mt-3">
-                <div className="flex items-center justify-between gap-4">
-                  <div className="shrink-0">
+                <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between sm:gap-4">
+                  <div className="min-w-0">
                     <Label htmlFor="stuntAdjustment" className="text-sm">Stunt Adjustment</Label>
                     <p className="text-xs text-muted-foreground">Meal penalties calculated from times above</p>
                   </div>
-                  <div className="relative w-40">
+                  <div className="relative w-40 max-w-full shrink-0">
                     <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground">$</span>
                     <Input id="stuntAdjustment" type="number" min="0" step="50" value={input.stuntAdjustment || ""} onChange={(e) => update("stuntAdjustment", parseFloat(e.target.value) || 0)} className="pl-7 w-40" placeholder="0.00" />
                   </div>
