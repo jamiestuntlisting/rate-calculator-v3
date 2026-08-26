@@ -46,9 +46,14 @@ state stays in step.
   the derivation and `docs/showbiz-csv-format.md` the file format. Tests run
   the whole sample: 132/133 match payroll to the cent. The one miss, S1234,
   is asserted by name — it is a malformed card, not a missing rule.
-  `from-showbiz.ts` maps a parsed card onto the engine and is the only place
-  that column mapping is written down; `/weekly` is the calculator and
-  `/admin/weekly-bench` runs an export through it card by card. Watch the two
+  Two files map onto the engine and are the only places those mappings are
+  written down: `from-showbiz.ts` for a parsed payroll card, and
+  `from-work-records.ts` for the performer's own logged days — five or more
+  on one show is what makes a weekly contract, and `/weekly` offers those
+  runs at the top. `/admin/weekly-bench` runs an export through it card by
+  card. Deriving a day's overtime tier from `segment.multiplier` is wrong:
+  on a 6th or 7th day the daily engine raises every segment to the day
+  multiplier, so straight hours read 1.5 — go by the segment label. Watch the two
   adjustment columns: 202 is per-day stunt adjustments and feeds the overtime
   rate, 190 is allowances and meal penalties landing after the subtotal, and
   swapping them still yields a plausible gross.

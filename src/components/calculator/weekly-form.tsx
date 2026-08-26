@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -13,21 +13,19 @@ import {
   type WeeklyExtra,
   type WeeklyInput,
 } from "@/lib/weekly/weekly-engine";
-
-/**
- * Weekly scale rates seen on real cards. The applicable rate is an input,
- * not something a date implies — 2021 cards carry both $3,936 and $3,955
- * for overlapping weeks, because productions sit on different Basic
- * Agreement years. These are a shortcut for typing, never a default.
- */
-const OBSERVED_SCALE_RATES: Array<{ rate: number; seen: string }> = [
-  { rate: 3936, seen: "2021" },
-  { rate: 3955, seen: "2021" },
-  { rate: 4034, seen: "2023" },
-  { rate: 4489, seen: "2024–25" },
-  { rate: 4478, seen: "2026" },
-  { rate: 4646, seen: "2026" },
-];
+import {
+  CURRENT_WEEKLY_SCALE,
+  WEEKLY_SCALE_OPTIONS,
+} from "@/lib/weekly/weekly-rates";
+import {
+  groupRecordsForWeekly,
+  MIN_DAYS_FOR_WEEKLY,
+  workRecordsToWeeklyInput,
+  type WeeklyDerivation,
+} from "@/lib/weekly/from-work-records";
+import type { WorkRecord } from "@/types";
+import { Loader2, CalendarRange } from "lucide-react";
+import { toast } from "sonner";
 
 const EXTRA_OPTIONS: Array<{ value: WeeklyExtra; label: string; hint: string }> =
   [
@@ -60,13 +58,77 @@ const EMPTY: WeeklyInput = {
   postSubtotalAdjustments: 0,
 };
 
+const money = (n: number) => formatCurrency(n);
+
+interface WeekGroup {
+  showName: string;
+  records: WorkRecord[];
+}
+
+/** "24–28 Aug 2026", or the single date when a week is one day long. */
+function dateRange(records: WorkRecord[]): string {
+  const dates = records.map((r) => r.workDate).sort();
+  const fmt = (d: string) =>
+    new Date(`${d}T00:00:00`).toLocaleDateString("en-US", {
+      day: "numeric",
+      month: "short",
+      year: "numeric",
+    });
+  const first = fmt(dates[0]);
+  const last = fmt(dates[dates.length - 1]);
+  return first === last ? first : `${first} – ${last}`;
+}
+
 export function WeeklyForm() {
   const [input, setInput] = useState<WeeklyInput>(EMPTY);
+  const [groups, setGroups] = useState<WeekGroup[] | null>(null);
+  const [loadingGroups, setLoadingGroups] = useState(true);
+  const [builtFrom, setBuiltFrom] = useState<
+    { showName: string; derivation: WeeklyDerivation } | null
+  >(null);
 
   const update = <K extends keyof WeeklyInput>(key: K, value: WeeklyInput[K]) =>
     setInput((prev) => ({ ...prev, [key]: value }));
 
   const ready = input.scaleWeeklyRate > 0 && input.contractWeeklyRate > 0;
+
+  // A weekly contract is what five or more days on the same show add up to,
+  // so the days already in the Tracker are the natural way in.
+  const loadGroups = useCallback(async () => {
+    try {
+      const res = await fetch(
+        "/api/work-records?limit=200&sort=workDate&order=desc"
+      );
+      if (!res.ok) throw new Error();
+      const data = (await res.json()) as { records: WorkRecord[] };
+      const sag = data.records.filter((r) => r.workType !== "other");
+      setGroups(groupRecordsForWeekly(sag));
+    } catch {
+      setGroups([]);
+    } finally {
+      setLoadingGroups(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    loadGroups();
+  }, [loadGroups]);
+
+  const buildFrom = (group: WeekGroup) => {
+    const scale = input.scaleWeeklyRate || CURRENT_WEEKLY_SCALE;
+    const { input: derived, derivation } = workRecordsToWeeklyInput(
+      group.records,
+      {
+        scaleWeeklyRate: scale,
+        // Someone on scale has the same number twice; anyone over-scale
+        // corrects it in the field right below.
+        contractWeeklyRate: input.contractWeeklyRate || scale,
+      }
+    );
+    setInput(derived);
+    setBuiltFrom({ showName: group.showName, derivation });
+    toast.success(`Built from ${derivation.days} days on ${group.showName}`);
+  };
 
   const breakdown = useMemo(() => {
     if (!ready) return null;
@@ -79,6 +141,71 @@ export function WeeklyForm() {
 
   return (
     <div className="max-w-3xl mx-auto space-y-6">
+      {(loadingGroups || (groups && groups.length > 0) || builtFrom) && (
+        <div className="rounded-lg border border-border p-4 space-y-3">
+          <div>
+            <h2 className="font-semibold text-lg">Build it from your days</h2>
+            <p className="text-sm text-muted-foreground">
+              {MIN_DAYS_FOR_WEEKLY} or more days on the same show make a
+              weekly contract. Pick a run and the week fills itself in.
+            </p>
+          </div>
+
+          {loadingGroups ? (
+            <div className="flex items-center gap-2 text-sm text-muted-foreground">
+              <Loader2 className="h-4 w-4 animate-spin" />
+              Looking through your work days…
+            </div>
+          ) : (
+            <div className="space-y-2">
+              {groups?.map((group) => (
+                <button
+                  key={`${group.showName}-${group.records[0]._id}`}
+                  type="button"
+                  onClick={() => buildFrom(group)}
+                  className="w-full text-left p-3 rounded-lg border border-border/60 hover:border-primary/60 hover:bg-accent/30 transition-colors flex items-center gap-3"
+                >
+                  <CalendarRange className="h-5 w-5 text-muted-foreground shrink-0" />
+                  <span className="flex-1 min-w-0">
+                    <span className="block text-sm font-medium truncate">
+                      {group.showName}
+                    </span>
+                    <span className="block text-xs text-muted-foreground">
+                      {group.records.length} days · {dateRange(group.records)}
+                    </span>
+                  </span>
+                </button>
+              ))}
+            </div>
+          )}
+
+          {builtFrom && (
+            <div className="rounded-lg border border-border/50 bg-muted/30 p-3 space-y-1">
+              <p className="text-sm font-medium">
+                Filled in from {builtFrom.derivation.days} days on{" "}
+                {builtFrom.showName}
+              </p>
+              <p className="text-xs text-muted-foreground">
+                {builtFrom.derivation.dailyOvertimeHours}h at 1.5× and{" "}
+                {builtFrom.derivation.doubleTimeHours}h at 2× off those days,
+                {" "}
+                {money(builtFrom.derivation.adjustments)} in stunt adjustments
+                and {money(builtFrom.derivation.mealPenalties)} of meal
+                penalties. Check the rates below, then anything the days
+                cannot know — weekly overtime and location allowance.
+              </p>
+              {builtFrom.derivation.daysWithoutCalculation > 0 && (
+                <p className="text-xs text-amber-400">
+                  {builtFrom.derivation.daysWithoutCalculation} of those days
+                  has no times entered yet, so its overtime is not counted
+                  here and the total is low.
+                </p>
+              )}
+            </div>
+          )}
+        </div>
+      )}
+
       <div className="rounded-lg border border-border p-4 space-y-4">
         <div>
           <h2 className="font-semibold text-lg">Rates</h2>
@@ -98,27 +225,31 @@ export function WeeklyForm() {
             onChange={(v) => update("scaleWeeklyRate", v)}
           />
           <div className="flex flex-wrap gap-1.5 pt-1">
-            {OBSERVED_SCALE_RATES.map(({ rate, seen }) => (
+            {WEEKLY_SCALE_OPTIONS.map((option) => (
               <button
-                key={`${rate}-${seen}`}
+                key={option.id}
                 type="button"
-                onClick={() => update("scaleWeeklyRate", rate)}
-                aria-pressed={input.scaleWeeklyRate === rate}
-                className={`text-xs rounded px-2 py-1 border transition-colors ${
-                  input.scaleWeeklyRate === rate
+                onClick={() => update("scaleWeeklyRate", option.rate)}
+                aria-pressed={input.scaleWeeklyRate === option.rate}
+                className={`text-xs rounded px-3 py-1.5 border transition-colors ${
+                  input.scaleWeeklyRate === option.rate
                     ? "border-foreground/40 text-foreground"
                     : "border-border/40 text-muted-foreground hover:bg-accent/50"
                 }`}
               >
-                ${rate.toLocaleString()}
-                <span className="text-muted-foreground"> · {seen}</span>
+                {option.label}
+                <span className="text-muted-foreground">
+                  {" "}
+                  · ${option.rate.toLocaleString()}
+                </span>
               </button>
             ))}
           </div>
           <p className="text-xs text-muted-foreground">
-            Rates seen on real cards, as a shortcut for typing. Two
-            productions can be on different rates in the same week — check it
-            against your contract.
+            {WEEKLY_SCALE_OPTIONS.find(
+              (o) => o.rate === input.scaleWeeklyRate
+            )?.note ??
+              "A production that started under the last agreement stays on it, so check which one your contract names."}
           </p>
         </div>
 
