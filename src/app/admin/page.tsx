@@ -6,7 +6,7 @@ import { useAuth } from "@/context/auth-context";
 import { isAdminEmail } from "@/lib/admin-emails";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { FileText, ArrowRight, ChevronDown, ChevronRight } from "lucide-react";
+import { FileText, ArrowRight, ChevronDown, ChevronRight, Mail, MessageSquare } from "lucide-react";
 
 type Method = "GET" | "POST" | "PUT" | "PATCH" | "DELETE";
 type Auth = "public" | "user" | "admin";
@@ -507,6 +507,24 @@ function EndpointCard({ ep }: { ep: EndpointDef }) {
   );
 }
 
+/** What is coming next, newest thinking first. */
+const UPCOMING_FEATURES = [
+  {
+    title: "Email us an Exhibit G",
+    detail:
+      "Forward the photo to an address and it lands in your uploads, ready to transcribe.",
+    status: "Planned",
+    icon: Mail,
+  },
+  {
+    title: "Text us an Exhibit G",
+    detail:
+      "Send the photo by text from set and it is stored against your account.",
+    status: "Planned",
+    icon: MessageSquare,
+  },
+];
+
 export default function AdminPage() {
   const { user, loading } = useAuth();
 
@@ -542,11 +560,36 @@ export default function AdminPage() {
             <div className="flex-1 min-w-0">
               <div className="text-sm font-medium">Transcribe Exhibit G</div>
               <div className="text-xs text-muted-foreground">
-                Log Exhibit G info for a performer from an attached-only record.
+                Fill in a performer&apos;s uploaded Exhibit G for them.
               </div>
             </div>
             <ArrowRight className="h-4 w-4 text-muted-foreground shrink-0" />
           </Link>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-lg">Upcoming features</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-2">
+          {UPCOMING_FEATURES.map((feature) => (
+            <div
+              key={feature.title}
+              className="flex items-start gap-3 p-3 rounded border border-border/50"
+            >
+              <feature.icon className="h-5 w-5 text-muted-foreground shrink-0 mt-0.5" />
+              <div className="flex-1 min-w-0">
+                <div className="text-sm font-medium">{feature.title}</div>
+                <div className="text-xs text-muted-foreground">
+                  {feature.detail}
+                </div>
+              </div>
+              <span className="text-[11px] uppercase tracking-wide text-muted-foreground border border-border/60 rounded px-2 py-0.5 shrink-0">
+                {feature.status}
+              </span>
+            </div>
+          ))}
         </CardContent>
       </Card>
 

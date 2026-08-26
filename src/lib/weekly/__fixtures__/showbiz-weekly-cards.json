@@ -1,0 +1,2662 @@
+[
+ {
+  "card": "S894",
+  "input": {
+   "scaleWeeklyRate": 3936,
+   "contractWeeklyRate": 5500,
+   "daysWorked": 5,
+   "holidayDays": 0,
+   "adjustments": 200,
+   "dailyOvertimeHours": 0,
+   "doubleTimeHours": 1.7,
+   "penaltyOvertimeHours": 0,
+   "weeklyOvertimeHours": 0,
+   "extra": null,
+   "sixthDay": false,
+   "seventhDay": false,
+   "postSubtotalAdjustments": 0
+  },
+  "expectedSubtotal": 4455.6,
+  "expectedGross": 4455.6
+ },
+ {
+  "card": "S920",
+  "input": {
+   "scaleWeeklyRate": 3955,
+   "contractWeeklyRate": 5500,
+   "daysWorked": 5,
+   "holidayDays": 0,
+   "adjustments": 0,
+   "dailyOvertimeHours": 0,
+   "doubleTimeHours": 6.6,
+   "penaltyOvertimeHours": 0,
+   "weeklyOvertimeHours": 0,
+   "extra": null,
+   "sixthDay": false,
+   "seventhDay": false,
+   "postSubtotalAdjustments": 1721
+  },
+  "expectedSubtotal": 5141.5,
+  "expectedGross": 6862.5
+ },
+ {
+  "card": "S934",
+  "input": {
+   "scaleWeeklyRate": 3936,
+   "contractWeeklyRate": 5500,
+   "daysWorked": 6,
+   "holidayDays": 0,
+   "adjustments": 400,
+   "dailyOvertimeHours": 0,
+   "doubleTimeHours": 1.6,
+   "penaltyOvertimeHours": 6.7,
+   "weeklyOvertimeHours": 0,
+   "extra": "loc_allowance",
+   "sixthDay": false,
+   "seventhDay": false,
+   "postSubtotalAdjustments": 1457.2
+  },
+  "expectedSubtotal": 6035.91,
+  "expectedGross": 7493.11
+ },
+ {
+  "card": "S1022",
+  "input": {
+   "scaleWeeklyRate": 3936,
+   "contractWeeklyRate": 4400,
+   "daysWorked": 5,
+   "holidayDays": 0,
+   "adjustments": 400,
+   "dailyOvertimeHours": 0.5,
+   "doubleTimeHours": 0,
+   "penaltyOvertimeHours": 0,
+   "weeklyOvertimeHours": 0,
+   "extra": null,
+   "sixthDay": false,
+   "seventhDay": false,
+   "postSubtotalAdjustments": 0
+  },
+  "expectedSubtotal": 4409.91,
+  "expectedGross": 4409.91
+ },
+ {
+  "card": "S1042",
+  "input": {
+   "scaleWeeklyRate": 3936,
+   "contractWeeklyRate": 4400,
+   "daysWorked": 5,
+   "holidayDays": 0,
+   "adjustments": 0,
+   "dailyOvertimeHours": 1.5,
+   "doubleTimeHours": 0,
+   "penaltyOvertimeHours": 0,
+   "weeklyOvertimeHours": 0,
+   "extra": "loc_allowance",
+   "sixthDay": false,
+   "seventhDay": false,
+   "postSubtotalAdjustments": 0
+  },
+  "expectedSubtotal": 4495.09,
+  "expectedGross": 4495.09
+ },
+ {
+  "card": "S1043",
+  "input": {
+   "scaleWeeklyRate": 3936,
+   "contractWeeklyRate": 4400,
+   "daysWorked": 5,
+   "holidayDays": 0,
+   "adjustments": 500,
+   "dailyOvertimeHours": 0.5,
+   "doubleTimeHours": 0,
+   "penaltyOvertimeHours": 0,
+   "weeklyOvertimeHours": 0,
+   "extra": "loc_allowance",
+   "sixthDay": false,
+   "seventhDay": false,
+   "postSubtotalAdjustments": 0
+  },
+  "expectedSubtotal": 4911,
+  "expectedGross": 4911
+ },
+ {
+  "card": "S1044",
+  "input": {
+   "scaleWeeklyRate": 3936,
+   "contractWeeklyRate": 4400,
+   "daysWorked": 5,
+   "holidayDays": 0,
+   "adjustments": 0,
+   "dailyOvertimeHours": 6,
+   "doubleTimeHours": 0.5,
+   "penaltyOvertimeHours": 1.2,
+   "weeklyOvertimeHours": 0,
+   "extra": null,
+   "sixthDay": false,
+   "seventhDay": false,
+   "postSubtotalAdjustments": 160
+  },
+  "expectedSubtotal": 4991.56,
+  "expectedGross": 5151.56
+ },
+ {
+  "card": "S1056",
+  "input": {
+   "scaleWeeklyRate": 3955,
+   "contractWeeklyRate": 5500,
+   "daysWorked": 5,
+   "holidayDays": 0,
+   "adjustments": 0,
+   "dailyOvertimeHours": 0,
+   "doubleTimeHours": 0,
+   "penaltyOvertimeHours": 0,
+   "weeklyOvertimeHours": 0,
+   "extra": "loc_allowance",
+   "sixthDay": false,
+   "seventhDay": false,
+   "postSubtotalAdjustments": 0
+  },
+  "expectedSubtotal": 4314.55,
+  "expectedGross": 4314.55
+ },
+ {
+  "card": "S1057",
+  "input": {
+   "scaleWeeklyRate": 3955,
+   "contractWeeklyRate": 5500,
+   "daysWorked": 7,
+   "holidayDays": 0,
+   "adjustments": 700,
+   "dailyOvertimeHours": 0,
+   "doubleTimeHours": 1.3,
+   "penaltyOvertimeHours": 0.8,
+   "weeklyOvertimeHours": 0,
+   "extra": "loc_allowance",
+   "sixthDay": false,
+   "seventhDay": true,
+   "postSubtotalAdjustments": 585
+  },
+  "expectedSubtotal": 7202.2,
+  "expectedGross": 7787.2
+ },
+ {
+  "card": "S1058",
+  "input": {
+   "scaleWeeklyRate": 3955,
+   "contractWeeklyRate": 5500,
+   "daysWorked": 7,
+   "holidayDays": 1,
+   "adjustments": 1000,
+   "dailyOvertimeHours": 0,
+   "doubleTimeHours": 5.95,
+   "penaltyOvertimeHours": 1.75,
+   "weeklyOvertimeHours": 0,
+   "extra": null,
+   "sixthDay": false,
+   "seventhDay": true,
+   "postSubtotalAdjustments": 160
+  },
+  "expectedSubtotal": 9163.71,
+  "expectedGross": 9323.71
+ },
+ {
+  "card": "S1059",
+  "input": {
+   "scaleWeeklyRate": 3955,
+   "contractWeeklyRate": 5500,
+   "daysWorked": 1,
+   "holidayDays": 0,
+   "adjustments": 0,
+   "dailyOvertimeHours": 0,
+   "doubleTimeHours": 0,
+   "penaltyOvertimeHours": 0,
+   "weeklyOvertimeHours": 0,
+   "extra": null,
+   "sixthDay": false,
+   "seventhDay": false,
+   "postSubtotalAdjustments": 0
+  },
+  "expectedSubtotal": 791,
+  "expectedGross": 791
+ },
+ {
+  "card": "S1075",
+  "input": {
+   "scaleWeeklyRate": 3955,
+   "contractWeeklyRate": 5500,
+   "daysWorked": 5,
+   "holidayDays": 0,
+   "adjustments": 0,
+   "dailyOvertimeHours": 0,
+   "doubleTimeHours": 0,
+   "penaltyOvertimeHours": 0,
+   "weeklyOvertimeHours": 0,
+   "extra": "loc_allowance",
+   "sixthDay": false,
+   "seventhDay": false,
+   "postSubtotalAdjustments": 0
+  },
+  "expectedSubtotal": 4314.55,
+  "expectedGross": 4314.55
+ },
+ {
+  "card": "S1079",
+  "input": {
+   "scaleWeeklyRate": 3955,
+   "contractWeeklyRate": 5500,
+   "daysWorked": 7,
+   "holidayDays": 0,
+   "adjustments": 800,
+   "dailyOvertimeHours": 0,
+   "doubleTimeHours": 2.6,
+   "penaltyOvertimeHours": 0,
+   "weeklyOvertimeHours": 0,
+   "extra": "loc_allowance",
+   "sixthDay": false,
+   "seventhDay": true,
+   "postSubtotalAdjustments": 510
+  },
+  "expectedSubtotal": 7491.23,
+  "expectedGross": 8001.23
+ },
+ {
+  "card": "S1080",
+  "input": {
+   "scaleWeeklyRate": 3955,
+   "contractWeeklyRate": 5500,
+   "daysWorked": 7,
+   "holidayDays": 0,
+   "adjustments": 1300,
+   "dailyOvertimeHours": 0,
+   "doubleTimeHours": 4,
+   "penaltyOvertimeHours": 0.5,
+   "weeklyOvertimeHours": 0,
+   "extra": null,
+   "sixthDay": false,
+   "seventhDay": true,
+   "postSubtotalAdjustments": 85
+  },
+  "expectedSubtotal": 8142.03,
+  "expectedGross": 8227.03
+ },
+ {
+  "card": "S1081",
+  "input": {
+   "scaleWeeklyRate": 3955,
+   "contractWeeklyRate": 5500,
+   "daysWorked": 1,
+   "holidayDays": 0,
+   "adjustments": 0,
+   "dailyOvertimeHours": 0,
+   "doubleTimeHours": 0,
+   "penaltyOvertimeHours": 0,
+   "weeklyOvertimeHours": 0,
+   "extra": null,
+   "sixthDay": false,
+   "seventhDay": false,
+   "postSubtotalAdjustments": 0
+  },
+  "expectedSubtotal": 791,
+  "expectedGross": 791
+ },
+ {
+  "card": "S1209",
+  "input": {
+   "scaleWeeklyRate": 4034,
+   "contractWeeklyRate": 5500,
+   "daysWorked": 5,
+   "holidayDays": 0,
+   "adjustments": 0,
+   "dailyOvertimeHours": 0,
+   "doubleTimeHours": 10,
+   "penaltyOvertimeHours": 0,
+   "weeklyOvertimeHours": 6,
+   "extra": null,
+   "sixthDay": false,
+   "seventhDay": false,
+   "postSubtotalAdjustments": 3227.2
+  },
+  "expectedSubtotal": 6692.77,
+  "expectedGross": 9919.97
+ },
+ {
+  "card": "S1210",
+  "input": {
+   "scaleWeeklyRate": 4034,
+   "contractWeeklyRate": 5500,
+   "daysWorked": 5,
+   "holidayDays": 0,
+   "adjustments": 0,
+   "dailyOvertimeHours": 0,
+   "doubleTimeHours": 5,
+   "penaltyOvertimeHours": 0,
+   "weeklyOvertimeHours": 6,
+   "extra": null,
+   "sixthDay": false,
+   "seventhDay": false,
+   "postSubtotalAdjustments": 0
+  },
+  "expectedSubtotal": 5775.95,
+  "expectedGross": 5775.95
+ },
+ {
+  "card": "S1211",
+  "input": {
+   "scaleWeeklyRate": 4034,
+   "contractWeeklyRate": 4400,
+   "daysWorked": 5,
+   "holidayDays": 0,
+   "adjustments": 0,
+   "dailyOvertimeHours": 10,
+   "doubleTimeHours": 10,
+   "penaltyOvertimeHours": 0,
+   "weeklyOvertimeHours": 0,
+   "extra": null,
+   "sixthDay": false,
+   "seventhDay": false,
+   "postSubtotalAdjustments": 3227.2
+  },
+  "expectedSubtotal": 7242.86,
+  "expectedGross": 10470.06
+ },
+ {
+  "card": "S1231",
+  "input": {
+   "scaleWeeklyRate": 4489,
+   "contractWeeklyRate": 5500,
+   "daysWorked": 4,
+   "holidayDays": 0,
+   "adjustments": 150,
+   "dailyOvertimeHours": 0,
+   "doubleTimeHours": 3.5,
+   "penaltyOvertimeHours": 1.4,
+   "weeklyOvertimeHours": 0,
+   "extra": null,
+   "sixthDay": false,
+   "seventhDay": false,
+   "postSubtotalAdjustments": 1327.8
+  },
+  "expectedSubtotal": 4700.63,
+  "expectedGross": 6028.43
+ },
+ {
+  "card": "S1232",
+  "input": {
+   "scaleWeeklyRate": 4489,
+   "contractWeeklyRate": 5500,
+   "daysWorked": 5,
+   "holidayDays": 1,
+   "adjustments": 150,
+   "dailyOvertimeHours": 0,
+   "doubleTimeHours": 3.5,
+   "penaltyOvertimeHours": 1.4,
+   "weeklyOvertimeHours": 0,
+   "extra": null,
+   "sixthDay": false,
+   "seventhDay": false,
+   "postSubtotalAdjustments": 1327.8
+  },
+  "expectedSubtotal": 6496.23,
+  "expectedGross": 7824.03
+ },
+ {
+  "card": "S1234",
+  "input": {
+   "scaleWeeklyRate": 4489,
+   "contractWeeklyRate": 5500,
+   "daysWorked": 5,
+   "holidayDays": 0,
+   "adjustments": 150,
+   "dailyOvertimeHours": 0,
+   "doubleTimeHours": 3.5,
+   "penaltyOvertimeHours": 1.4,
+   "weeklyOvertimeHours": 0,
+   "extra": "holiday",
+   "sixthDay": false,
+   "seventhDay": false,
+   "postSubtotalAdjustments": 1327.8
+  },
+  "expectedSubtotal": 5598.43,
+  "expectedGross": 6926.23
+ },
+ {
+  "card": "S1235",
+  "input": {
+   "scaleWeeklyRate": 4489,
+   "contractWeeklyRate": 5500,
+   "daysWorked": 5,
+   "holidayDays": 0,
+   "adjustments": 150,
+   "dailyOvertimeHours": 0,
+   "doubleTimeHours": 3.4,
+   "penaltyOvertimeHours": 0,
+   "weeklyOvertimeHours": 0,
+   "extra": "holiday",
+   "sixthDay": false,
+   "seventhDay": false,
+   "postSubtotalAdjustments": 1242.8
+  },
+  "expectedSubtotal": 6253.74,
+  "expectedGross": 7496.54
+ },
+ {
+  "card": "S1237",
+  "input": {
+   "scaleWeeklyRate": 4489,
+   "contractWeeklyRate": 5500,
+   "daysWorked": 6,
+   "holidayDays": 0,
+   "adjustments": 150,
+   "dailyOvertimeHours": 0,
+   "doubleTimeHours": 3.5,
+   "penaltyOvertimeHours": 1.4,
+   "weeklyOvertimeHours": 0,
+   "extra": null,
+   "sixthDay": false,
+   "seventhDay": false,
+   "postSubtotalAdjustments": 1327.8
+  },
+  "expectedSubtotal": 5598.43,
+  "expectedGross": 6926.23
+ },
+ {
+  "card": "S1253",
+  "input": {
+   "scaleWeeklyRate": 4489,
+   "contractWeeklyRate": 4400,
+   "daysWorked": 5,
+   "holidayDays": 0,
+   "adjustments": 1400,
+   "dailyOvertimeHours": 6.5,
+   "doubleTimeHours": 1.2,
+   "penaltyOvertimeHours": 0,
+   "weeklyOvertimeHours": 0,
+   "extra": null,
+   "sixthDay": false,
+   "seventhDay": false,
+   "postSubtotalAdjustments": 670
+  },
+  "expectedSubtotal": 7104,
+  "expectedGross": 7774
+ },
+ {
+  "card": "S1256",
+  "input": {
+   "scaleWeeklyRate": 4478,
+   "contractWeeklyRate": 4400,
+   "daysWorked": 5,
+   "holidayDays": 0,
+   "adjustments": 0,
+   "dailyOvertimeHours": 0,
+   "doubleTimeHours": 0,
+   "penaltyOvertimeHours": 0,
+   "weeklyOvertimeHours": 0,
+   "extra": null,
+   "sixthDay": false,
+   "seventhDay": false,
+   "postSubtotalAdjustments": 0
+  },
+  "expectedSubtotal": 4478,
+  "expectedGross": 4478
+ },
+ {
+  "card": "S1257",
+  "input": {
+   "scaleWeeklyRate": 4478,
+   "contractWeeklyRate": 4400,
+   "daysWorked": 6,
+   "holidayDays": 0,
+   "adjustments": 0,
+   "dailyOvertimeHours": 1,
+   "doubleTimeHours": 0,
+   "penaltyOvertimeHours": 0,
+   "weeklyOvertimeHours": 0,
+   "extra": null,
+   "sixthDay": true,
+   "seventhDay": false,
+   "postSubtotalAdjustments": 25
+  },
+  "expectedSubtotal": 5971.4,
+  "expectedGross": 5996.4
+ },
+ {
+  "card": "S1259",
+  "input": {
+   "scaleWeeklyRate": 4478,
+   "contractWeeklyRate": 4400,
+   "daysWorked": 6,
+   "holidayDays": 0,
+   "adjustments": 0,
+   "dailyOvertimeHours": 2,
+   "doubleTimeHours": 1,
+   "penaltyOvertimeHours": 0.5,
+   "weeklyOvertimeHours": 0,
+   "extra": "loc_allowance",
+   "sixthDay": false,
+   "seventhDay": false,
+   "postSubtotalAdjustments": 2036.2
+  },
+  "expectedSubtotal": 5453,
+  "expectedGross": 7489.2
+ },
+ {
+  "card": "S1277",
+  "input": {
+   "scaleWeeklyRate": 4478,
+   "contractWeeklyRate": 4400,
+   "daysWorked": 5,
+   "holidayDays": 0,
+   "adjustments": 0,
+   "dailyOvertimeHours": 0,
+   "doubleTimeHours": 0,
+   "penaltyOvertimeHours": 0,
+   "weeklyOvertimeHours": 0,
+   "extra": null,
+   "sixthDay": false,
+   "seventhDay": false,
+   "postSubtotalAdjustments": 25
+  },
+  "expectedSubtotal": 4478,
+  "expectedGross": 4503
+ },
+ {
+  "card": "S1279",
+  "input": {
+   "scaleWeeklyRate": 4478,
+   "contractWeeklyRate": 4400,
+   "daysWorked": 5,
+   "holidayDays": 0,
+   "adjustments": 0,
+   "dailyOvertimeHours": 0,
+   "doubleTimeHours": 0,
+   "penaltyOvertimeHours": 0,
+   "weeklyOvertimeHours": 0,
+   "extra": null,
+   "sixthDay": false,
+   "seventhDay": false,
+   "postSubtotalAdjustments": 0
+  },
+  "expectedSubtotal": 4478,
+  "expectedGross": 4478
+ },
+ {
+  "card": "S1280",
+  "input": {
+   "scaleWeeklyRate": 4478,
+   "contractWeeklyRate": 4400,
+   "daysWorked": 5,
+   "holidayDays": 0,
+   "adjustments": 250,
+   "dailyOvertimeHours": 1,
+   "doubleTimeHours": 0,
+   "penaltyOvertimeHours": 0,
+   "weeklyOvertimeHours": 2,
+   "extra": null,
+   "sixthDay": false,
+   "seventhDay": false,
+   "postSubtotalAdjustments": 50
+  },
+  "expectedSubtotal": 5178,
+  "expectedGross": 5228
+ },
+ {
+  "card": "S1281",
+  "input": {
+   "scaleWeeklyRate": 4478,
+   "contractWeeklyRate": 4400,
+   "daysWorked": 6,
+   "holidayDays": 0,
+   "adjustments": 0,
+   "dailyOvertimeHours": 2,
+   "doubleTimeHours": 1,
+   "penaltyOvertimeHours": 0.5,
+   "weeklyOvertimeHours": 0,
+   "extra": "loc_allowance",
+   "sixthDay": false,
+   "seventhDay": false,
+   "postSubtotalAdjustments": 2036.2
+  },
+  "expectedSubtotal": 5453,
+  "expectedGross": 7489.2
+ },
+ {
+  "card": "S1282",
+  "input": {
+   "scaleWeeklyRate": 4478,
+   "contractWeeklyRate": 4400,
+   "daysWorked": 5,
+   "holidayDays": 0,
+   "adjustments": 0,
+   "dailyOvertimeHours": 0,
+   "doubleTimeHours": 0,
+   "penaltyOvertimeHours": 0,
+   "weeklyOvertimeHours": 0,
+   "extra": null,
+   "sixthDay": false,
+   "seventhDay": false,
+   "postSubtotalAdjustments": 25
+  },
+  "expectedSubtotal": 4478,
+  "expectedGross": 4503
+ },
+ {
+  "card": "S1290",
+  "input": {
+   "scaleWeeklyRate": 4646,
+   "contractWeeklyRate": 5500,
+   "daysWorked": 5,
+   "holidayDays": 0,
+   "adjustments": 800,
+   "dailyOvertimeHours": 0,
+   "doubleTimeHours": 4.3,
+   "penaltyOvertimeHours": 0,
+   "weeklyOvertimeHours": 0,
+   "extra": null,
+   "sixthDay": false,
+   "seventhDay": false,
+   "postSubtotalAdjustments": 145
+  },
+  "expectedSubtotal": 6510.45,
+  "expectedGross": 6655.45
+ },
+ {
+  "card": "S1293",
+  "input": {
+   "scaleWeeklyRate": 4646,
+   "contractWeeklyRate": 4400,
+   "daysWorked": 5,
+   "holidayDays": 0,
+   "adjustments": 0,
+   "dailyOvertimeHours": 0,
+   "doubleTimeHours": 0,
+   "penaltyOvertimeHours": 0,
+   "weeklyOvertimeHours": 0,
+   "extra": null,
+   "sixthDay": false,
+   "seventhDay": false,
+   "postSubtotalAdjustments": 0
+  },
+  "expectedSubtotal": 4646,
+  "expectedGross": 4646
+ },
+ {
+  "card": "S1313",
+  "input": {
+   "scaleWeeklyRate": 4646,
+   "contractWeeklyRate": 4400,
+   "daysWorked": 5,
+   "holidayDays": 0,
+   "adjustments": 0,
+   "dailyOvertimeHours": 5,
+   "doubleTimeHours": 0,
+   "penaltyOvertimeHours": 0,
+   "weeklyOvertimeHours": 0,
+   "extra": null,
+   "sixthDay": false,
+   "seventhDay": false,
+   "postSubtotalAdjustments": 0
+  },
+  "expectedSubtotal": 5396,
+  "expectedGross": 5396
+ },
+ {
+  "card": "S1314",
+  "input": {
+   "scaleWeeklyRate": 4646,
+   "contractWeeklyRate": 4400,
+   "daysWorked": 5,
+   "holidayDays": 0,
+   "adjustments": 0,
+   "dailyOvertimeHours": 10,
+   "doubleTimeHours": 0,
+   "penaltyOvertimeHours": 0,
+   "weeklyOvertimeHours": 0,
+   "extra": null,
+   "sixthDay": false,
+   "seventhDay": false,
+   "postSubtotalAdjustments": 0
+  },
+  "expectedSubtotal": 6146,
+  "expectedGross": 6146
+ },
+ {
+  "card": "S1315",
+  "input": {
+   "scaleWeeklyRate": 4646,
+   "contractWeeklyRate": 4400,
+   "daysWorked": 5,
+   "holidayDays": 0,
+   "adjustments": 0,
+   "dailyOvertimeHours": 10,
+   "doubleTimeHours": 5,
+   "penaltyOvertimeHours": 0,
+   "weeklyOvertimeHours": 0,
+   "extra": null,
+   "sixthDay": false,
+   "seventhDay": false,
+   "postSubtotalAdjustments": 0
+  },
+  "expectedSubtotal": 7146,
+  "expectedGross": 7146
+ },
+ {
+  "card": "S1316",
+  "input": {
+   "scaleWeeklyRate": 4646,
+   "contractWeeklyRate": 4400,
+   "daysWorked": 5,
+   "holidayDays": 0,
+   "adjustments": 0,
+   "dailyOvertimeHours": 10,
+   "doubleTimeHours": 10,
+   "penaltyOvertimeHours": 0,
+   "weeklyOvertimeHours": 0,
+   "extra": null,
+   "sixthDay": false,
+   "seventhDay": false,
+   "postSubtotalAdjustments": 3716.8
+  },
+  "expectedSubtotal": 8146,
+  "expectedGross": 11862.8
+ },
+ {
+  "card": "S1317",
+  "input": {
+   "scaleWeeklyRate": 4646,
+   "contractWeeklyRate": 4400,
+   "daysWorked": 5,
+   "holidayDays": 0,
+   "adjustments": 500,
+   "dailyOvertimeHours": 0,
+   "doubleTimeHours": 0,
+   "penaltyOvertimeHours": 0,
+   "weeklyOvertimeHours": 0,
+   "extra": null,
+   "sixthDay": false,
+   "seventhDay": false,
+   "postSubtotalAdjustments": 0
+  },
+  "expectedSubtotal": 5146,
+  "expectedGross": 5146
+ },
+ {
+  "card": "S1318",
+  "input": {
+   "scaleWeeklyRate": 4646,
+   "contractWeeklyRate": 4400,
+   "daysWorked": 5,
+   "holidayDays": 0,
+   "adjustments": 500,
+   "dailyOvertimeHours": 5,
+   "doubleTimeHours": 0,
+   "penaltyOvertimeHours": 0,
+   "weeklyOvertimeHours": 0,
+   "extra": null,
+   "sixthDay": false,
+   "seventhDay": false,
+   "postSubtotalAdjustments": 0
+  },
+  "expectedSubtotal": 5896,
+  "expectedGross": 5896
+ },
+ {
+  "card": "S1319",
+  "input": {
+   "scaleWeeklyRate": 4646,
+   "contractWeeklyRate": 4400,
+   "daysWorked": 5,
+   "holidayDays": 0,
+   "adjustments": 500,
+   "dailyOvertimeHours": 10,
+   "doubleTimeHours": 0,
+   "penaltyOvertimeHours": 0,
+   "weeklyOvertimeHours": 0,
+   "extra": null,
+   "sixthDay": false,
+   "seventhDay": false,
+   "postSubtotalAdjustments": 0
+  },
+  "expectedSubtotal": 6646,
+  "expectedGross": 6646
+ },
+ {
+  "card": "S1320",
+  "input": {
+   "scaleWeeklyRate": 4646,
+   "contractWeeklyRate": 4400,
+   "daysWorked": 5,
+   "holidayDays": 0,
+   "adjustments": 500,
+   "dailyOvertimeHours": 10,
+   "doubleTimeHours": 5,
+   "penaltyOvertimeHours": 0,
+   "weeklyOvertimeHours": 0,
+   "extra": null,
+   "sixthDay": false,
+   "seventhDay": false,
+   "postSubtotalAdjustments": 0
+  },
+  "expectedSubtotal": 7646,
+  "expectedGross": 7646
+ },
+ {
+  "card": "S1321",
+  "input": {
+   "scaleWeeklyRate": 4646,
+   "contractWeeklyRate": 4400,
+   "daysWorked": 5,
+   "holidayDays": 0,
+   "adjustments": 500,
+   "dailyOvertimeHours": 10,
+   "doubleTimeHours": 10,
+   "penaltyOvertimeHours": 0,
+   "weeklyOvertimeHours": 0,
+   "extra": null,
+   "sixthDay": false,
+   "seventhDay": false,
+   "postSubtotalAdjustments": 3716.8
+  },
+  "expectedSubtotal": 8646,
+  "expectedGross": 12362.8
+ },
+ {
+  "card": "S1322",
+  "input": {
+   "scaleWeeklyRate": 4646,
+   "contractWeeklyRate": 4400,
+   "daysWorked": 5,
+   "holidayDays": 0,
+   "adjustments": 1000,
+   "dailyOvertimeHours": 0,
+   "doubleTimeHours": 0,
+   "penaltyOvertimeHours": 0,
+   "weeklyOvertimeHours": 0,
+   "extra": null,
+   "sixthDay": false,
+   "seventhDay": false,
+   "postSubtotalAdjustments": 0
+  },
+  "expectedSubtotal": 5646,
+  "expectedGross": 5646
+ },
+ {
+  "card": "S1323",
+  "input": {
+   "scaleWeeklyRate": 4646,
+   "contractWeeklyRate": 4400,
+   "daysWorked": 5,
+   "holidayDays": 0,
+   "adjustments": 1000,
+   "dailyOvertimeHours": 5,
+   "doubleTimeHours": 0,
+   "penaltyOvertimeHours": 0,
+   "weeklyOvertimeHours": 0,
+   "extra": null,
+   "sixthDay": false,
+   "seventhDay": false,
+   "postSubtotalAdjustments": 0
+  },
+  "expectedSubtotal": 6396,
+  "expectedGross": 6396
+ },
+ {
+  "card": "S1324",
+  "input": {
+   "scaleWeeklyRate": 4646,
+   "contractWeeklyRate": 4400,
+   "daysWorked": 5,
+   "holidayDays": 0,
+   "adjustments": 1000,
+   "dailyOvertimeHours": 10,
+   "doubleTimeHours": 0,
+   "penaltyOvertimeHours": 0,
+   "weeklyOvertimeHours": 0,
+   "extra": null,
+   "sixthDay": false,
+   "seventhDay": false,
+   "postSubtotalAdjustments": 0
+  },
+  "expectedSubtotal": 7146,
+  "expectedGross": 7146
+ },
+ {
+  "card": "S1325",
+  "input": {
+   "scaleWeeklyRate": 4646,
+   "contractWeeklyRate": 4400,
+   "daysWorked": 5,
+   "holidayDays": 0,
+   "adjustments": 1000,
+   "dailyOvertimeHours": 10,
+   "doubleTimeHours": 5,
+   "penaltyOvertimeHours": 0,
+   "weeklyOvertimeHours": 0,
+   "extra": null,
+   "sixthDay": false,
+   "seventhDay": false,
+   "postSubtotalAdjustments": 0
+  },
+  "expectedSubtotal": 8146,
+  "expectedGross": 8146
+ },
+ {
+  "card": "S1326",
+  "input": {
+   "scaleWeeklyRate": 4646,
+   "contractWeeklyRate": 4400,
+   "daysWorked": 5,
+   "holidayDays": 0,
+   "adjustments": 1000,
+   "dailyOvertimeHours": 10,
+   "doubleTimeHours": 10,
+   "penaltyOvertimeHours": 0,
+   "weeklyOvertimeHours": 0,
+   "extra": null,
+   "sixthDay": false,
+   "seventhDay": false,
+   "postSubtotalAdjustments": 3716.8
+  },
+  "expectedSubtotal": 9146,
+  "expectedGross": 12862.8
+ },
+ {
+  "card": "S1327",
+  "input": {
+   "scaleWeeklyRate": 4646,
+   "contractWeeklyRate": 4400,
+   "daysWorked": 5,
+   "holidayDays": 0,
+   "adjustments": 2500,
+   "dailyOvertimeHours": 0,
+   "doubleTimeHours": 0,
+   "penaltyOvertimeHours": 0,
+   "weeklyOvertimeHours": 0,
+   "extra": null,
+   "sixthDay": false,
+   "seventhDay": false,
+   "postSubtotalAdjustments": 0
+  },
+  "expectedSubtotal": 7146,
+  "expectedGross": 7146
+ },
+ {
+  "card": "S1328",
+  "input": {
+   "scaleWeeklyRate": 4646,
+   "contractWeeklyRate": 4400,
+   "daysWorked": 5,
+   "holidayDays": 0,
+   "adjustments": 2500,
+   "dailyOvertimeHours": 5,
+   "doubleTimeHours": 0,
+   "penaltyOvertimeHours": 0,
+   "weeklyOvertimeHours": 0,
+   "extra": null,
+   "sixthDay": false,
+   "seventhDay": false,
+   "postSubtotalAdjustments": 0
+  },
+  "expectedSubtotal": 7896,
+  "expectedGross": 7896
+ },
+ {
+  "card": "S1329",
+  "input": {
+   "scaleWeeklyRate": 4646,
+   "contractWeeklyRate": 4400,
+   "daysWorked": 5,
+   "holidayDays": 0,
+   "adjustments": 2500,
+   "dailyOvertimeHours": 10,
+   "doubleTimeHours": 0,
+   "penaltyOvertimeHours": 0,
+   "weeklyOvertimeHours": 0,
+   "extra": null,
+   "sixthDay": false,
+   "seventhDay": false,
+   "postSubtotalAdjustments": 0
+  },
+  "expectedSubtotal": 8646,
+  "expectedGross": 8646
+ },
+ {
+  "card": "S1330",
+  "input": {
+   "scaleWeeklyRate": 4646,
+   "contractWeeklyRate": 4400,
+   "daysWorked": 5,
+   "holidayDays": 0,
+   "adjustments": 2500,
+   "dailyOvertimeHours": 10,
+   "doubleTimeHours": 5,
+   "penaltyOvertimeHours": 0,
+   "weeklyOvertimeHours": 0,
+   "extra": null,
+   "sixthDay": false,
+   "seventhDay": false,
+   "postSubtotalAdjustments": 0
+  },
+  "expectedSubtotal": 9646,
+  "expectedGross": 9646
+ },
+ {
+  "card": "S1331",
+  "input": {
+   "scaleWeeklyRate": 4646,
+   "contractWeeklyRate": 4400,
+   "daysWorked": 5,
+   "holidayDays": 0,
+   "adjustments": 2500,
+   "dailyOvertimeHours": 10,
+   "doubleTimeHours": 10,
+   "penaltyOvertimeHours": 0,
+   "weeklyOvertimeHours": 0,
+   "extra": null,
+   "sixthDay": false,
+   "seventhDay": false,
+   "postSubtotalAdjustments": 3716.8
+  },
+  "expectedSubtotal": 10646,
+  "expectedGross": 14362.8
+ },
+ {
+  "card": "S1332",
+  "input": {
+   "scaleWeeklyRate": 4646,
+   "contractWeeklyRate": 4400,
+   "daysWorked": 5,
+   "holidayDays": 0,
+   "adjustments": 5000,
+   "dailyOvertimeHours": 0,
+   "doubleTimeHours": 0,
+   "penaltyOvertimeHours": 0,
+   "weeklyOvertimeHours": 0,
+   "extra": null,
+   "sixthDay": false,
+   "seventhDay": false,
+   "postSubtotalAdjustments": 0
+  },
+  "expectedSubtotal": 9646,
+  "expectedGross": 9646
+ },
+ {
+  "card": "S1333",
+  "input": {
+   "scaleWeeklyRate": 4646,
+   "contractWeeklyRate": 4400,
+   "daysWorked": 5,
+   "holidayDays": 0,
+   "adjustments": 5000,
+   "dailyOvertimeHours": 5,
+   "doubleTimeHours": 0,
+   "penaltyOvertimeHours": 0,
+   "weeklyOvertimeHours": 0,
+   "extra": null,
+   "sixthDay": false,
+   "seventhDay": false,
+   "postSubtotalAdjustments": 0
+  },
+  "expectedSubtotal": 10396,
+  "expectedGross": 10396
+ },
+ {
+  "card": "S1334",
+  "input": {
+   "scaleWeeklyRate": 4646,
+   "contractWeeklyRate": 4400,
+   "daysWorked": 5,
+   "holidayDays": 0,
+   "adjustments": 5000,
+   "dailyOvertimeHours": 10,
+   "doubleTimeHours": 0,
+   "penaltyOvertimeHours": 0,
+   "weeklyOvertimeHours": 0,
+   "extra": null,
+   "sixthDay": false,
+   "seventhDay": false,
+   "postSubtotalAdjustments": 0
+  },
+  "expectedSubtotal": 11146,
+  "expectedGross": 11146
+ },
+ {
+  "card": "S1335",
+  "input": {
+   "scaleWeeklyRate": 4646,
+   "contractWeeklyRate": 4400,
+   "daysWorked": 5,
+   "holidayDays": 0,
+   "adjustments": 5000,
+   "dailyOvertimeHours": 10,
+   "doubleTimeHours": 5,
+   "penaltyOvertimeHours": 0,
+   "weeklyOvertimeHours": 0,
+   "extra": null,
+   "sixthDay": false,
+   "seventhDay": false,
+   "postSubtotalAdjustments": 0
+  },
+  "expectedSubtotal": 12146,
+  "expectedGross": 12146
+ },
+ {
+  "card": "S1336",
+  "input": {
+   "scaleWeeklyRate": 4646,
+   "contractWeeklyRate": 4400,
+   "daysWorked": 5,
+   "holidayDays": 0,
+   "adjustments": 5000,
+   "dailyOvertimeHours": 10,
+   "doubleTimeHours": 10,
+   "penaltyOvertimeHours": 0,
+   "weeklyOvertimeHours": 0,
+   "extra": null,
+   "sixthDay": false,
+   "seventhDay": false,
+   "postSubtotalAdjustments": 3716.8
+  },
+  "expectedSubtotal": 13146,
+  "expectedGross": 16862.8
+ },
+ {
+  "card": "S1338",
+  "input": {
+   "scaleWeeklyRate": 4646,
+   "contractWeeklyRate": 4400,
+   "daysWorked": 5,
+   "holidayDays": 0,
+   "adjustments": 10000,
+   "dailyOvertimeHours": 0,
+   "doubleTimeHours": 0,
+   "penaltyOvertimeHours": 0,
+   "weeklyOvertimeHours": 0,
+   "extra": null,
+   "sixthDay": false,
+   "seventhDay": false,
+   "postSubtotalAdjustments": 0
+  },
+  "expectedSubtotal": 14646,
+  "expectedGross": 14646
+ },
+ {
+  "card": "S1339",
+  "input": {
+   "scaleWeeklyRate": 4646,
+   "contractWeeklyRate": 4400,
+   "daysWorked": 5,
+   "holidayDays": 0,
+   "adjustments": 10000,
+   "dailyOvertimeHours": 5,
+   "doubleTimeHours": 0,
+   "penaltyOvertimeHours": 0,
+   "weeklyOvertimeHours": 0,
+   "extra": null,
+   "sixthDay": false,
+   "seventhDay": false,
+   "postSubtotalAdjustments": 0
+  },
+  "expectedSubtotal": 15396,
+  "expectedGross": 15396
+ },
+ {
+  "card": "S1340",
+  "input": {
+   "scaleWeeklyRate": 4646,
+   "contractWeeklyRate": 4400,
+   "daysWorked": 5,
+   "holidayDays": 0,
+   "adjustments": 10000,
+   "dailyOvertimeHours": 10,
+   "doubleTimeHours": 0,
+   "penaltyOvertimeHours": 0,
+   "weeklyOvertimeHours": 0,
+   "extra": null,
+   "sixthDay": false,
+   "seventhDay": false,
+   "postSubtotalAdjustments": 0
+  },
+  "expectedSubtotal": 16146,
+  "expectedGross": 16146
+ },
+ {
+  "card": "S1341",
+  "input": {
+   "scaleWeeklyRate": 4646,
+   "contractWeeklyRate": 4400,
+   "daysWorked": 5,
+   "holidayDays": 0,
+   "adjustments": 10000,
+   "dailyOvertimeHours": 10,
+   "doubleTimeHours": 5,
+   "penaltyOvertimeHours": 0,
+   "weeklyOvertimeHours": 0,
+   "extra": null,
+   "sixthDay": false,
+   "seventhDay": false,
+   "postSubtotalAdjustments": 0
+  },
+  "expectedSubtotal": 17146,
+  "expectedGross": 17146
+ },
+ {
+  "card": "S1342",
+  "input": {
+   "scaleWeeklyRate": 4646,
+   "contractWeeklyRate": 4400,
+   "daysWorked": 5,
+   "holidayDays": 0,
+   "adjustments": 10000,
+   "dailyOvertimeHours": 10,
+   "doubleTimeHours": 10,
+   "penaltyOvertimeHours": 0,
+   "weeklyOvertimeHours": 0,
+   "extra": null,
+   "sixthDay": false,
+   "seventhDay": false,
+   "postSubtotalAdjustments": 3716.8
+  },
+  "expectedSubtotal": 18146,
+  "expectedGross": 21862.8
+ },
+ {
+  "card": "S1344",
+  "input": {
+   "scaleWeeklyRate": 4646,
+   "contractWeeklyRate": 4400,
+   "daysWorked": 6,
+   "holidayDays": 0,
+   "adjustments": 0,
+   "dailyOvertimeHours": 0,
+   "doubleTimeHours": 0,
+   "penaltyOvertimeHours": 0,
+   "weeklyOvertimeHours": 0,
+   "extra": null,
+   "sixthDay": true,
+   "seventhDay": false,
+   "postSubtotalAdjustments": 0
+  },
+  "expectedSubtotal": 6039.8,
+  "expectedGross": 6039.8
+ },
+ {
+  "card": "S1345",
+  "input": {
+   "scaleWeeklyRate": 4646,
+   "contractWeeklyRate": 4400,
+   "daysWorked": 6,
+   "holidayDays": 0,
+   "adjustments": 0,
+   "dailyOvertimeHours": 6,
+   "doubleTimeHours": 0,
+   "penaltyOvertimeHours": 0,
+   "weeklyOvertimeHours": 0,
+   "extra": null,
+   "sixthDay": true,
+   "seventhDay": false,
+   "postSubtotalAdjustments": 0
+  },
+  "expectedSubtotal": 6939.8,
+  "expectedGross": 6939.8
+ },
+ {
+  "card": "S1346",
+  "input": {
+   "scaleWeeklyRate": 4646,
+   "contractWeeklyRate": 4400,
+   "daysWorked": 6,
+   "holidayDays": 0,
+   "adjustments": 0,
+   "dailyOvertimeHours": 12,
+   "doubleTimeHours": 0,
+   "penaltyOvertimeHours": 0,
+   "weeklyOvertimeHours": 0,
+   "extra": null,
+   "sixthDay": true,
+   "seventhDay": false,
+   "postSubtotalAdjustments": 0
+  },
+  "expectedSubtotal": 7839.8,
+  "expectedGross": 7839.8
+ },
+ {
+  "card": "S1347",
+  "input": {
+   "scaleWeeklyRate": 4646,
+   "contractWeeklyRate": 4400,
+   "daysWorked": 6,
+   "holidayDays": 0,
+   "adjustments": 0,
+   "dailyOvertimeHours": 12,
+   "doubleTimeHours": 6,
+   "penaltyOvertimeHours": 0,
+   "weeklyOvertimeHours": 0,
+   "extra": null,
+   "sixthDay": true,
+   "seventhDay": false,
+   "postSubtotalAdjustments": 0
+  },
+  "expectedSubtotal": 9039.8,
+  "expectedGross": 9039.8
+ },
+ {
+  "card": "S1348",
+  "input": {
+   "scaleWeeklyRate": 4646,
+   "contractWeeklyRate": 4400,
+   "daysWorked": 6,
+   "holidayDays": 0,
+   "adjustments": 0,
+   "dailyOvertimeHours": 12,
+   "doubleTimeHours": 12,
+   "penaltyOvertimeHours": 0,
+   "weeklyOvertimeHours": 0,
+   "extra": null,
+   "sixthDay": true,
+   "seventhDay": false,
+   "postSubtotalAdjustments": 4646
+  },
+  "expectedSubtotal": 10239.8,
+  "expectedGross": 14885.8
+ },
+ {
+  "card": "S1349",
+  "input": {
+   "scaleWeeklyRate": 4646,
+   "contractWeeklyRate": 4400,
+   "daysWorked": 7,
+   "holidayDays": 0,
+   "adjustments": 0,
+   "dailyOvertimeHours": 0,
+   "doubleTimeHours": 0,
+   "penaltyOvertimeHours": 0,
+   "weeklyOvertimeHours": 0,
+   "extra": null,
+   "sixthDay": true,
+   "seventhDay": true,
+   "postSubtotalAdjustments": 0
+  },
+  "expectedSubtotal": 7898.2,
+  "expectedGross": 7898.2
+ },
+ {
+  "card": "S1350",
+  "input": {
+   "scaleWeeklyRate": 4646,
+   "contractWeeklyRate": 4400,
+   "daysWorked": 7,
+   "holidayDays": 0,
+   "adjustments": 0,
+   "dailyOvertimeHours": 7,
+   "doubleTimeHours": 0,
+   "penaltyOvertimeHours": 0,
+   "weeklyOvertimeHours": 0,
+   "extra": null,
+   "sixthDay": true,
+   "seventhDay": true,
+   "postSubtotalAdjustments": 0
+  },
+  "expectedSubtotal": 8948.2,
+  "expectedGross": 8948.2
+ },
+ {
+  "card": "S1351",
+  "input": {
+   "scaleWeeklyRate": 4646,
+   "contractWeeklyRate": 4400,
+   "daysWorked": 7,
+   "holidayDays": 0,
+   "adjustments": 0,
+   "dailyOvertimeHours": 14,
+   "doubleTimeHours": 0,
+   "penaltyOvertimeHours": 0,
+   "weeklyOvertimeHours": 0,
+   "extra": null,
+   "sixthDay": true,
+   "seventhDay": true,
+   "postSubtotalAdjustments": 0
+  },
+  "expectedSubtotal": 9998.2,
+  "expectedGross": 9998.2
+ },
+ {
+  "card": "S1352",
+  "input": {
+   "scaleWeeklyRate": 4646,
+   "contractWeeklyRate": 4400,
+   "daysWorked": 7,
+   "holidayDays": 0,
+   "adjustments": 0,
+   "dailyOvertimeHours": 14,
+   "doubleTimeHours": 7,
+   "penaltyOvertimeHours": 0,
+   "weeklyOvertimeHours": 0,
+   "extra": null,
+   "sixthDay": true,
+   "seventhDay": true,
+   "postSubtotalAdjustments": 0
+  },
+  "expectedSubtotal": 11398.2,
+  "expectedGross": 11398.2
+ },
+ {
+  "card": "S1353",
+  "input": {
+   "scaleWeeklyRate": 4646,
+   "contractWeeklyRate": 4400,
+   "daysWorked": 7,
+   "holidayDays": 0,
+   "adjustments": 0,
+   "dailyOvertimeHours": 14,
+   "doubleTimeHours": 14,
+   "penaltyOvertimeHours": 0,
+   "weeklyOvertimeHours": 0,
+   "extra": null,
+   "sixthDay": true,
+   "seventhDay": true,
+   "postSubtotalAdjustments": 5575.2
+  },
+  "expectedSubtotal": 12798.2,
+  "expectedGross": 18373.4
+ },
+ {
+  "card": "S1356",
+  "input": {
+   "scaleWeeklyRate": 4646,
+   "contractWeeklyRate": 4400,
+   "daysWorked": 6,
+   "holidayDays": 0,
+   "adjustments": 600,
+   "dailyOvertimeHours": 0,
+   "doubleTimeHours": 0,
+   "penaltyOvertimeHours": 0,
+   "weeklyOvertimeHours": 0,
+   "extra": null,
+   "sixthDay": true,
+   "seventhDay": false,
+   "postSubtotalAdjustments": 0
+  },
+  "expectedSubtotal": 6699.8,
+  "expectedGross": 6699.8
+ },
+ {
+  "card": "S1357",
+  "input": {
+   "scaleWeeklyRate": 4646,
+   "contractWeeklyRate": 4400,
+   "daysWorked": 6,
+   "holidayDays": 0,
+   "adjustments": 600,
+   "dailyOvertimeHours": 6,
+   "doubleTimeHours": 0,
+   "penaltyOvertimeHours": 0,
+   "weeklyOvertimeHours": 0,
+   "extra": null,
+   "sixthDay": true,
+   "seventhDay": false,
+   "postSubtotalAdjustments": 0
+  },
+  "expectedSubtotal": 7599.8,
+  "expectedGross": 7599.8
+ },
+ {
+  "card": "S1358",
+  "input": {
+   "scaleWeeklyRate": 4646,
+   "contractWeeklyRate": 4400,
+   "daysWorked": 6,
+   "holidayDays": 0,
+   "adjustments": 600,
+   "dailyOvertimeHours": 12,
+   "doubleTimeHours": 0,
+   "penaltyOvertimeHours": 0,
+   "weeklyOvertimeHours": 0,
+   "extra": null,
+   "sixthDay": true,
+   "seventhDay": false,
+   "postSubtotalAdjustments": 0
+  },
+  "expectedSubtotal": 8499.8,
+  "expectedGross": 8499.8
+ },
+ {
+  "card": "S1359",
+  "input": {
+   "scaleWeeklyRate": 4646,
+   "contractWeeklyRate": 4400,
+   "daysWorked": 6,
+   "holidayDays": 0,
+   "adjustments": 600,
+   "dailyOvertimeHours": 12,
+   "doubleTimeHours": 6,
+   "penaltyOvertimeHours": 0,
+   "weeklyOvertimeHours": 0,
+   "extra": null,
+   "sixthDay": true,
+   "seventhDay": false,
+   "postSubtotalAdjustments": 0
+  },
+  "expectedSubtotal": 9699.8,
+  "expectedGross": 9699.8
+ },
+ {
+  "card": "S1360",
+  "input": {
+   "scaleWeeklyRate": 4646,
+   "contractWeeklyRate": 4400,
+   "daysWorked": 6,
+   "holidayDays": 0,
+   "adjustments": 600,
+   "dailyOvertimeHours": 12,
+   "doubleTimeHours": 12,
+   "penaltyOvertimeHours": 0,
+   "weeklyOvertimeHours": 0,
+   "extra": null,
+   "sixthDay": true,
+   "seventhDay": false,
+   "postSubtotalAdjustments": 4646
+  },
+  "expectedSubtotal": 10899.8,
+  "expectedGross": 15545.8
+ },
+ {
+  "card": "S1361",
+  "input": {
+   "scaleWeeklyRate": 4646,
+   "contractWeeklyRate": 4400,
+   "daysWorked": 7,
+   "holidayDays": 0,
+   "adjustments": 700,
+   "dailyOvertimeHours": 0,
+   "doubleTimeHours": 0,
+   "penaltyOvertimeHours": 0,
+   "weeklyOvertimeHours": 0,
+   "extra": null,
+   "sixthDay": true,
+   "seventhDay": true,
+   "postSubtotalAdjustments": 0
+  },
+  "expectedSubtotal": 8808.2,
+  "expectedGross": 8808.2
+ },
+ {
+  "card": "S1362",
+  "input": {
+   "scaleWeeklyRate": 4646,
+   "contractWeeklyRate": 4400,
+   "daysWorked": 7,
+   "holidayDays": 0,
+   "adjustments": 700,
+   "dailyOvertimeHours": 7,
+   "doubleTimeHours": 0,
+   "penaltyOvertimeHours": 0,
+   "weeklyOvertimeHours": 0,
+   "extra": null,
+   "sixthDay": true,
+   "seventhDay": true,
+   "postSubtotalAdjustments": 0
+  },
+  "expectedSubtotal": 9858.2,
+  "expectedGross": 9858.2
+ },
+ {
+  "card": "S1363",
+  "input": {
+   "scaleWeeklyRate": 4646,
+   "contractWeeklyRate": 4400,
+   "daysWorked": 7,
+   "holidayDays": 0,
+   "adjustments": 700,
+   "dailyOvertimeHours": 14,
+   "doubleTimeHours": 0,
+   "penaltyOvertimeHours": 0,
+   "weeklyOvertimeHours": 0,
+   "extra": null,
+   "sixthDay": true,
+   "seventhDay": true,
+   "postSubtotalAdjustments": 0
+  },
+  "expectedSubtotal": 10908.2,
+  "expectedGross": 10908.2
+ },
+ {
+  "card": "S1364",
+  "input": {
+   "scaleWeeklyRate": 4646,
+   "contractWeeklyRate": 4400,
+   "daysWorked": 7,
+   "holidayDays": 0,
+   "adjustments": 700,
+   "dailyOvertimeHours": 14,
+   "doubleTimeHours": 7,
+   "penaltyOvertimeHours": 0,
+   "weeklyOvertimeHours": 0,
+   "extra": null,
+   "sixthDay": true,
+   "seventhDay": true,
+   "postSubtotalAdjustments": 0
+  },
+  "expectedSubtotal": 12308.2,
+  "expectedGross": 12308.2
+ },
+ {
+  "card": "S1365",
+  "input": {
+   "scaleWeeklyRate": 4646,
+   "contractWeeklyRate": 4400,
+   "daysWorked": 7,
+   "holidayDays": 0,
+   "adjustments": 700,
+   "dailyOvertimeHours": 14,
+   "doubleTimeHours": 14,
+   "penaltyOvertimeHours": 0,
+   "weeklyOvertimeHours": 0,
+   "extra": null,
+   "sixthDay": true,
+   "seventhDay": true,
+   "postSubtotalAdjustments": 5575.2
+  },
+  "expectedSubtotal": 13708.2,
+  "expectedGross": 19283.4
+ },
+ {
+  "card": "S1366",
+  "input": {
+   "scaleWeeklyRate": 4646,
+   "contractWeeklyRate": 5500,
+   "daysWorked": 5,
+   "holidayDays": 0,
+   "adjustments": 0,
+   "dailyOvertimeHours": 0,
+   "doubleTimeHours": 0,
+   "penaltyOvertimeHours": 0,
+   "weeklyOvertimeHours": 0,
+   "extra": null,
+   "sixthDay": false,
+   "seventhDay": false,
+   "postSubtotalAdjustments": 0
+  },
+  "expectedSubtotal": 4646,
+  "expectedGross": 4646
+ },
+ {
+  "card": "S1367",
+  "input": {
+   "scaleWeeklyRate": 4646,
+   "contractWeeklyRate": 5500,
+   "daysWorked": 5,
+   "holidayDays": 0,
+   "adjustments": 0,
+   "dailyOvertimeHours": 0,
+   "doubleTimeHours": 0,
+   "penaltyOvertimeHours": 0,
+   "weeklyOvertimeHours": 1,
+   "extra": null,
+   "sixthDay": false,
+   "seventhDay": false,
+   "postSubtotalAdjustments": 0
+  },
+  "expectedSubtotal": 4804.39,
+  "expectedGross": 4804.39
+ },
+ {
+  "card": "S1368",
+  "input": {
+   "scaleWeeklyRate": 4646,
+   "contractWeeklyRate": 5500,
+   "daysWorked": 5,
+   "holidayDays": 0,
+   "adjustments": 0,
+   "dailyOvertimeHours": 0,
+   "doubleTimeHours": 0,
+   "penaltyOvertimeHours": 0,
+   "weeklyOvertimeHours": 6,
+   "extra": null,
+   "sixthDay": false,
+   "seventhDay": false,
+   "postSubtotalAdjustments": 0
+  },
+  "expectedSubtotal": 5596.32,
+  "expectedGross": 5596.32
+ },
+ {
+  "card": "S1369",
+  "input": {
+   "scaleWeeklyRate": 4646,
+   "contractWeeklyRate": 5500,
+   "daysWorked": 5,
+   "holidayDays": 0,
+   "adjustments": 0,
+   "dailyOvertimeHours": 0,
+   "doubleTimeHours": 5,
+   "penaltyOvertimeHours": 0,
+   "weeklyOvertimeHours": 6,
+   "extra": null,
+   "sixthDay": false,
+   "seventhDay": false,
+   "postSubtotalAdjustments": 0
+  },
+  "expectedSubtotal": 6652.23,
+  "expectedGross": 6652.23
+ },
+ {
+  "card": "S1370",
+  "input": {
+   "scaleWeeklyRate": 4646,
+   "contractWeeklyRate": 5500,
+   "daysWorked": 5,
+   "holidayDays": 0,
+   "adjustments": 0,
+   "dailyOvertimeHours": 0,
+   "doubleTimeHours": 10,
+   "penaltyOvertimeHours": 0,
+   "weeklyOvertimeHours": 6,
+   "extra": null,
+   "sixthDay": false,
+   "seventhDay": false,
+   "postSubtotalAdjustments": 3716.8
+  },
+  "expectedSubtotal": 7708.14,
+  "expectedGross": 11424.94
+ },
+ {
+  "card": "S1371",
+  "input": {
+   "scaleWeeklyRate": 4646,
+   "contractWeeklyRate": 5500,
+   "daysWorked": 5,
+   "holidayDays": 0,
+   "adjustments": 500,
+   "dailyOvertimeHours": 0,
+   "doubleTimeHours": 0,
+   "penaltyOvertimeHours": 0,
+   "weeklyOvertimeHours": 0,
+   "extra": null,
+   "sixthDay": false,
+   "seventhDay": false,
+   "postSubtotalAdjustments": 0
+  },
+  "expectedSubtotal": 5146,
+  "expectedGross": 5146
+ },
+ {
+  "card": "S1372",
+  "input": {
+   "scaleWeeklyRate": 4646,
+   "contractWeeklyRate": 5500,
+   "daysWorked": 5,
+   "holidayDays": 0,
+   "adjustments": 500,
+   "dailyOvertimeHours": 0,
+   "doubleTimeHours": 0,
+   "penaltyOvertimeHours": 0,
+   "weeklyOvertimeHours": 1,
+   "extra": null,
+   "sixthDay": false,
+   "seventhDay": false,
+   "postSubtotalAdjustments": 0
+  },
+  "expectedSubtotal": 5321.43,
+  "expectedGross": 5321.43
+ },
+ {
+  "card": "S1373",
+  "input": {
+   "scaleWeeklyRate": 4646,
+   "contractWeeklyRate": 5500,
+   "daysWorked": 5,
+   "holidayDays": 0,
+   "adjustments": 500,
+   "dailyOvertimeHours": 0,
+   "doubleTimeHours": 0,
+   "penaltyOvertimeHours": 0,
+   "weeklyOvertimeHours": 6,
+   "extra": null,
+   "sixthDay": false,
+   "seventhDay": false,
+   "postSubtotalAdjustments": 0
+  },
+  "expectedSubtotal": 6198.59,
+  "expectedGross": 6198.59
+ },
+ {
+  "card": "S1374",
+  "input": {
+   "scaleWeeklyRate": 4646,
+   "contractWeeklyRate": 5500,
+   "daysWorked": 5,
+   "holidayDays": 0,
+   "adjustments": 500,
+   "dailyOvertimeHours": 0,
+   "doubleTimeHours": 5,
+   "penaltyOvertimeHours": 0,
+   "weeklyOvertimeHours": 6,
+   "extra": null,
+   "sixthDay": false,
+   "seventhDay": false,
+   "postSubtotalAdjustments": 0
+  },
+  "expectedSubtotal": 7368.14,
+  "expectedGross": 7368.14
+ },
+ {
+  "card": "S1375",
+  "input": {
+   "scaleWeeklyRate": 4646,
+   "contractWeeklyRate": 5500,
+   "daysWorked": 5,
+   "holidayDays": 0,
+   "adjustments": 500,
+   "dailyOvertimeHours": 0,
+   "doubleTimeHours": 10,
+   "penaltyOvertimeHours": 0,
+   "weeklyOvertimeHours": 6,
+   "extra": null,
+   "sixthDay": false,
+   "seventhDay": false,
+   "postSubtotalAdjustments": 3716.8
+  },
+  "expectedSubtotal": 8537.68,
+  "expectedGross": 12254.48
+ },
+ {
+  "card": "S1376",
+  "input": {
+   "scaleWeeklyRate": 4646,
+   "contractWeeklyRate": 5500,
+   "daysWorked": 5,
+   "holidayDays": 0,
+   "adjustments": 1000,
+   "dailyOvertimeHours": 0,
+   "doubleTimeHours": 0,
+   "penaltyOvertimeHours": 0,
+   "weeklyOvertimeHours": 0,
+   "extra": null,
+   "sixthDay": false,
+   "seventhDay": false,
+   "postSubtotalAdjustments": 0
+  },
+  "expectedSubtotal": 5646,
+  "expectedGross": 5646
+ },
+ {
+  "card": "S1377",
+  "input": {
+   "scaleWeeklyRate": 4646,
+   "contractWeeklyRate": 5500,
+   "daysWorked": 5,
+   "holidayDays": 0,
+   "adjustments": 1000,
+   "dailyOvertimeHours": 0,
+   "doubleTimeHours": 0,
+   "penaltyOvertimeHours": 0,
+   "weeklyOvertimeHours": 1,
+   "extra": null,
+   "sixthDay": false,
+   "seventhDay": false,
+   "postSubtotalAdjustments": 0
+  },
+  "expectedSubtotal": 5833.5,
+  "expectedGross": 5833.5
+ },
+ {
+  "card": "S1378",
+  "input": {
+   "scaleWeeklyRate": 4646,
+   "contractWeeklyRate": 5500,
+   "daysWorked": 5,
+   "holidayDays": 0,
+   "adjustments": 1000,
+   "dailyOvertimeHours": 0,
+   "doubleTimeHours": 0,
+   "penaltyOvertimeHours": 0,
+   "weeklyOvertimeHours": 6,
+   "extra": null,
+   "sixthDay": false,
+   "seventhDay": false,
+   "postSubtotalAdjustments": 0
+  },
+  "expectedSubtotal": 6771,
+  "expectedGross": 6771
+ },
+ {
+  "card": "S1379",
+  "input": {
+   "scaleWeeklyRate": 4646,
+   "contractWeeklyRate": 5500,
+   "daysWorked": 5,
+   "holidayDays": 0,
+   "adjustments": 1000,
+   "dailyOvertimeHours": 0,
+   "doubleTimeHours": 5,
+   "penaltyOvertimeHours": 0,
+   "weeklyOvertimeHours": 6,
+   "extra": null,
+   "sixthDay": false,
+   "seventhDay": false,
+   "postSubtotalAdjustments": 0
+  },
+  "expectedSubtotal": 8021,
+  "expectedGross": 8021
+ },
+ {
+  "card": "S1380",
+  "input": {
+   "scaleWeeklyRate": 4646,
+   "contractWeeklyRate": 5500,
+   "daysWorked": 5,
+   "holidayDays": 0,
+   "adjustments": 1000,
+   "dailyOvertimeHours": 0,
+   "doubleTimeHours": 10,
+   "penaltyOvertimeHours": 0,
+   "weeklyOvertimeHours": 6,
+   "extra": null,
+   "sixthDay": false,
+   "seventhDay": false,
+   "postSubtotalAdjustments": 3716.8
+  },
+  "expectedSubtotal": 9271,
+  "expectedGross": 12987.8
+ },
+ {
+  "card": "S1381",
+  "input": {
+   "scaleWeeklyRate": 4646,
+   "contractWeeklyRate": 5500,
+   "daysWorked": 5,
+   "holidayDays": 0,
+   "adjustments": 2500,
+   "dailyOvertimeHours": 0,
+   "doubleTimeHours": 0,
+   "penaltyOvertimeHours": 0,
+   "weeklyOvertimeHours": 0,
+   "extra": null,
+   "sixthDay": false,
+   "seventhDay": false,
+   "postSubtotalAdjustments": 0
+  },
+  "expectedSubtotal": 7146,
+  "expectedGross": 7146
+ },
+ {
+  "card": "S1382",
+  "input": {
+   "scaleWeeklyRate": 4646,
+   "contractWeeklyRate": 5500,
+   "daysWorked": 5,
+   "holidayDays": 0,
+   "adjustments": 2500,
+   "dailyOvertimeHours": 0,
+   "doubleTimeHours": 0,
+   "penaltyOvertimeHours": 0,
+   "weeklyOvertimeHours": 1,
+   "extra": null,
+   "sixthDay": false,
+   "seventhDay": false,
+   "postSubtotalAdjustments": 0
+  },
+  "expectedSubtotal": 7146,
+  "expectedGross": 7146
+ },
+ {
+  "card": "S1383",
+  "input": {
+   "scaleWeeklyRate": 4646,
+   "contractWeeklyRate": 5500,
+   "daysWorked": 5,
+   "holidayDays": 0,
+   "adjustments": 2500,
+   "dailyOvertimeHours": 0,
+   "doubleTimeHours": 0,
+   "penaltyOvertimeHours": 0,
+   "weeklyOvertimeHours": 6,
+   "extra": null,
+   "sixthDay": false,
+   "seventhDay": false,
+   "postSubtotalAdjustments": 0
+  },
+  "expectedSubtotal": 7146,
+  "expectedGross": 7146
+ },
+ {
+  "card": "S1384",
+  "input": {
+   "scaleWeeklyRate": 4646,
+   "contractWeeklyRate": 5500,
+   "daysWorked": 5,
+   "holidayDays": 0,
+   "adjustments": 2500,
+   "dailyOvertimeHours": 0,
+   "doubleTimeHours": 5,
+   "penaltyOvertimeHours": 0,
+   "weeklyOvertimeHours": 6,
+   "extra": null,
+   "sixthDay": false,
+   "seventhDay": false,
+   "postSubtotalAdjustments": 0
+  },
+  "expectedSubtotal": 8396,
+  "expectedGross": 8396
+ },
+ {
+  "card": "S1385",
+  "input": {
+   "scaleWeeklyRate": 4646,
+   "contractWeeklyRate": 5500,
+   "daysWorked": 5,
+   "holidayDays": 0,
+   "adjustments": 2500,
+   "dailyOvertimeHours": 0,
+   "doubleTimeHours": 10,
+   "penaltyOvertimeHours": 0,
+   "weeklyOvertimeHours": 6,
+   "extra": null,
+   "sixthDay": false,
+   "seventhDay": false,
+   "postSubtotalAdjustments": 3716.8
+  },
+  "expectedSubtotal": 9646,
+  "expectedGross": 13362.8
+ },
+ {
+  "card": "S1386",
+  "input": {
+   "scaleWeeklyRate": 4646,
+   "contractWeeklyRate": 5500,
+   "daysWorked": 5,
+   "holidayDays": 0,
+   "adjustments": 5000,
+   "dailyOvertimeHours": 0,
+   "doubleTimeHours": 0,
+   "penaltyOvertimeHours": 0,
+   "weeklyOvertimeHours": 0,
+   "extra": null,
+   "sixthDay": false,
+   "seventhDay": false,
+   "postSubtotalAdjustments": 0
+  },
+  "expectedSubtotal": 9646,
+  "expectedGross": 9646
+ },
+ {
+  "card": "S1387",
+  "input": {
+   "scaleWeeklyRate": 4646,
+   "contractWeeklyRate": 5500,
+   "daysWorked": 5,
+   "holidayDays": 0,
+   "adjustments": 5000,
+   "dailyOvertimeHours": 0,
+   "doubleTimeHours": 0,
+   "penaltyOvertimeHours": 0,
+   "weeklyOvertimeHours": 1,
+   "extra": null,
+   "sixthDay": false,
+   "seventhDay": false,
+   "postSubtotalAdjustments": 0
+  },
+  "expectedSubtotal": 9646,
+  "expectedGross": 9646
+ },
+ {
+  "card": "S1388",
+  "input": {
+   "scaleWeeklyRate": 4646,
+   "contractWeeklyRate": 5500,
+   "daysWorked": 5,
+   "holidayDays": 0,
+   "adjustments": 5000,
+   "dailyOvertimeHours": 0,
+   "doubleTimeHours": 0,
+   "penaltyOvertimeHours": 0,
+   "weeklyOvertimeHours": 6,
+   "extra": null,
+   "sixthDay": false,
+   "seventhDay": false,
+   "postSubtotalAdjustments": 0
+  },
+  "expectedSubtotal": 9646,
+  "expectedGross": 9646
+ },
+ {
+  "card": "S1389",
+  "input": {
+   "scaleWeeklyRate": 4646,
+   "contractWeeklyRate": 5500,
+   "daysWorked": 5,
+   "holidayDays": 0,
+   "adjustments": 5000,
+   "dailyOvertimeHours": 0,
+   "doubleTimeHours": 5,
+   "penaltyOvertimeHours": 0,
+   "weeklyOvertimeHours": 6,
+   "extra": null,
+   "sixthDay": false,
+   "seventhDay": false,
+   "postSubtotalAdjustments": 0
+  },
+  "expectedSubtotal": 10896,
+  "expectedGross": 10896
+ },
+ {
+  "card": "S1390",
+  "input": {
+   "scaleWeeklyRate": 4646,
+   "contractWeeklyRate": 5500,
+   "daysWorked": 5,
+   "holidayDays": 0,
+   "adjustments": 5000,
+   "dailyOvertimeHours": 0,
+   "doubleTimeHours": 10,
+   "penaltyOvertimeHours": 0,
+   "weeklyOvertimeHours": 6,
+   "extra": null,
+   "sixthDay": false,
+   "seventhDay": false,
+   "postSubtotalAdjustments": 3716.8
+  },
+  "expectedSubtotal": 12146,
+  "expectedGross": 15862.8
+ },
+ {
+  "card": "S1391",
+  "input": {
+   "scaleWeeklyRate": 4646,
+   "contractWeeklyRate": 5500,
+   "daysWorked": 5,
+   "holidayDays": 0,
+   "adjustments": 10000,
+   "dailyOvertimeHours": 0,
+   "doubleTimeHours": 0,
+   "penaltyOvertimeHours": 0,
+   "weeklyOvertimeHours": 0,
+   "extra": null,
+   "sixthDay": false,
+   "seventhDay": false,
+   "postSubtotalAdjustments": 0
+  },
+  "expectedSubtotal": 14646,
+  "expectedGross": 14646
+ },
+ {
+  "card": "S1392",
+  "input": {
+   "scaleWeeklyRate": 4646,
+   "contractWeeklyRate": 5500,
+   "daysWorked": 5,
+   "holidayDays": 0,
+   "adjustments": 10000,
+   "dailyOvertimeHours": 0,
+   "doubleTimeHours": 0,
+   "penaltyOvertimeHours": 0,
+   "weeklyOvertimeHours": 1,
+   "extra": null,
+   "sixthDay": false,
+   "seventhDay": false,
+   "postSubtotalAdjustments": 0
+  },
+  "expectedSubtotal": 14646,
+  "expectedGross": 14646
+ },
+ {
+  "card": "S1393",
+  "input": {
+   "scaleWeeklyRate": 4646,
+   "contractWeeklyRate": 5500,
+   "daysWorked": 5,
+   "holidayDays": 0,
+   "adjustments": 10000,
+   "dailyOvertimeHours": 0,
+   "doubleTimeHours": 0,
+   "penaltyOvertimeHours": 0,
+   "weeklyOvertimeHours": 6,
+   "extra": null,
+   "sixthDay": false,
+   "seventhDay": false,
+   "postSubtotalAdjustments": 0
+  },
+  "expectedSubtotal": 14646,
+  "expectedGross": 14646
+ },
+ {
+  "card": "S1394",
+  "input": {
+   "scaleWeeklyRate": 4646,
+   "contractWeeklyRate": 5500,
+   "daysWorked": 5,
+   "holidayDays": 0,
+   "adjustments": 10000,
+   "dailyOvertimeHours": 0,
+   "doubleTimeHours": 5,
+   "penaltyOvertimeHours": 0,
+   "weeklyOvertimeHours": 6,
+   "extra": null,
+   "sixthDay": false,
+   "seventhDay": false,
+   "postSubtotalAdjustments": 0
+  },
+  "expectedSubtotal": 15896,
+  "expectedGross": 15896
+ },
+ {
+  "card": "S1395",
+  "input": {
+   "scaleWeeklyRate": 4646,
+   "contractWeeklyRate": 5500,
+   "daysWorked": 5,
+   "holidayDays": 0,
+   "adjustments": 10000,
+   "dailyOvertimeHours": 0,
+   "doubleTimeHours": 10,
+   "penaltyOvertimeHours": 0,
+   "weeklyOvertimeHours": 6,
+   "extra": null,
+   "sixthDay": false,
+   "seventhDay": false,
+   "postSubtotalAdjustments": 3716.8
+  },
+  "expectedSubtotal": 17146,
+  "expectedGross": 20862.8
+ },
+ {
+  "card": "S1396",
+  "input": {
+   "scaleWeeklyRate": 4646,
+   "contractWeeklyRate": 5500,
+   "daysWorked": 6,
+   "holidayDays": 0,
+   "adjustments": 0,
+   "dailyOvertimeHours": 0,
+   "doubleTimeHours": 0,
+   "penaltyOvertimeHours": 0,
+   "weeklyOvertimeHours": 0,
+   "extra": null,
+   "sixthDay": true,
+   "seventhDay": false,
+   "postSubtotalAdjustments": 0
+  },
+  "expectedSubtotal": 6039.8,
+  "expectedGross": 6039.8
+ },
+ {
+  "card": "S1397",
+  "input": {
+   "scaleWeeklyRate": 4646,
+   "contractWeeklyRate": 5500,
+   "daysWorked": 6,
+   "holidayDays": 0,
+   "adjustments": 0,
+   "dailyOvertimeHours": 0,
+   "doubleTimeHours": 0,
+   "penaltyOvertimeHours": 0,
+   "weeklyOvertimeHours": 1,
+   "extra": null,
+   "sixthDay": true,
+   "seventhDay": false,
+   "postSubtotalAdjustments": 0
+  },
+  "expectedSubtotal": 6198.19,
+  "expectedGross": 6198.19
+ },
+ {
+  "card": "S1398",
+  "input": {
+   "scaleWeeklyRate": 4646,
+   "contractWeeklyRate": 5500,
+   "daysWorked": 6,
+   "holidayDays": 0,
+   "adjustments": 0,
+   "dailyOvertimeHours": 0,
+   "doubleTimeHours": 0,
+   "penaltyOvertimeHours": 0,
+   "weeklyOvertimeHours": 6,
+   "extra": null,
+   "sixthDay": true,
+   "seventhDay": false,
+   "postSubtotalAdjustments": 0
+  },
+  "expectedSubtotal": 6990.12,
+  "expectedGross": 6990.12
+ },
+ {
+  "card": "S1399",
+  "input": {
+   "scaleWeeklyRate": 4646,
+   "contractWeeklyRate": 5500,
+   "daysWorked": 6,
+   "holidayDays": 0,
+   "adjustments": 0,
+   "dailyOvertimeHours": 0,
+   "doubleTimeHours": 6,
+   "penaltyOvertimeHours": 0,
+   "weeklyOvertimeHours": 6,
+   "extra": null,
+   "sixthDay": true,
+   "seventhDay": false,
+   "postSubtotalAdjustments": 0
+  },
+  "expectedSubtotal": 8257.21,
+  "expectedGross": 8257.21
+ },
+ {
+  "card": "S1400",
+  "input": {
+   "scaleWeeklyRate": 4646,
+   "contractWeeklyRate": 5500,
+   "daysWorked": 6,
+   "holidayDays": 0,
+   "adjustments": 0,
+   "dailyOvertimeHours": 0,
+   "doubleTimeHours": 12,
+   "penaltyOvertimeHours": 0,
+   "weeklyOvertimeHours": 6,
+   "extra": null,
+   "sixthDay": true,
+   "seventhDay": false,
+   "postSubtotalAdjustments": 4646
+  },
+  "expectedSubtotal": 9524.3,
+  "expectedGross": 14170.3
+ },
+ {
+  "card": "S1401",
+  "input": {
+   "scaleWeeklyRate": 4646,
+   "contractWeeklyRate": 5500,
+   "daysWorked": 7,
+   "holidayDays": 0,
+   "adjustments": 0,
+   "dailyOvertimeHours": 0,
+   "doubleTimeHours": 0,
+   "penaltyOvertimeHours": 0,
+   "weeklyOvertimeHours": 0,
+   "extra": null,
+   "sixthDay": true,
+   "seventhDay": true,
+   "postSubtotalAdjustments": 0
+  },
+  "expectedSubtotal": 7898.2,
+  "expectedGross": 7898.2
+ },
+ {
+  "card": "S1402",
+  "input": {
+   "scaleWeeklyRate": 4646,
+   "contractWeeklyRate": 5500,
+   "daysWorked": 7,
+   "holidayDays": 0,
+   "adjustments": 0,
+   "dailyOvertimeHours": 0,
+   "doubleTimeHours": 0,
+   "penaltyOvertimeHours": 0,
+   "weeklyOvertimeHours": 1,
+   "extra": null,
+   "sixthDay": true,
+   "seventhDay": true,
+   "postSubtotalAdjustments": 0
+  },
+  "expectedSubtotal": 8056.59,
+  "expectedGross": 8056.59
+ },
+ {
+  "card": "S1403",
+  "input": {
+   "scaleWeeklyRate": 4646,
+   "contractWeeklyRate": 5500,
+   "daysWorked": 7,
+   "holidayDays": 0,
+   "adjustments": 0,
+   "dailyOvertimeHours": 0,
+   "doubleTimeHours": 0,
+   "penaltyOvertimeHours": 0,
+   "weeklyOvertimeHours": 6,
+   "extra": null,
+   "sixthDay": true,
+   "seventhDay": true,
+   "postSubtotalAdjustments": 0
+  },
+  "expectedSubtotal": 8848.52,
+  "expectedGross": 8848.52
+ },
+ {
+  "card": "S1404",
+  "input": {
+   "scaleWeeklyRate": 4646,
+   "contractWeeklyRate": 5500,
+   "daysWorked": 7,
+   "holidayDays": 0,
+   "adjustments": 0,
+   "dailyOvertimeHours": 0,
+   "doubleTimeHours": 7,
+   "penaltyOvertimeHours": 0,
+   "weeklyOvertimeHours": 6,
+   "extra": null,
+   "sixthDay": true,
+   "seventhDay": true,
+   "postSubtotalAdjustments": 0
+  },
+  "expectedSubtotal": 10326.79,
+  "expectedGross": 10326.79
+ },
+ {
+  "card": "S1405",
+  "input": {
+   "scaleWeeklyRate": 4646,
+   "contractWeeklyRate": 5500,
+   "daysWorked": 7,
+   "holidayDays": 0,
+   "adjustments": 0,
+   "dailyOvertimeHours": 0,
+   "doubleTimeHours": 14,
+   "penaltyOvertimeHours": 0,
+   "weeklyOvertimeHours": 6,
+   "extra": null,
+   "sixthDay": true,
+   "seventhDay": true,
+   "postSubtotalAdjustments": 5575.2
+  },
+  "expectedSubtotal": 11805.06,
+  "expectedGross": 17380.26
+ },
+ {
+  "card": "S1406",
+  "input": {
+   "scaleWeeklyRate": 4646,
+   "contractWeeklyRate": 5500,
+   "daysWorked": 6,
+   "holidayDays": 0,
+   "adjustments": 600,
+   "dailyOvertimeHours": 0,
+   "doubleTimeHours": 0,
+   "penaltyOvertimeHours": 0,
+   "weeklyOvertimeHours": 0,
+   "extra": null,
+   "sixthDay": true,
+   "seventhDay": false,
+   "postSubtotalAdjustments": 0
+  },
+  "expectedSubtotal": 6699.8,
+  "expectedGross": 6699.8
+ },
+ {
+  "card": "S1407",
+  "input": {
+   "scaleWeeklyRate": 4646,
+   "contractWeeklyRate": 5500,
+   "daysWorked": 6,
+   "holidayDays": 0,
+   "adjustments": 600,
+   "dailyOvertimeHours": 0,
+   "doubleTimeHours": 0,
+   "penaltyOvertimeHours": 0,
+   "weeklyOvertimeHours": 1,
+   "extra": null,
+   "sixthDay": true,
+   "seventhDay": false,
+   "postSubtotalAdjustments": 0
+  },
+  "expectedSubtotal": 6878.64,
+  "expectedGross": 6878.64
+ },
+ {
+  "card": "S1408",
+  "input": {
+   "scaleWeeklyRate": 4646,
+   "contractWeeklyRate": 5500,
+   "daysWorked": 6,
+   "holidayDays": 0,
+   "adjustments": 600,
+   "dailyOvertimeHours": 0,
+   "doubleTimeHours": 0,
+   "penaltyOvertimeHours": 0,
+   "weeklyOvertimeHours": 6,
+   "extra": null,
+   "sixthDay": true,
+   "seventhDay": false,
+   "postSubtotalAdjustments": 0
+  },
+  "expectedSubtotal": 7772.85,
+  "expectedGross": 7772.85
+ },
+ {
+  "card": "S1409",
+  "input": {
+   "scaleWeeklyRate": 4646,
+   "contractWeeklyRate": 5500,
+   "daysWorked": 6,
+   "holidayDays": 0,
+   "adjustments": 600,
+   "dailyOvertimeHours": 0,
+   "doubleTimeHours": 6,
+   "penaltyOvertimeHours": 0,
+   "weeklyOvertimeHours": 6,
+   "extra": null,
+   "sixthDay": true,
+   "seventhDay": false,
+   "postSubtotalAdjustments": 0
+  },
+  "expectedSubtotal": 9203.57,
+  "expectedGross": 9203.57
+ },
+ {
+  "card": "S1410",
+  "input": {
+   "scaleWeeklyRate": 4646,
+   "contractWeeklyRate": 5500,
+   "daysWorked": 6,
+   "holidayDays": 0,
+   "adjustments": 600,
+   "dailyOvertimeHours": 0,
+   "doubleTimeHours": 12,
+   "penaltyOvertimeHours": 0,
+   "weeklyOvertimeHours": 6,
+   "extra": null,
+   "sixthDay": true,
+   "seventhDay": false,
+   "postSubtotalAdjustments": 4646
+  },
+  "expectedSubtotal": 10634.3,
+  "expectedGross": 15280.3
+ },
+ {
+  "card": "S1411",
+  "input": {
+   "scaleWeeklyRate": 4646,
+   "contractWeeklyRate": 5500,
+   "daysWorked": 7,
+   "holidayDays": 0,
+   "adjustments": 700,
+   "dailyOvertimeHours": 0,
+   "doubleTimeHours": 0,
+   "penaltyOvertimeHours": 0,
+   "weeklyOvertimeHours": 0,
+   "extra": null,
+   "sixthDay": true,
+   "seventhDay": true,
+   "postSubtotalAdjustments": 0
+  },
+  "expectedSubtotal": 8808.2,
+  "expectedGross": 8808.2
+ },
+ {
+  "card": "S1412",
+  "input": {
+   "scaleWeeklyRate": 4646,
+   "contractWeeklyRate": 5500,
+   "daysWorked": 7,
+   "holidayDays": 0,
+   "adjustments": 700,
+   "dailyOvertimeHours": 0,
+   "doubleTimeHours": 0,
+   "penaltyOvertimeHours": 0,
+   "weeklyOvertimeHours": 1,
+   "extra": null,
+   "sixthDay": true,
+   "seventhDay": true,
+   "postSubtotalAdjustments": 0
+  },
+  "expectedSubtotal": 8990.45,
+  "expectedGross": 8990.45
+ },
+ {
+  "card": "S1413",
+  "input": {
+   "scaleWeeklyRate": 4646,
+   "contractWeeklyRate": 5500,
+   "daysWorked": 7,
+   "holidayDays": 0,
+   "adjustments": 700,
+   "dailyOvertimeHours": 0,
+   "doubleTimeHours": 0,
+   "penaltyOvertimeHours": 0,
+   "weeklyOvertimeHours": 6,
+   "extra": null,
+   "sixthDay": true,
+   "seventhDay": true,
+   "postSubtotalAdjustments": 0
+  },
+  "expectedSubtotal": 9901.7,
+  "expectedGross": 9901.7
+ },
+ {
+  "card": "S1414",
+  "input": {
+   "scaleWeeklyRate": 4646,
+   "contractWeeklyRate": 5500,
+   "daysWorked": 7,
+   "holidayDays": 0,
+   "adjustments": 700,
+   "dailyOvertimeHours": 0,
+   "doubleTimeHours": 7,
+   "penaltyOvertimeHours": 0,
+   "weeklyOvertimeHours": 6,
+   "extra": null,
+   "sixthDay": true,
+   "seventhDay": true,
+   "postSubtotalAdjustments": 0
+  },
+  "expectedSubtotal": 11602.7,
+  "expectedGross": 11602.7
+ },
+ {
+  "card": "S1415",
+  "input": {
+   "scaleWeeklyRate": 4646,
+   "contractWeeklyRate": 5500,
+   "daysWorked": 7,
+   "holidayDays": 0,
+   "adjustments": 700,
+   "dailyOvertimeHours": 0,
+   "doubleTimeHours": 14,
+   "penaltyOvertimeHours": 0,
+   "weeklyOvertimeHours": 6,
+   "extra": null,
+   "sixthDay": true,
+   "seventhDay": true,
+   "postSubtotalAdjustments": 5575.2
+  },
+  "expectedSubtotal": 13303.7,
+  "expectedGross": 18878.9
+ }
+]
