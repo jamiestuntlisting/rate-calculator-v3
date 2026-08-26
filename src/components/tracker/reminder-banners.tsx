@@ -110,33 +110,14 @@ export function ReminderBanners({ records }: ReminderBannersProps) {
     <div className="space-y-2">
       {/* Incomplete Exhibit Gs — single banner */}
       {showIncomplete && (
-        <div className="flex items-start gap-3 p-3 rounded-lg bg-yellow-950/40 border border-yellow-700/50 text-yellow-300">
-          <AlertTriangle className="h-5 w-5 mt-0.5 shrink-0" />
-          <div className="flex-1 min-w-0">
-            <p className="text-sm font-medium">
-              You have {incompleteRecords.length} incomplete Exhibit G
-              {incompleteRecords.length !== 1 ? "s" : ""}
-            </p>
-            <p className="text-xs mt-1">
-              Complete them to calculate your expected pay.
-            </p>
-            <div className="flex flex-wrap gap-2 mt-2">
-              {incompleteRecords.slice(0, 5).map((r) => (
-                <Link
-                  key={r._id}
-                  href={`/work/${r._id}`}
-                  className="text-xs underline hover:no-underline"
-                >
-                  {r.showName} ({(() => { const ymd = r.workDate.split("T")[0]; const [y, m, d] = ymd.split("-").map(Number); return `${m}/${d}/${y}`; })()})
-                </Link>
-              ))}
-              {incompleteRecords.length > 5 && (
-                <span className="text-xs">
-                  +{incompleteRecords.length - 5} more
-                </span>
-              )}
-            </div>
-          </div>
+        <div className="flex items-center gap-2 p-3 rounded-lg bg-yellow-950/40 border border-yellow-700/50 text-yellow-300">
+          <AlertTriangle className="h-4 w-4 shrink-0" />
+          {/* One line, and it stays one line: a date list here was five rows
+              of links deep on a phone before the tracker itself started. */}
+          <p className="flex-1 min-w-0 text-sm truncate">
+            {incompleteRecords.length} Exhibit G
+            {incompleteRecords.length !== 1 ? "s" : ""} left to finish
+          </p>
           <Button
             variant="ghost"
             size="sm"
