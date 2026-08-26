@@ -94,7 +94,7 @@ const ENDPOINTS: EndpointGroup[] = [
   "effectiveDate": "2025-07-01",
   "contracts": [
     { "id": "theatrical_basic", "label": "Theatrical Basic",
-      "daily": 1246, "weekly": 4646, "hourly": 155.75,
+      "daily": 1283, "weekly": 4785, "hourly": 160.375,
       "straightTimeHours": 8 }
   ],
   "overtime": { "straightTimeEnd": 8, "timeAndHalfEnd": 10,
@@ -116,11 +116,11 @@ const ENDPOINTS: EndpointGroup[] = [
   "calculationId": "uuid",
   "input": { /* echo of the input */ },
   "breakdown": {
-    "baseRate": 1246, "hourlyRate": 155.75,
-    "adjustedBaseRate": 1246, "adjustedHourlyRate": 155.75,
+    "baseRate": 1283, "hourlyRate": 160.375,
+    "adjustedBaseRate": 1283, "adjustedHourlyRate": 160.375,
     "totalWorkHours": 14.5, "totalMealTime": 0.5, "netWorkHours": 14,
     "segments": [ { "label": "Straight Time (Hrs 1-8)",
-      "hours": 8, "rate": 155.75, "multiplier": 1, "subtotal": 1246 } ],
+      "hours": 8, "rate": 160.375, "multiplier": 1, "subtotal": 1283 } ],
     "penalties": { "mealPenalties": [], "forcedCallPenalty": 0,
       "totalPenalties": 0 },
     "dayMultiplier": { "applied": false, "type": null, "multiplier": 1 },

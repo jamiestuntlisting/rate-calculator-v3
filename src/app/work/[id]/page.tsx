@@ -25,6 +25,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Separator } from "@/components/ui/separator";
 import { RateBreakdown } from "@/components/calculation/rate-breakdown";
 import { formatCurrency } from "@/lib/time-utils";
+import { RATES } from "@/lib/rate-constants";
 import { toast } from "sonner";
 import type { WorkDocument, WorkRecord } from "@/types";
 import { DOCUMENT_TYPE_LABELS } from "@/types";
@@ -54,10 +55,13 @@ const RECORD_STATUS_LABELS: Record<string, string> = {
   attachment_only: "Attachment Only",
 };
 
+/** Agreement names carry their current daily rate, straight from RATES. */
+const dayRate = (amount: number) => `$${Math.round(amount).toLocaleString()}/day`;
+
 const AGREEMENT_LABELS: Record<string, string> = {
-  theatrical_basic: "Theatrical Basic ($1,246/day)",
-  television: "Television ($1,246/day)",
-  stunt_coordinator: "Stunt Coordinator ($1,938/day)",
+  theatrical_basic: `Theatrical Basic (${dayRate(RATES.theatrical_basic.daily)})`,
+  television: `Television (${dayRate(RATES.television.daily)})`,
+  stunt_coordinator: `Stunt Coordinator (${dayRate(RATES.stunt_coordinator.daily)})`,
 };
 
 const OTHER_CATEGORY_LABELS: Record<string, string> = {
@@ -265,7 +269,7 @@ export default function WorkDetailPage() {
             isSixthDay: false,
             isSeventhDay: false,
             isHoliday: false,
-            expectedAmount: 1938,
+            expectedAmount: RATES.stunt_coordinator.daily,
             calculation: null,
             recordStatus: "complete",
             notes: record?.notes || "",
@@ -828,7 +832,7 @@ export default function WorkDetailPage() {
                   {isStuntCoordinator && (
                     <div>
                       <p className="text-muted-foreground">Flat Rate</p>
-                      <p className="font-semibold">{formatCurrency(record.expectedAmount || 1938)}</p>
+                      <p className="font-semibold">{formatCurrency(record.expectedAmount || RATES.stunt_coordinator.daily)}</p>
                     </div>
                   )}
                   {!isStuntCoordinator && record.stuntAdjustment > 0 && (

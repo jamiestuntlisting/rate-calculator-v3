@@ -25,14 +25,14 @@ const baseInput: ExhibitGInput = {
 };
 
 describe("calculateRate — daily minimum guarantee", () => {
-  it("8-hour theatrical day with 30 min meal pays full $1,246 day rate", () => {
+  it("8-hour theatrical day with 30 min meal pays full $1,283 day rate", () => {
     const result = calculateRate(baseInput);
     expect(result.grandTotal).toBe(1283);
     expect(result.dayMultiplier.applied).toBe(false);
     expect(result.penalties.totalPenalties).toBe(0);
   });
 
-  it("stunt coordinator 8-hour day pays full $1,938 day rate", () => {
+  it("stunt coordinator 8-hour day pays full $1,996 day rate", () => {
     const result = calculateRate({ ...baseInput, workStatus: "stunt_coordinator" });
     expect(result.baseRate).toBe(1996);
     expect(result.hourlyRate).toBe(249.5);

@@ -85,7 +85,7 @@ function getDefaultTests(): TestCase[] {
     {
       id: "1",
       name: "Short day (4h) — 8hr guarantee",
-      description: "Call 7:00, dismiss 11:00, no meals. Should pay full daily rate ($1,246).",
+      description: "Call 7:00, dismiss 11:00, no meals. Should pay full daily rate ($1,283).",
       input: defaultInput({
         callTime: "07:00",
 
@@ -93,7 +93,7 @@ function getDefaultTests(): TestCase[] {
         firstMealStart: null,
         firstMealFinish: null,
       }),
-      expectedTotal: 1246.0,
+      expectedTotal: 1283.0,
       actualTotal: null,
       breakdown: null,
       error: null,
@@ -109,7 +109,7 @@ function getDefaultTests(): TestCase[] {
         firstMealStart: "13:00",
         firstMealFinish: "13:30",
       }),
-      expectedTotal: 1246.0,
+      expectedTotal: 1283.0,
       actualTotal: null,
       breakdown: null,
       error: null,
@@ -125,7 +125,7 @@ function getDefaultTests(): TestCase[] {
         firstMealStart: "13:00",
         firstMealFinish: "13:30",
       }),
-      expectedTotal: 1713.25,
+      expectedTotal: 1764.13,
       actualTotal: null,
       breakdown: null,
       error: null,
@@ -141,7 +141,7 @@ function getDefaultTests(): TestCase[] {
         firstMealStart: null,
         firstMealFinish: null,
       }),
-      expectedTotal: 1356.0,
+      expectedTotal: 1393.0,
       actualTotal: null,
       breakdown: null,
       error: null,
@@ -159,7 +159,7 @@ function getDefaultTests(): TestCase[] {
         firstMealStart: "12:00",
         firstMealFinish: "12:30",
       }),
-      expectedTotal: 1246.0,
+      expectedTotal: 1283.0,
       actualTotal: null,
       breakdown: null,
       error: null,
@@ -167,7 +167,7 @@ function getDefaultTests(): TestCase[] {
     {
       id: "6",
       name: "Stunt adjustment > base rate",
-      description: "8h day with $2,000 stunt adjustment. Adjusted daily = $3,246.",
+      description: "8h day with $2,000 stunt adjustment. Adjusted daily = $3,283.",
       input: defaultInput({
         callTime: "07:00",
 
@@ -176,7 +176,7 @@ function getDefaultTests(): TestCase[] {
         firstMealFinish: "13:30",
         stuntAdjustment: 2000,
       }),
-      expectedTotal: 3246.0,
+      expectedTotal: 3283.0,
       actualTotal: null,
       breakdown: null,
       error: null,
@@ -192,7 +192,7 @@ function getDefaultTests(): TestCase[] {
         firstMealStart: "12:00",
         firstMealFinish: "12:30",
       }),
-      expectedTotal: 3942.25,
+      expectedTotal: 4048.63,
       actualTotal: null,
       breakdown: null,
       error: null,
@@ -210,7 +210,7 @@ function getDefaultTests(): TestCase[] {
         secondMealStart: "18:30",
         secondMealFinish: "19:00",
       }),
-      expectedTotal: 6222.75,
+      expectedTotal: 6393.88,
       actualTotal: null,
       breakdown: null,
       error: null,
@@ -221,7 +221,7 @@ function getDefaultTests(): TestCase[] {
     {
       id: "9",
       name: "Short day (4h) +$100 adj — 8hr guarantee",
-      description: "Call 7:00, dismiss 11:00, no meals. $100 stunt adj. Minimum = $1,346.",
+      description: "Call 7:00, dismiss 11:00, no meals. $100 stunt adj. Minimum = $1,383.",
       input: defaultInput({
         callTime: "07:00",
 
@@ -230,7 +230,7 @@ function getDefaultTests(): TestCase[] {
         firstMealFinish: null,
         stuntAdjustment: 100,
       }),
-      expectedTotal: 1346.0,
+      expectedTotal: 1383.0,
       actualTotal: null,
       breakdown: null,
       error: null,
@@ -238,7 +238,7 @@ function getDefaultTests(): TestCase[] {
     {
       id: "10",
       name: "Standard 8h day +$100 adj",
-      description: "Call 7:00, dismiss 15:30, 30min lunch. $100 stunt adj. 8h × $168.25 = $1,346.",
+      description: "Call 7:00, dismiss 15:30, 30min lunch. $100 stunt adj. 8h × $172.875 = $1,383.",
       input: defaultInput({
         callTime: "07:00",
 
@@ -247,7 +247,7 @@ function getDefaultTests(): TestCase[] {
         firstMealFinish: "13:30",
         stuntAdjustment: 100,
       }),
-      expectedTotal: 1346.0,
+      expectedTotal: 1383.0,
       actualTotal: null,
       breakdown: null,
       error: null,
@@ -255,7 +255,7 @@ function getDefaultTests(): TestCase[] {
     {
       id: "11",
       name: "10h day with OT +$100 adj",
-      description: "Call 7:00, dismiss 17:30, 30min lunch. $100 stunt adj. 8h@1x + 2h@1.5x at $168.25/hr.",
+      description: "Call 7:00, dismiss 17:30, 30min lunch. $100 stunt adj. 8h@1x + 2h@1.5x at $172.875/hr.",
       input: defaultInput({
         callTime: "07:00",
 
@@ -264,7 +264,7 @@ function getDefaultTests(): TestCase[] {
         firstMealFinish: "13:30",
         stuntAdjustment: 100,
       }),
-      expectedTotal: 1850.75,
+      expectedTotal: 1901.63,
       actualTotal: null,
       breakdown: null,
       error: null,
@@ -272,7 +272,7 @@ function getDefaultTests(): TestCase[] {
     {
       id: "12",
       name: "No lunch penalty +$100 adj",
-      description: "Call 7:00, dismiss 14:30, no meal. $100 stunt adj. 8hr min $1,346 + meal penalties.",
+      description: "Call 7:00, dismiss 14:30, no meal. $100 stunt adj. 8hr min $1,383 + meal penalties.",
       input: defaultInput({
         callTime: "07:00",
 
@@ -281,7 +281,7 @@ function getDefaultTests(): TestCase[] {
         firstMealFinish: null,
         stuntAdjustment: 100,
       }),
-      expectedTotal: 1456.0,
+      expectedTotal: 1493.0,
       actualTotal: null,
       breakdown: null,
       error: null,
@@ -289,7 +289,7 @@ function getDefaultTests(): TestCase[] {
     {
       id: "13",
       name: "ND meal day +$100 adj",
-      description: "Call 7:00, NDB 8:00-8:30, lunch 12:00-12:30, dismiss 15:30. $100 stunt adj. 8h = $1,346.",
+      description: "Call 7:00, NDB 8:00-8:30, lunch 12:00-12:30, dismiss 15:30. $100 stunt adj. 8h = $1,383.",
       input: defaultInput({
         callTime: "07:00",
 
@@ -300,7 +300,7 @@ function getDefaultTests(): TestCase[] {
         firstMealFinish: "12:30",
         stuntAdjustment: 100,
       }),
-      expectedTotal: 1346.0,
+      expectedTotal: 1383.0,
       actualTotal: null,
       breakdown: null,
       error: null,
@@ -308,7 +308,7 @@ function getDefaultTests(): TestCase[] {
     {
       id: "14",
       name: "8h day +$100 adj (was $2k adj test)",
-      description: "8h day with $100 stunt adj instead of $2,000. Adjusted daily = $1,346.",
+      description: "8h day with $100 stunt adj instead of $2,000. Adjusted daily = $1,383.",
       input: defaultInput({
         callTime: "07:00",
 
@@ -317,7 +317,7 @@ function getDefaultTests(): TestCase[] {
         firstMealFinish: "13:30",
         stuntAdjustment: 100,
       }),
-      expectedTotal: 1346.0,
+      expectedTotal: 1383.0,
       actualTotal: null,
       breakdown: null,
       error: null,
@@ -325,7 +325,7 @@ function getDefaultTests(): TestCase[] {
     {
       id: "15",
       name: "16h day +$100 adj",
-      description: "Call 6:00, dismiss 22:30, 30min lunch. $100 stunt adj. 8@1x + 2@1.5x + 6@2x at $168.25/hr + $360 2nd meal penalties.",
+      description: "Call 6:00, dismiss 22:30, 30min lunch. $100 stunt adj. 8@1x + 2@1.5x + 6@2x at $172.875/hr + $360 2nd meal penalties.",
       input: defaultInput({
         callTime: "06:00",
 
@@ -334,7 +334,7 @@ function getDefaultTests(): TestCase[] {
         firstMealFinish: "12:30",
         stuntAdjustment: 100,
       }),
-      expectedTotal: 4229.75,
+      expectedTotal: 4336.13,
       actualTotal: null,
       breakdown: null,
       error: null,
@@ -353,7 +353,7 @@ function getDefaultTests(): TestCase[] {
         secondMealFinish: "19:00",
         stuntAdjustment: 100,
       }),
-      expectedTotal: 6685.25,
+      expectedTotal: 6856.38,
       actualTotal: null,
       breakdown: null,
       error: null,
@@ -364,7 +364,7 @@ function getDefaultTests(): TestCase[] {
     {
       id: "17",
       name: "14h day +$1,300 adj (adj > base, into 2x OT)",
-      description: "Call 7:00, dismiss 22:00, two 30min meals. $1,300 adj > $1,246 base → straight to hr 12, 2x at 13+. 12@1x + 2@2x at $318.25/hr.",
+      description: "Call 7:00, dismiss 22:00, two 30min meals. $1,300 adj > $1,283 base → straight to hr 12, 2x at 13+. 12@1x + 2@2x at $322.875/hr. The margin is only $17 now — a day rate above $1,300 stops this case exercising that branch.",
       input: defaultInput({
         callTime: "07:00",
         dismissOnSet: "22:00",
@@ -374,7 +374,7 @@ function getDefaultTests(): TestCase[] {
         secondMealFinish: "18:30",
         stuntAdjustment: 1300,
       }),
-      expectedTotal: 5092.00,
+      expectedTotal: 5166.00,
       actualTotal: null,
       breakdown: null,
       error: null,
@@ -385,7 +385,7 @@ function getDefaultTests(): TestCase[] {
     {
       id: "18",
       name: "14h day, 6h+6h splits, 2h wrap (no meal penalty)",
-      description: "Call 7:00, dismiss 19:30, wrapped 21:30, one 30min meal at 13:00. AM break exactly 6h, PM break exactly 6h to dismiss. Wrap adds 2h but should NOT trigger meal penalty. 8@1x + 2@1.5x + 4@2x at $155.75/hr.",
+      description: "Call 7:00, dismiss 19:30, wrapped 21:30, one 30min meal at 13:00. AM break exactly 6h, PM break exactly 6h to dismiss. Wrap adds 2h but should NOT trigger meal penalty. 8@1x + 2@1.5x + 4@2x at $160.375/hr.",
       input: defaultInput({
         callTime: "07:00",
         dismissOnSet: "19:30",
@@ -395,7 +395,7 @@ function getDefaultTests(): TestCase[] {
         secondMealStart: null,
         secondMealFinish: null,
       }),
-      expectedTotal: 2959.25,
+      expectedTotal: 3047.13,
       actualTotal: null,
       breakdown: null,
       error: null,
