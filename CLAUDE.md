@@ -46,6 +46,12 @@ state stays in step.
   the derivation and `docs/showbiz-csv-format.md` the file format. Tests run
   the whole sample: 132/133 match payroll to the cent. The one miss, S1234,
   is asserted by name — it is a malformed card, not a missing rule.
+  `from-showbiz.ts` maps a parsed card onto the engine and is the only place
+  that column mapping is written down; `/weekly` is the calculator and
+  `/admin/weekly-bench` runs an export through it card by card. Watch the two
+  adjustment columns: 202 is per-day stunt adjustments and feeds the overtime
+  rate, 190 is allowances and meal penalties landing after the subtotal, and
+  swapping them still yields a plausible gross.
 - **Auth** — StuntListing GraphQL login → JWT session cookie. The signing
   key comes from `SESSION_SECRET` on the Worker if set, else from the
   `app_config` table in D1 (`src/lib/session-secret.ts`). The D1 fallback is
@@ -80,25 +86,35 @@ state stays in step.
 
 ## Open work
 
-1. **ShowBiz CSV import + weekly test bench** (admin-only). The parser
-   exists (`src/lib/showbiz.ts`) and the weekly engine is verified; what is
-   missing is the admin UI to upload an export, run our calculation against
-   each card, and show the diffs.
-2. **Weekly calculator UI** — the engine has no front end yet.
-3. **Stripe billing** — plans are defined and tier resolution already
+The live list is the `tasks` table in D1, shown at **Admin → Tasks**
+(`/admin/tasks`). Query it rather than trusting this section, which is a
+snapshot. `owner` separates work a session can finish from work that needs
+something only James can supply.
+
+Done since this file was last written: the ShowBiz CSV import and weekly
+test bench (`/admin/weekly-bench`), and the weekly calculator UI
+(`/weekly`).
+
+Still waiting on James:
+
+1. **Stripe billing** — plans are defined and tier resolution already
    prefers Stripe; needs a restricted `STRIPE_SECRET_KEY` (read on
    customers, subscriptions, products) and the price ids for Plus and the
    transcription add-on. The $15 per-Exhibit-G price is a placeholder James
    has not confirmed.
-4. **Historical rate schedules** — rates are a single current set, so a 2021
-   work day is calculated at 2026 rates. Records go back years.
-5. **Weekly overtime absorption threshold** — bounded, not pinned; see
+2. **Historical rate schedules** — rates are a single current set, so a 2021
+   work day is calculated at 2026 rates. Blocked twice over: the fix belongs
+   in the vendored engine and so must go upstream (item 4), and it needs the
+   real historical schedules as data. Guessing rates would silently misstate
+   pay.
+3. **Weekly overtime absorption threshold** — bounded, not pinned; see
    `OVERTIME_ABSORPTION_NOTE`. If James learns the real rule it is one
    constant.
-6. **StuntListing org GitHub access** — the shared rate-calculator repo is
+4. **StuntListing org GitHub access** — the shared rate-calculator repo is
    under the `StuntListing` org, which the Claude GitHub app is not
    installed on, so it can only be reached by uploading a zip. An org owner
-   installing the app fixes it permanently.
+   installing the app fixes it permanently, and unblocks re-syncing the
+   07/01/2026 rates upstream before they are silently reverted.
 
 ## Direct links
 
