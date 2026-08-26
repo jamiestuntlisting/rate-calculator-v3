@@ -1,7 +1,9 @@
 "use client";
 
+import Link from "next/link";
+
 import { useEffect, useState } from "react";
-import { Check, Loader2, Minus } from "lucide-react";
+import { Check, HelpCircle, Loader2, Minus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 import {
@@ -82,6 +84,13 @@ export default function MembershipPage() {
         <p className="text-sm text-muted-foreground mt-1">
           No payment is collected yet — switch freely while we finish billing.
         </p>
+        <Link
+          href="/membership/quiz"
+          className="inline-flex items-center gap-1.5 mt-4 rounded-lg border border-border px-3 py-2 text-sm font-medium hover:bg-accent"
+        >
+          <HelpCircle className="h-4 w-4" />
+          Which one is right for me?
+        </Link>
       </div>
 
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4 mb-6">
