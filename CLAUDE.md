@@ -5,9 +5,9 @@ Live app: https://rate-calculator.jamie-181.workers.dev (Worker name:
 deploy attempt, safe to delete).
 
 Next.js 16 on Cloudflare Workers (OpenNext adapter). Data in Cloudflare D1
-(`rate-calculator-db`), uploaded files in R2 (`rate-calculator-uploads`).
-See README.md for commands; schema in `migrations/`; data layer in
-`src/lib/repos/`.
+(`rate-calculator-db`, id `f1a039c5-d470-4464-acd8-be5343d99470`), uploaded
+files in R2 (`rate-calculator-uploads`). Schema in `migrations/`; data layer
+in `src/lib/repos/`. See README.md for commands.
 
 ## Working preferences (James)
 
@@ -17,6 +17,88 @@ See README.md for commands; schema in `migrations/`; data layer in
 - **Always give direct deep links to dashboard pages, never menu
   navigation.** Cloudflare deep links use the `?to=/:account/...` pattern,
   which auto-resolves the account.
+- He works on his phone a lot. Check mobile at 390px before calling UI done.
+
+## Deploying
+
+`git push` to `main` → Cloudflare Workers Builds runs `npm run build`
+(wired to `opennextjs-cloudflare build`) then `npx wrangler deploy`. A push
+is a deploy; it lands in ~3 minutes. Work happens on
+`claude/rate-calculator-cloudflare-migration-43cdc3` and is fast-forwarded
+into `main`.
+
+**Migrations do not run in CI.** Apply schema changes to production
+yourself with the Cloudflare MCP `d1_database_query` tool, and insert the
+filename into `d1_migrations` so the local `wrangler d1 migrations apply`
+state stays in step.
+
+## How the pieces fit
+
+- **Rate engine** — `src/lib/rate-calculator/` is a *vendored verbatim copy*
+  of the shared `StuntListing/rate-calculator` package (day rates, Exhibit G
+  math). Do not edit it to fix app-level things; fix upstream and re-copy.
+  Its README lists the one deliberate divergence: rates were updated to the
+  07/01/2026 schedule here (day performer $1,283) and the source repo has
+  not been. `@/lib/rate-engine`, `rate-constants`, `time-utils` are
+  one-line re-export shims onto it.
+- **Weekly engine** — `src/lib/weekly/` (app-level, not vendored).
+  Reverse-engineered from 133 real ShowBiz cards; `docs/weekly-rules.md` is
+  the derivation and `docs/showbiz-csv-format.md` the file format. Tests run
+  the whole sample: 132/133 match payroll to the cent. The one miss, S1234,
+  is asserted by name — it is a malformed card, not a missing rule.
+- **Auth** — StuntListing GraphQL login → JWT session cookie. The signing
+  key comes from `SESSION_SECRET` on the Worker if set, else from the
+  `app_config` table in D1 (`src/lib/session-secret.ts`). The D1 fallback is
+  what is actually in use; do not "clean it up" or logins break.
+- **Membership** — `src/lib/membership-plans.ts` holds prices and features.
+  Tier resolution order: `users.tierOverride` (hand-set, no billing yet) →
+  Stripe by email (`src/lib/stripe.ts`, needs `STRIPE_SECRET_KEY`, not yet
+  configured) → StuntListing profile fields.
+- **Exhibit G** — an upload is one work day. Uploading creates a linked
+  `work_records` row (`g_uploads.workRecordId`) so it appears in the
+  Tracker; transcribing updates that row with whatever has been filled in.
+  Partial saves are expected and supported.
+- **Names** — show titles and character names autocomplete from
+  `name_suggestions`. Saving a record records the name and resolves blocked
+  spellings to their replacement, so admins can stop a production being
+  spelled three ways (Admin → Names).
+
+## Gotchas worth knowing
+
+- `<input type="time">` ignores `step` on iOS, which is why times use the
+  custom `TimeSelect` (type freely or pick from 6-minute increments plus
+  :15/:45). A typed time with no am/pm is read on a 24-hour clock — never
+  guess a meridiem, it silently changes someone's pay.
+- Serve R2 objects with `object.writeHttpMetadata()`; setting
+  `Content-Length` by hand truncates images.
+- Read `e.currentTarget` synchronously in event handlers — React clears it
+  before a `setState` updater runs.
+- Sum money at full precision and round once. Rounding per line is a cent
+  out on roughly one weekly card in twenty.
+- Vitest needs `vitest.config.ts` for the `@/` alias. `npm test` runs 59
+  tests; keep them green.
+
+## Open work
+
+1. **ShowBiz CSV import + weekly test bench** (admin-only). The parser
+   exists (`src/lib/showbiz.ts`) and the weekly engine is verified; what is
+   missing is the admin UI to upload an export, run our calculation against
+   each card, and show the diffs.
+2. **Weekly calculator UI** — the engine has no front end yet.
+3. **Stripe billing** — plans are defined and tier resolution already
+   prefers Stripe; needs a restricted `STRIPE_SECRET_KEY` (read on
+   customers, subscriptions, products) and the price ids for Plus and the
+   transcription add-on. The $15 per-Exhibit-G price is a placeholder James
+   has not confirmed.
+4. **Historical rate schedules** — rates are a single current set, so a 2021
+   work day is calculated at 2026 rates. Records go back years.
+5. **Weekly overtime absorption threshold** — bounded, not pinned; see
+   `OVERTIME_ABSORPTION_NOTE`. If James learns the real rule it is one
+   constant.
+6. **StuntListing org GitHub access** — the shared rate-calculator repo is
+   under the `StuntListing` org, which the Claude GitHub app is not
+   installed on, so it can only be reached by uploading a zip. An org owner
+   installing the app fixes it permanently.
 
 ## Direct links
 
@@ -28,15 +110,15 @@ See README.md for commands; schema in `migrations/`; data layer in
 | D1 database | https://dash.cloudflare.com/?to=/:account/workers/d1/databases/f1a039c5-d470-4464-acd8-be5343d99470 |
 | R2 bucket | https://dash.cloudflare.com/?to=/:account/r2/default/buckets/rate-calculator-uploads |
 | Cloudflare API tokens | https://dash.cloudflare.com/profile/api-tokens |
-| Old Vercel project (being retired) | https://vercel.com/james-northrups-projects/rate-calculator-v3 |
-| Vercel env vars (MONGODB_URI lives here) | https://vercel.com/james-northrups-projects/rate-calculator-v3/settings/environment-variables |
+| Old Vercel project (retired) | https://vercel.com/james-northrups-projects/rate-calculator-v3 |
 
 ## Environment notes
 
-- The Claude cloud environment's network policy blocks api.cloudflare.com
-  and MongoDB Atlas: `wrangler` commands needing the API and direct Mongo
-  connections fail here. Use the Cloudflare MCP tools for D1 SQL and
-  resource management; anything needing `wrangler` auth (secrets, r2 object
-  put, deploys) runs via Workers Builds on push, or on James's machine.
-- Production deploys happen automatically: push to `main` → Cloudflare
-  Workers Builds runs `npm run build` + `npx wrangler deploy`.
+- The Claude cloud environment's network policy blocks api.cloudflare.com,
+  workers.dev and MongoDB Atlas: `wrangler` commands needing the API, and
+  fetching the live app, fail here. Use the Cloudflare MCP tools for D1 SQL
+  and resource listing; anything needing `wrangler` auth runs via Workers
+  Builds on push, or on James's machine.
+- MongoDB is fully retired — all data was migrated to D1 and verified
+  (15,197 residual checks, totals matched to the cent). `scripts/mongo-to-d1.mjs`
+  is kept only as a record of how it was done.
