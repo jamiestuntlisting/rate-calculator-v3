@@ -534,12 +534,14 @@ export default function WorkDetailPage() {
             </div>
           </CardHeader>
           <CardContent>
-            {/* Editing is where transcription happens: the card stays on
-                screen above the fields, so figures are copied across rather
-                than remembered between two screens. */}
+            {/* Editing is where transcription happens, so the card opens
+                with the fields rather than sitting on another screen. It
+                scrolls with them: pinned to the top it sat over whatever
+                was underneath, and a card covering the boxes you are
+                filling in is worse than one you scroll back to. */}
             {editing &&
               (transcribeDoc ? (
-                <div className="sticky top-14 z-20 bg-card pb-3 mb-4">
+                <div className="mb-4">
                   <ExhibitGViewer
                     src={`/api/uploads/${transcribeDoc.filename}`}
                     alt={transcribeDoc.originalName}
