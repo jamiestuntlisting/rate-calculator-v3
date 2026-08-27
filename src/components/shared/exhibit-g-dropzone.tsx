@@ -4,13 +4,7 @@ import { useRef, useState } from "react";
 import { FileText, Loader2, Plus, RotateCw, Upload, X } from "lucide-react";
 import { toast } from "sonner";
 import type { WorkDocument } from "@/types";
-
-const ACCEPT = "image/*,application/pdf";
-
-/** What the uploads route will take. */
-function isSupported(file: File): boolean {
-  return file.type.startsWith("image/") || file.type === "application/pdf";
-}
+import { isUploadable, UPLOAD_ACCEPT } from "@/lib/uploadable";
 
 function isImage(doc: WorkDocument): boolean {
   return /\.(jpe?g|png|gif|webp|heic|heif)$/i.test(doc.filename);
@@ -50,9 +44,9 @@ export function ExhibitGDropzone({
   const busy = disabled || uploading > 0;
 
   const send = async (files: File[]) => {
-    const usable = files.filter(isSupported);
+    const usable = files.filter((f) => isUploadable(f.type, f.name));
     if (usable.length < files.length) {
-      toast.error("Only photos and PDFs, please");
+      toast.error("Only photos and PDFs — no video");
     }
     if (!usable.length) return;
 
@@ -125,7 +119,7 @@ export function ExhibitGDropzone({
       <input
         ref={browseRef}
         type="file"
-        accept={ACCEPT}
+        accept={UPLOAD_ACCEPT}
         multiple
         className="hidden"
         onChange={onPick}

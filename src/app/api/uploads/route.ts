@@ -1,16 +1,7 @@
 import { NextResponse } from "next/server";
 import { v4 as uuidv4 } from "uuid";
 import { getUploadsBucket } from "@/lib/db";
-
-const MIME_TYPES: Record<string, string> = {
-  jpg: "image/jpeg",
-  jpeg: "image/jpeg",
-  png: "image/png",
-  gif: "image/gif",
-  webp: "image/webp",
-  pdf: "application/pdf",
-  heic: "image/heic",
-};
+import { isUploadable, storedContentType } from "@/lib/uploadable";
 
 export async function POST(request: Request) {
   try {
@@ -21,9 +12,17 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "No file provided" }, { status: 400 });
     }
 
+    // The picker's `accept` is only a hint, so the rule is enforced here too.
+    if (!isUploadable(file.type, file.name)) {
+      return NextResponse.json(
+        { error: "Only photos and PDFs can be attached" },
+        { status: 415 }
+      );
+    }
+
     const ext = file.name.split(".").pop()?.toLowerCase() || "jpg";
     const filename = `${uuidv4()}.${ext}`;
-    const contentType = MIME_TYPES[ext] || file.type || "application/octet-stream";
+    const contentType = storedContentType(file.type, file.name);
     const bytes = await file.arrayBuffer();
 
     const bucket = await getUploadsBucket();

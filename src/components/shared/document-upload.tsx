@@ -5,13 +5,15 @@ import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 import type { WorkDocument, DocumentType } from "@/types";
 import { DOCUMENT_TYPE_LABELS } from "@/types";
+import { isUploadable, UPLOAD_ACCEPT } from "@/lib/uploadable";
 import { Upload, X, FileText, Image } from "lucide-react";
 
 const DEFAULT_DOCUMENT_TYPES: DocumentType[] = [
+  "call_sheet",
   "contract",
   "wardrobe_photo",
-  "other",
   "paystub",
+  "other",
 ];
 
 interface DocumentUploadProps {
@@ -37,41 +39,51 @@ export function DocumentUpload({
     e: React.ChangeEvent<HTMLInputElement>,
     docType: DocumentType
   ) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
+    // Read synchronously: React clears currentTarget before the upload runs.
+    const inputEl = e.currentTarget;
+    const chosen = Array.from(inputEl.files ?? []);
+    inputEl.value = "";
+    if (!chosen.length) return;
+
+    const files = chosen.filter((f) => isUploadable(f.type, f.name));
+    if (files.length < chosen.length) {
+      toast.error("Only photos and PDFs — no video");
+    }
+    if (!files.length) return;
 
     setUploadingType(docType);
-    try {
-      const formData = new FormData();
-      formData.append("file", file);
+    let done = 0;
+    // One at a time, so one bad file does not lose the rest.
+    for (const file of files) {
+      try {
+        const formData = new FormData();
+        formData.append("file", file);
 
-      const res = await fetch("/api/uploads", {
-        method: "POST",
-        body: formData,
-      });
+        const res = await fetch("/api/uploads", {
+          method: "POST",
+          body: formData,
+        });
+        if (!res.ok) throw new Error("Upload failed");
 
-      if (!res.ok) throw new Error("Upload failed");
-
-      const { filename } = await res.json();
-
-      const doc: WorkDocument = {
-        filename,
-        originalName: file.name,
-        documentType: docType,
-        uploadedAt: new Date().toISOString(),
-      };
-
-      onUpload(doc);
-      toast.success(`${file.name} uploaded!`);
-    } catch {
-      toast.error("Failed to upload file");
-    } finally {
-      setUploadingType(null);
-      // Reset file input so same file can be selected again
-      const ref = fileInputRefs.current[docType];
-      if (ref) {
-        ref.value = "";
+        const { filename } = await res.json();
+        onUpload({
+          filename,
+          originalName: file.name,
+          documentType: docType,
+          uploadedAt: new Date().toISOString(),
+        });
+        done++;
+      } catch {
+        toast.error(`Couldn't upload ${file.name}`);
       }
+    }
+    setUploadingType(null);
+    if (done) {
+      toast.success(
+        done === 1
+          ? `${files[0].name} uploaded`
+          : `${done} ${DOCUMENT_TYPE_LABELS[docType].toLowerCase()} files uploaded`
+      );
     }
   };
 
@@ -108,14 +120,15 @@ export function DocumentUpload({
                 onClick={() => fileInputRefs.current[docType]?.click()}
               >
                 <Upload className="mr-2 h-3 w-3" />
-                {isUploading ? "Uploading..." : "Choose File"}
+                {isUploading ? "Uploading…" : "Add photos"}
               </Button>
               <input
                 ref={(el) => {
                   fileInputRefs.current[docType] = el;
                 }}
                 type="file"
-                accept="image/*,application/pdf"
+                accept={UPLOAD_ACCEPT}
+                multiple
                 className="hidden"
                 onChange={(e) => handleFileSelect(e, docType)}
                 disabled={disabled || isUploading}
