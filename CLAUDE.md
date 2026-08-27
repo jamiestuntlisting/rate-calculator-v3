@@ -48,9 +48,12 @@ state stays in step.
   is asserted by name — it is a malformed card, not a missing rule.
   Two files map onto the engine and are the only places those mappings are
   written down: `from-showbiz.ts` for a parsed payroll card, and
-  `from-work-records.ts` for the performer's own logged days — five or more
-  on one show is what makes a weekly contract, and `/weekly` offers those
-  runs at the top. `/admin/weekly-bench` runs an export through it card by
+  `from-work-records.ts` for the performer's own logged days. `/weekly` is
+  driven by picking days off the Tracker: `weeks.ts` splits them on Sunday
+  boundaries and each week is a separate contract and a separate
+  calculation, so a run across three weeks is three of them, never one long
+  one. Weeks-start-Sunday is an assumption — every group is labelled with
+  the Sunday it runs from so a wrong split shows rather than hides. `/admin/weekly-bench` runs an export through it card by
   card; it opens on a bundled reference export (`src/lib/showbiz-sample.ts`,
   gzipped and base64'd — regenerate with `scripts/build-showbiz-sample.py`),
   which should always read 132 of 133, the one miss being S1234. An admin can
