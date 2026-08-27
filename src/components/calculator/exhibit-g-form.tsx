@@ -718,6 +718,34 @@ export function ExhibitGForm() {
             </div>
           </CollapsibleSection>
 
+          {/* Live rate toggle — a setting for the day, so it sits with the times
+              rather than beside the total it governs. */}
+          {!isStuntCoordinator && isToday(input.workDate) && (
+            <div className="flex items-center gap-4">
+              <div className="flex items-center space-x-2">
+                <Checkbox
+                  id="showLiveRate"
+                  checked={showLiveRate}
+                  onCheckedChange={(v) => setShowLiveRate(!!v)}
+                />
+                <Label htmlFor="showLiveRate" className="text-base font-normal">
+                  Live rate
+                </Label>
+              </div>
+              {showLiveRate && (
+                <Select value={liveMode} onValueChange={(v) => setLiveMode(v as "counter" | "6min")}>
+                  <SelectTrigger className="w-44 h-8 text-xs">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="counter">Counter (real-time)</SelectItem>
+                    <SelectItem value="6min">6-Minute Intervals</SelectItem>
+                  </SelectContent>
+                </Select>
+              )}
+            </div>
+          )}
+
           {/* Live penalty & modifier display */}
           {(liveMealPenaltySummary || liveBreakdown?.dayMultiplier.applied) && (
             <div className="rounded-lg bg-amber-950/30 border border-amber-700/50 p-3">
@@ -817,32 +845,6 @@ export function ExhibitGForm() {
             </div>
           )}
 
-          {/* Live Rate toggle — right below rate display */}
-          {!isStuntCoordinator && isToday(input.workDate) && (
-            <div className="flex items-center gap-4">
-              <div className="flex items-center space-x-2">
-                <Checkbox
-                  id="showLiveRate"
-                  checked={showLiveRate}
-                  onCheckedChange={(v) => setShowLiveRate(!!v)}
-                />
-                <Label htmlFor="showLiveRate" className="text-base font-normal">
-                  Live rate
-                </Label>
-              </div>
-              {showLiveRate && (
-                <Select value={liveMode} onValueChange={(v) => setLiveMode(v as "counter" | "6min")}>
-                  <SelectTrigger className="w-44 h-8 text-xs">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="counter">Counter (real-time)</SelectItem>
-                    <SelectItem value="6min">6-Minute Intervals</SelectItem>
-                  </SelectContent>
-                </Select>
-              )}
-            </div>
-          )}
           </>)}
 
           <Separator />
