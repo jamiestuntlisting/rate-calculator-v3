@@ -548,6 +548,7 @@ export default function WorkDetailPage() {
                     isPdf={/\.pdf$/i.test(transcribeDoc.filename)}
                     label={`${DOCUMENT_TYPE_LABELS[transcribeDoc.documentType]} — ${transcribeDoc.originalName}`}
                     height="42vh"
+                    initialRotation={transcribeDoc.rotation ?? 0}
                   />
                   <p className="text-xs text-muted-foreground mt-2">
                     Pinch or use the controls to get in close, and rotate if
@@ -982,6 +983,7 @@ export default function WorkDetailPage() {
                         <img
                           src={`/api/uploads/${doc.filename}`}
                           alt={doc.originalName}
+                          style={{ transform: `rotate(${doc.rotation ?? 0}deg)` }}
                           className="w-full max-h-[600px] object-contain bg-muted"
                         />
                       )}

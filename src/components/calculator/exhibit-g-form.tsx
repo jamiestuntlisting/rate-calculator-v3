@@ -351,6 +351,12 @@ export function ExhibitGForm() {
     setExhibitGDocs((prev) => prev.filter((_, i) => i !== index));
   };
 
+  const handleExhibitGRotate = (index: number, rotation: number) => {
+    setExhibitGDocs((prev) =>
+      prev.map((doc, i) => (i === index ? { ...doc, rotation } : doc))
+    );
+  };
+
   const hasExhibitGPreview = exhibitGDocs.length > 0;
 
   return (
@@ -377,6 +383,7 @@ export function ExhibitGForm() {
                       <img
                         src={`/api/uploads/${doc.filename}`}
                         alt={doc.originalName}
+                        style={{ transform: `rotate(${doc.rotation ?? 0}deg)` }}
                         className="w-full max-h-[80vh] object-contain bg-muted"
                       />
                     )}
@@ -411,6 +418,7 @@ export function ExhibitGForm() {
               documents={exhibitGDocs}
               onUpload={handleExhibitGUpload}
               onRemove={handleExhibitGRemove}
+              onRotate={handleExhibitGRotate}
             />
           </div>
 

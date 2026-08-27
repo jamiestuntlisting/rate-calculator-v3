@@ -16,6 +16,12 @@ export interface WorkDocument {
   originalName: string;
   documentType: DocumentType;
   uploadedAt: string; // ISO date string
+  /**
+   * Quarter turns clockwise, 0-270. A G photographed sideways is turned
+   * here rather than re-encoded, and the stored file is never touched;
+   * `documents` is a JSON column, so this needed no migration.
+   */
+  rotation?: number;
 }
 
 export const DOCUMENT_TYPE_LABELS: Record<DocumentType, string> = {

@@ -1,7 +1,7 @@
 "use client";
 
 import { useRef, useState } from "react";
-import { FileText, Loader2, Plus, Upload, X } from "lucide-react";
+import { FileText, Loader2, Plus, RotateCw, Upload, X } from "lucide-react";
 import { toast } from "sonner";
 import type { WorkDocument } from "@/types";
 
@@ -20,6 +20,8 @@ interface ExhibitGDropzoneProps {
   documents: WorkDocument[];
   onUpload: (doc: WorkDocument) => void;
   onRemove: (index: number) => void;
+  /** Turn a page that came in sideways. Quarter turns clockwise. */
+  onRotate?: (index: number, rotation: number) => void;
   disabled?: boolean;
 }
 
@@ -36,6 +38,7 @@ export function ExhibitGDropzone({
   documents,
   onUpload,
   onRemove,
+  onRotate,
   disabled = false,
 }: ExhibitGDropzoneProps) {
   const browseRef = useRef<HTMLInputElement>(null);
@@ -100,8 +103,25 @@ export function ExhibitGDropzone({
     if (!busy) browseRef.current?.click();
   };
 
+  const dragHandlers = {
+    onDragEnter: (e: React.DragEvent) => {
+      e.preventDefault();
+      dragDepth.current++;
+      setDragging(true);
+    },
+    onDragOver: (e: React.DragEvent) => e.preventDefault(),
+    onDragLeave: (e: React.DragEvent) => {
+      e.preventDefault();
+      dragDepth.current = Math.max(0, dragDepth.current - 1);
+      if (dragDepth.current === 0) setDragging(false);
+    },
+    onDrop,
+  };
+
   return (
-    <div className="space-y-3">
+    // Dropping works over the whole area, so a second page can still be
+    // dragged in once the big target has made way for the pages themselves.
+    <div className="space-y-3" {...dragHandlers}>
       <input
         ref={browseRef}
         type="file"
@@ -111,108 +131,123 @@ export function ExhibitGDropzone({
         onChange={onPick}
         disabled={busy}
       />
-      <div
-        role="button"
-        tabIndex={disabled ? -1 : 0}
-        aria-label="Add your Exhibit G"
-        aria-disabled={busy}
-        onClick={browse}
-        onKeyDown={(e) => {
-          if (e.key === "Enter" || e.key === " ") {
-            e.preventDefault();
-            browse();
-          }
-        }}
-        onDragEnter={(e) => {
-          e.preventDefault();
-          dragDepth.current++;
-          setDragging(true);
-        }}
-        onDragOver={(e) => e.preventDefault()}
-        onDragLeave={(e) => {
-          e.preventDefault();
-          dragDepth.current = Math.max(0, dragDepth.current - 1);
-          if (dragDepth.current === 0) setDragging(false);
-        }}
-        onDrop={onDrop}
-        className={`relative flex flex-col items-center justify-center gap-3 rounded-xl border-2 border-dashed px-6 py-10 text-center transition-colors cursor-pointer outline-none focus-visible:ring-2 focus-visible:ring-ring ${
-          dragging
-            ? "border-primary bg-primary/10"
-            : "border-border hover:border-primary/60 hover:bg-accent/30"
-        } ${busy ? "pointer-events-none opacity-70" : ""}`}
-      >
-        {uploading > 0 ? (
-          <>
-            <Loader2 className="h-10 w-10 text-primary animate-spin" />
-            <p className="text-base font-medium">
-              Uploading{uploading > 1 ? ` ${uploading} pages` : ""}…
-            </p>
-          </>
-        ) : (
-          <>
-            <div className="rounded-full bg-primary/10 p-4">
-              <Upload className="h-8 w-8 text-primary" />
-            </div>
-            <div className="space-y-1">
-              <p className="text-lg font-semibold">
-                {dragging ? "Drop it here" : "Drop your Exhibit G here"}
-              </p>
-              <p className="text-sm text-muted-foreground">
-                or tap to choose a photo or PDF
-              </p>
-            </div>
-          </>
-        )}
-      </div>
 
-      {documents.length > 0 && (
-        <div className="space-y-2">
-          <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
-            {documents.map((doc, index) => (
+      {documents.length === 0 ? (
+        <div
+          role="button"
+          tabIndex={disabled ? -1 : 0}
+          aria-label="Add your Exhibit G"
+          aria-disabled={busy}
+          onClick={browse}
+          onKeyDown={(e) => {
+            if (e.key === "Enter" || e.key === " ") {
+              e.preventDefault();
+              browse();
+            }
+          }}
+          className={`relative flex flex-col items-center justify-center gap-3 rounded-xl border-2 border-dashed px-6 py-10 text-center transition-colors cursor-pointer outline-none focus-visible:ring-2 focus-visible:ring-ring ${
+            dragging
+              ? "border-primary bg-primary/10"
+              : "border-border hover:border-primary/60 hover:bg-accent/30"
+          } ${busy ? "pointer-events-none opacity-70" : ""}`}
+        >
+          {uploading > 0 ? (
+            <>
+              <Loader2 className="h-10 w-10 text-primary animate-spin" />
+              <p className="text-base font-medium">
+                Uploading{uploading > 1 ? ` ${uploading} pages` : ""}…
+              </p>
+            </>
+          ) : (
+            <>
+              <div className="rounded-full bg-primary/10 p-4">
+                <Upload className="h-8 w-8 text-primary" />
+              </div>
+              <div className="space-y-1">
+                <p className="text-lg font-semibold">
+                  {dragging ? "Drop it here" : "Drop your Exhibit G here"}
+                </p>
+                <p className="text-sm text-muted-foreground">
+                  or tap to choose a photo or PDF
+                </p>
+              </div>
+            </>
+          )}
+        </div>
+      ) : (
+        /* The big target has done its job — the pages take its place, and
+           another one is added from the tile beside them. */
+        <div
+          className={`grid grid-cols-2 sm:grid-cols-3 gap-2 rounded-lg transition-colors ${
+            dragging ? "ring-2 ring-primary ring-offset-2 ring-offset-background" : ""
+          }`}
+        >
+          {documents.map((doc, index) => {
+            const rotation = doc.rotation ?? 0;
+            return (
               <div
                 key={`${doc.filename}-${index}`}
-                className="relative group rounded-lg border border-border/60 overflow-hidden bg-muted"
+                className="relative rounded-lg border border-border/60 overflow-hidden bg-muted"
               >
-                {isImage(doc) ? (
-                  /* eslint-disable-next-line @next/next/no-img-element */
-                  <img
-                    src={`/api/uploads/${doc.filename}`}
-                    alt={doc.originalName}
-                    className="w-full h-24 object-cover"
-                  />
-                ) : (
-                  <div className="h-24 flex items-center justify-center">
+                {/* The turn happens after layout, so a quarter-turned page
+                    paints taller than its slot. Clipping it here keeps it off
+                    the filename underneath. */}
+                <div className="h-24 overflow-hidden flex items-center justify-center">
+                  {isImage(doc) ? (
+                    /* eslint-disable-next-line @next/next/no-img-element */
+                    <img
+                      src={`/api/uploads/${doc.filename}`}
+                      alt={doc.originalName}
+                      style={{ transform: `rotate(${rotation}deg)` }}
+                      className="w-full h-24 object-cover transition-transform"
+                    />
+                  ) : (
                     <FileText className="h-8 w-8 text-muted-foreground" />
-                  </div>
-                )}
+                  )}
+                </div>
                 <p className="text-[11px] truncate px-2 py-1 bg-background/80">
                   {doc.originalName}
                 </p>
                 {!disabled && (
-                  <button
-                    type="button"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      onRemove(index);
-                    }}
-                    aria-label={`Remove ${doc.originalName}`}
-                    className="absolute top-1 right-1 rounded-full bg-background/90 border border-border p-1 text-muted-foreground hover:text-destructive"
-                  >
-                    <X className="h-3.5 w-3.5" />
-                  </button>
+                  <div className="absolute top-1 right-1 flex gap-1">
+                    {onRotate && isImage(doc) && (
+                      <button
+                        type="button"
+                        onClick={() => onRotate(index, (rotation + 90) % 360)}
+                        aria-label={`Rotate ${doc.originalName}`}
+                        className="rounded-full bg-background/90 border border-border p-1 text-muted-foreground hover:text-foreground"
+                      >
+                        <RotateCw className="h-3.5 w-3.5" />
+                      </button>
+                    )}
+                    <button
+                      type="button"
+                      onClick={() => onRemove(index)}
+                      aria-label={`Remove ${doc.originalName}`}
+                      className="rounded-full bg-background/90 border border-border p-1 text-muted-foreground hover:text-destructive"
+                    >
+                      <X className="h-3.5 w-3.5" />
+                    </button>
+                  </div>
                 )}
               </div>
-            ))}
-          </div>
+            );
+          })}
 
           <button
             type="button"
             disabled={busy}
             onClick={browse}
-            className="w-full flex items-center justify-center gap-2 rounded-lg border border-dashed border-border px-4 py-2.5 text-sm text-muted-foreground hover:border-primary/60 hover:text-foreground disabled:opacity-50"
+            className="flex min-h-[7.75rem] flex-col items-center justify-center gap-1 rounded-lg border border-dashed border-border text-sm text-muted-foreground hover:border-primary/60 hover:text-foreground disabled:opacity-50"
           >
-            <Plus className="h-4 w-4" />
-            Add another page
+            {uploading > 0 ? (
+              <Loader2 className="h-5 w-5 animate-spin text-primary" />
+            ) : (
+              <Plus className="h-5 w-5" />
+            )}
+            <span className="px-2 text-center leading-tight">
+              {uploading > 0 ? "Uploading…" : "Add another page"}
+            </span>
           </button>
         </div>
       )}
