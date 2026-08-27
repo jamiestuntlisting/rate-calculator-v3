@@ -757,7 +757,6 @@ export default function WorkDetailPage() {
                             id="edit-dismissOnSet"
                             value={editData.dismissOnSet}
                             onChange={(v) => setEditData(d => ({ ...d, dismissOnSet: v }))}
-                            after={editData.firstMealFinish || editData.callTime}
                           />
                         </div>
                         <div className="space-y-1">
@@ -766,7 +765,6 @@ export default function WorkDetailPage() {
                             id="edit-dismissMakeupWardrobe"
                             value={editData.dismissMakeupWardrobe || ""}
                             onChange={(v) => setEditData(d => ({ ...d, dismissMakeupWardrobe: v || null }))}
-                            after={editData.dismissOnSet || editData.callTime}
                             clearable
                           />
                         </div>
@@ -798,7 +796,6 @@ export default function WorkDetailPage() {
                                     : d.firstMealFinish,
                               }))
                             }
-                            after={editData.callTime}
                             clearable
                           />
                         </div>
@@ -808,7 +805,6 @@ export default function WorkDetailPage() {
                             id="edit-firstMealFinish"
                             value={editData.firstMealFinish || ""}
                             onChange={(v) => setEditData(d => ({ ...d, firstMealFinish: v || null }))}
-                            after={editData.firstMealStart || editData.callTime}
                             clearable
                           />
                         </div>
