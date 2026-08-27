@@ -607,8 +607,15 @@ export function ExhibitGForm() {
 
           {/* Work Times — hidden for stunt coordinator (flat deal) */}
           {!isStuntCoordinator && (<>
-          <div>
-            <h3 className="font-semibold text-xl mb-4">Work Times</h3>
+          <CollapsibleSection
+            title="Work Times"
+            defaultOpen
+            summary={
+              [toDisplay(input.callTime), toDisplay(input.dismissOnSet)]
+                .filter(Boolean)
+                .join(" → ") || "Call, meals and wrap"
+            }
+          >
             <div className="space-y-0">
               <div className="flex items-center justify-between gap-4 p-2 rounded bg-muted/50">
                 <Label htmlFor="callTime" className="text-base shrink-0">Call Time</Label>
@@ -709,7 +716,7 @@ export function ExhibitGForm() {
                 <p className="text-xs text-muted-foreground px-2">Meal penalties calculated from times above</p>
               </div>
             </div>
-          </div>
+          </CollapsibleSection>
 
           {/* Live penalty & modifier display */}
           {(liveMealPenaltySummary || liveBreakdown?.dayMultiplier.applied) && (
