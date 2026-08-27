@@ -131,7 +131,7 @@ export default function TrackerPage() {
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-bold">Payment Tracker</h1>
         <Button asChild>
-          <Link href="/">Record Work Day</Link>
+          <Link href="/">Add Work Day</Link>
         </Button>
       </div>
 
@@ -217,10 +217,10 @@ export default function TrackerPage() {
           ) : records.length === 0 ? (
             <div className="text-center py-8">
               <p className="text-muted-foreground mb-4">
-                No work records found. Start by recording a work day.
+                No work records found. Start by adding a work day.
               </p>
               <Button asChild>
-                <Link href="/">Record Work Day</Link>
+                <Link href="/">Add Work Day</Link>
               </Button>
             </div>
           ) : (
