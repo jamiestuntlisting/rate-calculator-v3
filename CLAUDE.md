@@ -79,6 +79,18 @@ state stays in step.
   replacement across `showbiz_sample_*` rows in `app_config` and takes
   precedence over the bundle. This repository is public, so only bundle an
   export that is safe to publish.
+  `rules.ts` states the contract rules behind a week next to its number —
+  the guarantee that applied, the rest between days, what triggered daily
+  overtime — with three states, because "the days show this happened",
+  "this turns on a term of the deal" and "the production went under an
+  entitlement" are different things. The guarantee is 44 hours studio and
+  48 overnight location, which all 133 sample cards confirm exactly
+  (112 studio at 44, 21 distant at 48, no exceptions). Rest between days is
+  **12** hours, not 11: 11 is an overnight-location exception good for two
+  non-consecutive days a week, and 10 needs exterior photography on a
+  distant location. Using 11 as the default called a studio forced call
+  compliant. The 2×10 + 3×8 straight-time week is **not** implemented —
+  see docs/weekly-rules.md §6c for why the sample argues against it.
   Weekly overtime is **not** derivable from the hours worked — 32 cards were
   paid exactly 6.00 hours of it on weeks totalling 35 to 56 hours, and one
   103-hour week got none. It is a term of the deal, asked for once with the

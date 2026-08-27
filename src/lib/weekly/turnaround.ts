@@ -14,10 +14,52 @@
 import type { WorkRecord } from "@/types";
 
 /**
- * The figure to check against unless the deal says otherwise. Contracts
- * differ — this is a starting point, not a rule the app is sure of.
+ * What the Codified Basic Agreement actually allows, shortest rest last.
+ *
+ * Twelve hours is the rule; the reductions are exceptions with conditions
+ * attached, and each condition is written down here because the app cannot
+ * check it — whether a week was on overnight location, or whether exterior
+ * photography was required, is not something a call time can tell you.
  */
-export const DEFAULT_TURNAROUND_HOURS = 11;
+export const TURNAROUND_RULES = [
+  {
+    id: "studio" as const,
+    hours: 12,
+    label: "Studio",
+    condition:
+      "Twelve hours from dismissal to the next call. This is the rule; the " +
+      "shorter rests below are exceptions to it.",
+  },
+  {
+    id: "overnight_location" as const,
+    hours: 11,
+    label: "Overnight location",
+    condition:
+      "May be cut to eleven hours on any two non-consecutive days in a " +
+      "workweek, on an overnight location.",
+  },
+  {
+    id: "distant_exterior" as const,
+    hours: 10,
+    label: "Distant location, exterior",
+    condition:
+      "May be cut to ten hours on location outside the studio zone where " +
+      "exterior photography is required, on the day before and the day " +
+      "after — once every fourth consecutive day.",
+  },
+];
+
+export type TurnaroundRuleId = (typeof TURNAROUND_RULES)[number]["id"];
+
+/**
+ * Twelve hours, because that is the rule and everything else is an
+ * exception someone has to have agreed to.
+ *
+ * This was 11 for a while, which quietly understated what a performer is
+ * owed: a day wrapped 11.5 hours before the next call is a forced call in
+ * the studio zone, and the app would have called it fine.
+ */
+export const DEFAULT_TURNAROUND_HOURS = 12;
 
 const DAY_MIN = 24 * 60;
 

@@ -456,3 +456,58 @@ slot 7  adjustment 1.00 x 2500 x 1.00 = 2500.00
 Its sibling `S1384` is identical plus `206 = 5.00`, and gross rises by exactly
 `5 x 125 x 2 = 1250` to `$8,396.00` — confirming double time is **never**
 absorbed.
+
+## 6. Rules the calculator explains but does not derive
+
+Everything above was reverse-engineered from the 133 ShowBiz cards. The
+rules in this section come from the Codified Basic Agreement instead, and
+`src/lib/weekly/rules.ts` states them next to a week's number so a performer
+can see which ones were in play. Two of them are checked against the cards.
+
+### 6a. The weekly guarantee is 44 hours studio, 48 overnight location
+
+The weekly rate buys 44 hours in a studio workweek and 48 on an overnight
+location; past that, weekly overtime is time-and-a-half in tenths of an
+hour. On a Distant week the extra four hours are paid as location
+allowance rather than overtime, which is what `LOCATION_ALLOWANCE_HOURS`
+in the engine is.
+
+**Confirmed by the sample, exactly.** Of the 133 weekly cards, 112 carry a
+guarantee of 44 and every one of them is `studio`; 21 carry 48 and every
+one is `distant`. No card breaks the split in either direction.
+
+### 6b. Rest between days is 12 hours, and the exceptions have conditions
+
+- **Studio: 12 hours** from dismissal to the next call. This is the rule.
+- **Overnight location: 11 hours**, on any two non-consecutive days in a
+  workweek.
+- **Location outside the studio zone, exterior photography: 10 hours**, on
+  the day before and the day after, once every fourth consecutive day.
+
+`DEFAULT_TURNAROUND_HOURS` was 11 for a while, which quietly understated
+the entitlement: a studio day wrapped 11.5 hours before the next call is a
+forced call, and the app called it compliant. It is 12 now, and the two
+reductions are offered as choices with their conditions attached, because
+whether a week was on overnight location — or whether exterior photography
+was required — is not something a call time can tell you.
+
+### 6c. What is *not* established: the 2×10 + 3×8 week
+
+There is a widely-repeated idea that a weekly performer scheduled two
+ten-hour days and three eight-hour days works all of it at straight time.
+The arithmetic is seductive — 2×10 + 3×8 is exactly 44, the studio
+guarantee — but the sample does not support it and neither do the contract
+summaries:
+
+- **No card in the sample has that shape.** Not one of the 133.
+- Daily overtime is paid on weekly cards *independently of* the weekly
+  guarantee. Six cards have a day over eight hours while the week total
+  still fits inside the guarantee; five of those six were paid daily
+  overtime or double time anyway (S894, S1022, S1042, S1043, S1280).
+- The published summaries give daily overtime as time-and-a-half for the
+  ninth and tenth hours and double time past the tenth, with no carve-out
+  for a week that lands on 44.
+
+So the calculator does not implement it. If the rule is real it is a term
+of a particular deal rather than the Basic Agreement, and it would need the
+clause number before anyone's pay is worked out on it.

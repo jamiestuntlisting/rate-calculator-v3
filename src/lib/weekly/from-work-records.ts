@@ -41,6 +41,8 @@ function hoursAt(calculation: CalculationBreakdown, tier: Tier): number {
 /** What was read off the days, so the calculator can show its working. */
 export interface WeeklyDerivation {
   days: number;
+  /** Hours actually worked across the week, meals already taken out. */
+  workHours: number;
   dailyOvertimeHours: number;
   doubleTimeHours: number;
   adjustments: number;
@@ -69,6 +71,7 @@ export function workRecordsToWeeklyInput(
   const derivation: WeeklyDerivation = {
     days: records.length,
     dailyOvertimeHours: 0,
+    workHours: 0,
     doubleTimeHours: 0,
     adjustments: 0,
     mealPenalties: 0,
@@ -90,6 +93,7 @@ export function workRecordsToWeeklyInput(
       continue;
     }
 
+    derivation.workHours += calculation.netWorkHours;
     derivation.dailyOvertimeHours += hoursAt(calculation, "timeAndAHalf");
     derivation.doubleTimeHours += hoursAt(calculation, "double");
     // Meal penalties are dollars, and they land after the subtotal — the
@@ -101,6 +105,7 @@ export function workRecordsToWeeklyInput(
   const round2 = (n: number) => Math.round(n * 100) / 100;
 
   derivation.dailyOvertimeHours = round1(derivation.dailyOvertimeHours);
+  derivation.workHours = round1(derivation.workHours);
   derivation.doubleTimeHours = round1(derivation.doubleTimeHours);
   derivation.adjustments = round2(derivation.adjustments);
   derivation.mealPenalties = round2(derivation.mealPenalties);

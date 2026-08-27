@@ -1,6 +1,10 @@
 import { describe, it, expect } from "vitest";
 import type { WorkRecord } from "@/types";
-import { DEFAULT_TURNAROUND_HOURS, turnaroundsFor } from "./turnaround";
+import {
+  DEFAULT_TURNAROUND_HOURS,
+  TURNAROUND_RULES,
+  turnaroundsFor,
+} from "./turnaround";
 
 const day = (
   workDate: string,
@@ -18,8 +22,30 @@ const day = (
   }) as unknown as WorkRecord;
 
 describe("rest between one day and the next", () => {
-  it("has a starting figure, but it is the deal that decides", () => {
-    expect(DEFAULT_TURNAROUND_HOURS).toBe(11);
+  it("checks against twelve hours, which is the rule", () => {
+    // Eleven was the default for a while. It is an exception with conditions
+    // on it, and using it as the default called a studio forced call fine.
+    expect(DEFAULT_TURNAROUND_HOURS).toBe(12);
+    expect(TURNAROUND_RULES.map((r) => r.hours)).toEqual([12, 11, 10]);
+    expect(TURNAROUND_RULES[0].hours).toBe(DEFAULT_TURNAROUND_HOURS);
+  });
+
+  it("calls a twelve-hour studio day short at eleven and a half", () => {
+    const [rest] = turnaroundsFor([
+      day("2026-08-24", "07:00", "19:30"),
+      day("2026-08-25", "07:00", "19:00"),
+    ]);
+    expect(rest.hours).toBe(11.5);
+    expect(rest.short).toBe(true);
+    // ...and not short if the deal allows the eleven-hour location rest.
+    const [allowed] = turnaroundsFor(
+      [
+        day("2026-08-24", "07:00", "19:30"),
+        day("2026-08-25", "07:00", "19:00"),
+      ],
+      11
+    );
+    expect(allowed.short).toBe(false);
   });
 
   it("measures wrap to the next call", () => {

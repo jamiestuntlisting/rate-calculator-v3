@@ -23,8 +23,14 @@ import {
 } from "@/lib/weekly/weeks";
 import {
   DEFAULT_TURNAROUND_HOURS,
+  TURNAROUND_RULES,
   turnaroundsFor,
 } from "@/lib/weekly/turnaround";
+import {
+  WEEKLY_GUARANTEES,
+  weekRules,
+  type GuaranteeId,
+} from "@/lib/weekly/rules";
 import type { WorkRecord } from "@/types";
 import { PayStubSection } from "@/components/shared/pay-stub-section";
 import type { PayStubLine } from "@/lib/pay-stub";
@@ -84,6 +90,12 @@ export function WeeklyForm() {
    * common one, but it is a term of the deal rather than a rule, and a
    * week split on the wrong day misstates every guarantee in it.
    */
+  /**
+   * Studio or overnight location, which is what sets the weekly guarantee
+   * at 44 hours or 48. Every one of the 133 sample cards splits exactly
+   * that way, so it is worth asking rather than assuming.
+   */
+  const [guarantee, setGuarantee] = useState<GuaranteeId>("studio");
   const [weekStartsOn, setWeekStartsOn] =
     useState<WeekStartDay>(DEFAULT_WEEK_STARTS_ON);
   const [turnaroundHours, setTurnaroundHours] = useState(
@@ -145,7 +157,13 @@ export function WeeklyForm() {
           }
         }
         const turnarounds = turnaroundsFor(week.records, turnaroundHours);
-        return { week, derivation, breakdown, override, turnarounds };
+        const rules = weekRules({
+          derivation,
+          turnarounds,
+          turnaroundHours,
+          guarantee,
+        });
+        return { week, derivation, breakdown, override, turnarounds, rules };
       }),
     [
       weeks,
@@ -155,6 +173,7 @@ export function WeeklyForm() {
       ready,
       weeklyOvertimeHours,
       turnaroundHours,
+      guarantee,
     ]
   );
 
@@ -204,34 +223,46 @@ export function WeeklyForm() {
           />
         </div>
         <div className="flex items-center justify-between gap-4">
-          <Label htmlFor="turnaroundHours" className="text-base shrink-0">
-            Turnaround (hrs)
+          <Label htmlFor="guarantee" className="text-base shrink-0">
+            Workweek
           </Label>
-          <PlainNumber
+          <FieldSelect
+            id="guarantee"
+            value={guarantee}
+            onChange={(v) => setGuarantee(v as GuaranteeId)}
+            options={WEEKLY_GUARANTEES.map((g) => ({
+              value: g.id,
+              label: `${g.label} · ${g.hours}h`,
+            }))}
+          />
+        </div>
+        <div className="flex items-center justify-between gap-4">
+          <Label htmlFor="turnaroundHours" className="text-base shrink-0">
+            Rest between days
+          </Label>
+          <FieldSelect
             id="turnaroundHours"
-            value={turnaroundHours}
-            onChange={setTurnaroundHours}
-            step="0.5"
+            value={String(turnaroundHours)}
+            onChange={(v) => setTurnaroundHours(Number(v))}
+            options={TURNAROUND_RULES.map((r) => ({
+              value: String(r.hours),
+              label: `${r.hours}h · ${r.label}`,
+            }))}
           />
         </div>
         <div className="flex items-center justify-between gap-4">
           <Label htmlFor="weekStartsOn" className="text-base shrink-0">
             Week starts
           </Label>
-          <select
+          <FieldSelect
             id="weekStartsOn"
-            value={weekStartsOn}
-            onChange={(e) =>
-              setWeekStartsOn(Number(e.target.value) as WeekStartDay)
-            }
-            className="border-input dark:bg-input/30 h-9 w-[10rem] shrink-0 rounded-md border bg-transparent px-3 py-1 text-center text-base shadow-xs outline-none focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px] md:text-sm"
-          >
-            {WEEK_DAY_NAMES.map((name, index) => (
-              <option key={name} value={index}>
-                {name}
-              </option>
-            ))}
-          </select>
+            value={String(weekStartsOn)}
+            onChange={(v) => setWeekStartsOn(Number(v) as WeekStartDay)}
+            options={WEEK_DAY_NAMES.map((name, index) => ({
+              value: String(index),
+              label: name,
+            }))}
+          />
         </div>
       </div>
 
@@ -276,7 +307,7 @@ export function WeeklyForm() {
         )}
       </div>
 
-      {calculated.map(({ week, derivation, breakdown, override, turnarounds }) => {
+      {calculated.map(({ week, derivation, breakdown, override, turnarounds, rules }) => {
         const open = openWeek === week.start;
         return (
           <div key={week.start} className="rounded-lg border border-border">
@@ -395,38 +426,72 @@ export function WeeklyForm() {
                   </div>
                 )}
 
-                {turnarounds.length > 0 && (
-                  <div className="space-y-1 pt-2 border-t border-border">
-                    <p className="text-xs uppercase tracking-wide text-muted-foreground">
-                      Turnaround
-                    </p>
-                    {turnarounds.map((rest) => (
-                      <div
-                        key={`${rest.from._id}-${rest.to._id}`}
-                        className="flex justify-between gap-3 text-xs"
-                      >
-                        <span className="text-muted-foreground">
-                          {shortDate(rest.from.workDate)} →{" "}
-                          {shortDate(rest.to.workDate)}
-                        </span>
+                <div className="pt-3 border-t border-border space-y-3">
+                  <p className="text-xs uppercase tracking-wide text-muted-foreground">
+                    Why this number
+                  </p>
+                  {rules.map((rule) => (
+                    <div key={rule.id} className="space-y-0.5">
+                      <div className="flex items-baseline gap-2">
                         <span
-                          className={`tabular-nums shrink-0 ${
-                            rest.short ? "text-amber-400" : "text-muted-foreground"
+                          aria-hidden
+                          className={`text-xs shrink-0 ${
+                            rule.status === "breached"
+                              ? "text-amber-400"
+                              : rule.status === "check"
+                                ? "text-muted-foreground"
+                                : "text-primary"
                           }`}
                         >
-                          {rest.hours}h{rest.short ? " · short" : ""}
+                          {rule.status === "breached"
+                            ? "!"
+                            : rule.status === "check"
+                              ? "?"
+                              : "✓"}
                         </span>
+                        <p
+                          className={`text-sm font-medium ${
+                            rule.status === "breached" ? "text-amber-400" : ""
+                          }`}
+                        >
+                          {rule.title}
+                        </p>
                       </div>
-                    ))}
-                  </div>
-                )}
-
-                {derivation.daysWithoutCalculation > 0 && (
-                  <p className="text-xs text-amber-400">
-                    {derivation.daysWithoutCalculation} of these days has no
-                    times entered, so its overtime is not counted here.
-                  </p>
-                )}
+                      {rule.evidence && (
+                        <p className="text-xs pl-5 text-foreground/80">
+                          {rule.evidence}
+                        </p>
+                      )}
+                      <p className="text-xs pl-5 text-muted-foreground">
+                        {rule.detail}
+                      </p>
+                    </div>
+                  ))}
+                  {turnarounds.length > 0 && (
+                    <div className="space-y-1 pl-5">
+                      {turnarounds.map((rest) => (
+                        <div
+                          key={`${rest.from._id}-${rest.to._id}`}
+                          className="flex justify-between gap-3 text-xs"
+                        >
+                          <span className="text-muted-foreground">
+                            {shortDate(rest.from.workDate)} →{" "}
+                            {shortDate(rest.to.workDate)}
+                          </span>
+                          <span
+                            className={`tabular-nums shrink-0 ${
+                              rest.short
+                                ? "text-amber-400"
+                                : "text-muted-foreground"
+                            }`}
+                          >
+                            {rest.hours}h{rest.short ? " · short" : ""}
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
               </div>
             )}
           </div>
@@ -444,6 +509,34 @@ export function WeeklyForm() {
         </div>
       )}
     </div>
+  );
+}
+
+/** A plain select styled to sit beside the money and number fields. */
+function FieldSelect({
+  id,
+  value,
+  onChange,
+  options,
+}: {
+  id: string;
+  value: string;
+  onChange: (value: string) => void;
+  options: Array<{ value: string; label: string }>;
+}) {
+  return (
+    <select
+      id={id}
+      value={value}
+      onChange={(e) => onChange(e.target.value)}
+      className="border-input dark:bg-input/30 h-9 w-[10rem] shrink-0 rounded-md border bg-transparent px-2 py-1 text-center text-base shadow-xs outline-none focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px] md:text-sm"
+    >
+      {options.map((option) => (
+        <option key={option.value} value={option.value}>
+          {option.label}
+        </option>
+      ))}
+    </select>
   );
 }
 
