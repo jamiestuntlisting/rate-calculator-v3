@@ -9,8 +9,6 @@ import { Button } from "@/components/ui/button";
 import {
   Card,
   CardContent,
-  CardHeader,
-  CardTitle,
 } from "@/components/ui/card";
 import {
   Table,
@@ -122,15 +120,15 @@ export default function TrackerPage() {
   }, [fetchRecords]);
 
   // Calculate summary stats
-  const totalExpected = records.reduce((sum, r) => sum + (r.expectedAmount || 0), 0);
-  const totalPaid = records.reduce((sum, r) => sum + r.paidAmount, 0);
   const lateCount = records.filter((r) => r.paymentStatus === "late").length;
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold">Payment Tracker</h1>
-        <Button asChild>
+      {/* The title wraps rather than running under the button: a flex item
+          will not shrink below its content unless told to. */}
+      <div className="flex items-center justify-between gap-3">
+        <h1 className="text-2xl font-bold min-w-0">Payment Tracker</h1>
+        <Button asChild className="shrink-0">
           <Link href="/">Add Work Day</Link>
         </Button>
       </div>
@@ -138,50 +136,33 @@ export default function TrackerPage() {
       {/* Reminder Banners */}
       <ReminderBanners records={records} />
 
-      {/* Summary Cards */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        <Card>
-          <CardContent className="pt-4">
-            <p className="text-sm text-muted-foreground">Total Records</p>
-            <p className="text-2xl font-bold">{records.length}</p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="pt-4">
-            <p className="text-sm text-muted-foreground">Total Expected</p>
-            <p className="text-2xl font-bold">{formatCurrency(totalExpected)}</p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="pt-4">
-            <p className="text-sm text-muted-foreground">Total Paid</p>
-            <p className="text-2xl font-bold">{formatCurrency(totalPaid)}</p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="pt-4">
-            <p className="text-sm text-muted-foreground">Late</p>
-            <p className="text-2xl font-bold text-purple-400">{lateCount}</p>
-          </CardContent>
-        </Card>
+      {/* One line, so the records themselves are what fills the screen. The
+          money is on each row and on the Summary page; four cards of it here
+          only pushed the list past the fold. */}
+      <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-sm">
+        <span className="text-muted-foreground">
+          <span className="font-medium text-foreground">{records.length}</span>{" "}
+          record{records.length === 1 ? "" : "s"}
+        </span>
+        {lateCount > 0 && (
+          <span className="text-muted-foreground">
+            <span className="font-medium text-purple-400">{lateCount}</span> late
+          </span>
+        )}
       </div>
 
-      {/* Filters */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-lg">Filters</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="flex flex-col md:flex-row gap-3">
-            <Input
-              placeholder="Search by show name..."
-              value={searchShow}
-              onChange={(e) => setSearchShow(e.target.value)}
-              className="md:max-w-xs"
-            />
-            <div className="flex gap-3">
+      {/* No card and no heading: three controls explain themselves, and the
+          box around them cost more height than they do. */}
+      <div className="flex flex-wrap gap-2">
+        <Input
+          placeholder="Search by show name..."
+          value={searchShow}
+          onChange={(e) => setSearchShow(e.target.value)}
+          className="w-full sm:w-auto sm:flex-1 sm:max-w-xs"
+        />
+        <div className="flex flex-1 gap-2">
               <Select value={statusFilter} onValueChange={setStatusFilter}>
-                <SelectTrigger className="w-[160px]">
+                <SelectTrigger className="flex-1 min-w-0 sm:w-[160px] sm:flex-none">
                   <SelectValue placeholder="Status" />
                 </SelectTrigger>
                 <SelectContent>
@@ -194,7 +175,7 @@ export default function TrackerPage() {
                 </SelectContent>
               </Select>
               <Select value={sortOrder} onValueChange={setSortOrder}>
-                <SelectTrigger className="w-[160px]">
+                <SelectTrigger className="flex-1 min-w-0 sm:w-[160px] sm:flex-none">
                   <SelectValue placeholder="Sort" />
                 </SelectTrigger>
                 <SelectContent>
@@ -202,10 +183,8 @@ export default function TrackerPage() {
                   <SelectItem value="asc">Oldest First</SelectItem>
                 </SelectContent>
               </Select>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
+        </div>
+      </div>
 
       {/* Records Table */}
       <Card>
