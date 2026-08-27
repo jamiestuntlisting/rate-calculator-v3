@@ -19,6 +19,8 @@ interface WorkRecordRow {
   secondMealStart: string | null;
   secondMealFinish: string | null;
   stuntAdjustment: number;
+  contracts: number;
+  multipleEpisodeWeekly: number;
   forcedCall: number;
   isSixthDay: number;
   isSeventhDay: number;
@@ -58,6 +60,8 @@ export interface WorkRecordDoc {
   secondMealStart: string | null;
   secondMealFinish: string | null;
   stuntAdjustment: number;
+  contracts: number;
+  multipleEpisodeWeekly: boolean;
   forcedCall: boolean;
   isSixthDay: boolean;
   isSeventhDay: boolean;
@@ -97,6 +101,8 @@ function toDoc(row: WorkRecordRow): WorkRecordDoc {
     secondMealStart: row.secondMealStart,
     secondMealFinish: row.secondMealFinish,
     stuntAdjustment: row.stuntAdjustment,
+    contracts: row.contracts ?? 1,
+    multipleEpisodeWeekly: i2b(row.multipleEpisodeWeekly),
     forcedCall: i2b(row.forcedCall),
     isSixthDay: i2b(row.isSixthDay),
     isSeventhDay: i2b(row.isSeventhDay),
@@ -138,6 +144,9 @@ const FIELD_SERIALIZERS: Record<string, (v: unknown) => unknown> = {
   secondMealStart: (v) => (v == null || v === "" ? null : String(v)),
   secondMealFinish: (v) => (v == null || v === "" ? null : String(v)),
   stuntAdjustment: (v) => Number(v) || 0,
+  // A day is one contract unless told otherwise, never zero.
+  contracts: (v) => Math.max(1, Math.floor(Number(v) || 1)),
+  multipleEpisodeWeekly: (v) => b2i(v),
   forcedCall: (v) => b2i(v),
   isSixthDay: (v) => b2i(v),
   isSeventhDay: (v) => b2i(v),

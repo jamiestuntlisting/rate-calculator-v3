@@ -35,6 +35,11 @@ import { snapToSixMinutes, formatCurrency } from "@/lib/time-utils";
 import { addMinutes, MEAL_MINUTES } from "@/components/calculator/time-select";
 import { calculateRate } from "@/lib/rate-engine";
 import { checkNdMeal, ND_MEAL_WINDOW_HOURS } from "@/lib/nd-meal";
+import {
+  additionalContractPay,
+  MAX_CONTRACTS,
+  MIN_CONTRACTS_FOR_FIELD,
+} from "@/lib/multi-contract";
 import { toDisplay } from "@/components/calculator/time-select";
 
 /** Agreement names carry their current daily rate, straight from RATES. */
@@ -121,6 +126,14 @@ export function ExhibitGForm() {
   const [documents, setDocuments] = useState<WorkDocument[]>([]);
   const [exhibitGDocs, setExhibitGDocs] = useState<WorkDocument[]>([]);
   const [savingDraft, setSavingDraft] = useState(false);
+  /**
+   * Contracts worked that day, including the one calculated in full. Follows
+   * the number of Gs uploaded until someone types over it — two Gs usually
+   * means two contracts, but not always, and it is theirs to correct.
+   */
+  const [contracts, setContracts] = useState(1);
+  const [contractsTouched, setContractsTouched] = useState(false);
+  const [multipleEpisodeWeekly, setMultipleEpisodeWeekly] = useState(false);
   const [showNdMeal, setShowNdMeal] = useState(false);
   const [showFirstMeal, setShowFirstMeal] = useState(true); // 1st meal selected by default
   const [showSecondMeal, setShowSecondMeal] = useState(false);
@@ -297,7 +310,8 @@ export function ExhibitGForm() {
       if (input.callTime && input.dismissOnSet) {
         try {
           calculation = calculateRate(input);
-          expectedAmount = calculation.grandTotal;
+          // The engine works out one contract; the rest are day rates on top.
+          expectedAmount = calculation.grandTotal + extraContracts.pay;
         } catch {
           // Non-fatal — save without calculation
         }
@@ -323,6 +337,8 @@ export function ExhibitGForm() {
           documents: allDocuments,
           calculation,
           expectedAmount,
+          contracts,
+          multipleEpisodeWeekly,
           paymentStatus: "unpaid",
           paidAmount: 0,
         }),
@@ -350,6 +366,17 @@ export function ExhibitGForm() {
   const handleExhibitGRemove = (index: number) => {
     setExhibitGDocs((prev) => prev.filter((_, i) => i !== index));
   };
+
+  // The count follows the pages until someone sets it themselves.
+  useEffect(() => {
+    if (!contractsTouched) setContracts(Math.max(1, exhibitGDocs.length));
+  }, [exhibitGDocs.length, contractsTouched]);
+
+  const extraContracts = useMemo(
+    () =>
+      additionalContractPay(contracts, input.workStatus, multipleEpisodeWeekly),
+    [contracts, input.workStatus, multipleEpisodeWeekly]
+  );
 
   const handleExhibitGRotate = (index: number, rotation: number) => {
     setExhibitGDocs((prev) =>
@@ -420,6 +447,69 @@ export function ExhibitGForm() {
               onRemove={handleExhibitGRemove}
               onRotate={handleExhibitGRotate}
             />
+
+            {/* Two Gs on one day usually means two contracts, and each past
+                the first is owed its own day rate. Only worth asking once
+                there is more than one page. */}
+            {exhibitGDocs.length >= MIN_CONTRACTS_FOR_FIELD && (
+              <div className="mt-3 rounded-lg border border-border p-3 space-y-3">
+                <div className="flex items-center justify-between gap-4">
+                  <Label htmlFor="contracts" className="text-base shrink-0">
+                    Contracts this day
+                  </Label>
+                  <Input
+                    id="contracts"
+                    type="number"
+                    inputMode="numeric"
+                    min={1}
+                    max={MAX_CONTRACTS}
+                    step={1}
+                    value={contracts}
+                    onChange={(e) => {
+                      setContractsTouched(true);
+                      const n = parseInt(e.target.value, 10);
+                      setContracts(
+                        Number.isFinite(n)
+                          ? Math.min(MAX_CONTRACTS, Math.max(1, n))
+                          : 1
+                      );
+                    }}
+                    className="w-20 shrink-0 text-center"
+                  />
+                </div>
+
+                {/* Label is a flex row of its own, so the note goes beside
+                    it rather than under unless it sits outside. */}
+                <div className="flex items-start gap-2">
+                  <Checkbox
+                    id="multipleEpisodeWeekly"
+                    checked={multipleEpisodeWeekly}
+                    onCheckedChange={(v) => setMultipleEpisodeWeekly(!!v)}
+                    className="mt-1 shrink-0"
+                  />
+                  <div className="min-w-0">
+                    <Label
+                      htmlFor="multipleEpisodeWeekly"
+                      className="text-base font-normal"
+                    >
+                      Multiple-episode weekly
+                    </Label>
+                    <p className="text-xs text-muted-foreground">
+                      The episodes sit inside the weekly guarantee, so the
+                      extra contracts are not owed on top.
+                    </p>
+                  </div>
+                </div>
+
+                <p className="text-xs text-muted-foreground">
+                  {extraContracts.absorbedByWeekly
+                    ? "The weekly covers every episode worked today."
+                    : extraContracts.count > 0
+                      ? `One day calculated in full, plus ${extraContracts.count} × ${formatCurrency(extraContracts.dayRate)} for the other ${extraContracts.count === 1 ? "contract" : "contracts"}.`
+                      : "One contract, calculated in full below."}
+                </p>
+              </div>
+            )}
           </div>
 
           {/* Job details stay folded away so work times lead — the summary
@@ -698,8 +788,18 @@ export function ExhibitGForm() {
                   {showLiveRate ? (liveMode === "counter" ? "Live Rate (real-time)" : "Live Rate (6-min intervals)") : "Calculated Total"}
                 </p>
                 <p className="text-3xl font-bold tracking-tight tabular-nums">
-                  <AnimatedCurrency value={liveBreakdown.grandTotal} />
+                  <AnimatedCurrency
+                    value={liveBreakdown.grandTotal + extraContracts.pay}
+                  />
                 </p>
+                {extraContracts.pay > 0 && (
+                  <p className="text-xs text-muted-foreground mt-1">
+                    {formatCurrency(liveBreakdown.grandTotal)} for the
+                    calculated day, plus {extraContracts.count} ×{" "}
+                    {formatCurrency(extraContracts.dayRate)} for the other
+                    {extraContracts.count === 1 ? " contract" : " contracts"}
+                  </p>
+                )}
                 <div className="flex justify-center gap-4 mt-2 text-xs text-muted-foreground">
                   <span>{Number(liveBreakdown.netWorkHours.toFixed(1))}h worked</span>
                   {liveBreakdown.penalties.totalPenalties > 0 && (

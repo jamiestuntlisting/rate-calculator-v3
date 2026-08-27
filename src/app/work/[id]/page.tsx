@@ -26,7 +26,8 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Separator } from "@/components/ui/separator";
 import { RateBreakdown } from "@/components/calculation/rate-breakdown";
 import { formatCurrency } from "@/lib/time-utils";
-import { RATES } from "@/lib/rate-constants";
+import { RATES, type RateSchedule } from "@/lib/rate-constants";
+import { additionalContractPay } from "@/lib/multi-contract";
 import { toast } from "sonner";
 import type { WorkDocument, WorkRecord } from "@/types";
 import { DOCUMENT_TYPE_LABELS } from "@/types";
@@ -322,7 +323,15 @@ export default function WorkDetailPage() {
         if (calcRes.ok) {
           const calcData = await calcRes.json();
           calculation = calcData.breakdown;
-          expectedAmount = calcData.breakdown.grandTotal;
+          // The engine works out one contract. Recalculating without adding
+          // the others back would quietly drop a day's pay per contract.
+          expectedAmount =
+            calcData.breakdown.grandTotal +
+            additionalContractPay(
+              record?.contracts,
+              editData.workStatus as RateSchedule | null,
+              record?.multipleEpisodeWeekly ?? false
+            ).pay;
         }
       }
 

@@ -94,6 +94,13 @@ export interface WorkRecord {
   secondMealStart: string | null;
   secondMealFinish: string | null;
   stuntAdjustment: number;
+  /**
+   * Contracts worked that day, including the one calculated in full. Each
+   * one past the first adds a day rate minimum — see lib/multi-contract.ts.
+   */
+  contracts?: number;
+  /** Episodes inside a weekly guarantee, so extra contracts do not stack. */
+  multipleEpisodeWeekly?: boolean;
   forcedCall: boolean;
   isSixthDay: boolean;
   isSeventhDay: boolean;

@@ -97,6 +97,12 @@ state stays in step.
   `Content-Length` by hand truncates images.
 - Read `e.currentTarget` synchronously in event handlers — React clears it
   before a `setState` updater runs.
+- Two Exhibit Gs on one day usually means two contracts. The engine works
+  out one; each contract past the first adds a day rate minimum on top
+  (`src/lib/multi-contract.ts`), except on a multiple-episode weekly where
+  the episodes are already inside the guarantee. Anything that recalculates
+  a record has to add them back or it silently drops a day's pay per
+  contract.
 - An ND meal has to fall in the two hours after call — at or after the call
   itself, finished by the end of that window. The vendored engine only
   refuses one that *ends* late, and throws rather than explaining, so
