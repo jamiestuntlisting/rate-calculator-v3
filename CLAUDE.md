@@ -85,8 +85,14 @@ state stays in step.
 
 - `<input type="time">` ignores `step` on iOS, which is why times use the
   custom `TimeSelect` (type freely or pick from 6-minute increments plus
-  :15/:45). A typed time with no am/pm is read on a 24-hour clock — never
-  guess a meridiem, it silently changes someone's pay.
+  :15/:45). A bare hour of 1–12 resolves against the time it
+  follows — the call, or whatever precedes it in the day — so 3 after an
+  11am call is 3pm, not 3am sixteen hours later. An am/pm someone typed is
+  never second-guessed, nor is an hour of 13–23, and with nothing to follow
+  a bare time is still read on a 24-hour clock. Setting a meal's start
+  offers a finish half an hour on and never overwrites one already entered.
+  Everything here is one wrong meridiem away from misstating pay, so the
+  rules live in `parseTime` with the cases pinned by test.
 - Serve R2 objects with `object.writeHttpMetadata()`; setting
   `Content-Length` by hand truncates images.
 - Read `e.currentTarget` synchronously in event handlers — React clears it

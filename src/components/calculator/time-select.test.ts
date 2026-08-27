@@ -1,5 +1,11 @@
 import { describe, it, expect } from "vitest";
-import { parseTime, toDisplay, MINUTE_OPTIONS } from "./time-select";
+import {
+  addMinutes,
+  MEAL_MINUTES,
+  MINUTE_OPTIONS,
+  parseTime,
+  toDisplay,
+} from "./time-select";
 
 describe("parseTime — what people actually type", () => {
   it.each([
@@ -44,5 +50,67 @@ describe("toDisplay", () => {
       const value = `13:${String(minute).padStart(2, "0")}`;
       expect(parseTime(toDisplay(value))).toBe(value);
     }
+  });
+});
+
+describe("parseTime — a bare hour resolves against the time before it", () => {
+  it.each([
+    // An 11am call: 3 means the afternoon, four hours on, not sixteen.
+    ["3", "11:00", "15:00"],
+    ["3:30", "11:00", "15:30"],
+    // A 6am call: 7 really is an hour later, so it stays in the morning.
+    ["7", "06:00", "07:00"],
+    // Noon rather than midnight thirteen hours away.
+    ["12", "11:00", "12:00"],
+    ["12:30", "11:00", "12:30"],
+    // The half hour back from a 3pm meal.
+    ["3:30", "15:00", "15:30"],
+    // Past midnight on a long night.
+    ["2", "22:00", "02:00"],
+    // The reference itself is close enough.
+    ["11", "11:00", "11:00"],
+  ])("%s after %s -> %s", (input, after, expected) => {
+    expect(parseTime(input, after)).toBe(expected);
+  });
+
+  it.each([
+    // An am/pm someone typed is theirs, however odd it looks.
+    ["3am", "11:00", "03:00"],
+    ["3:30 AM", "15:00", "03:30"],
+    ["12a", "11:00", "00:00"],
+    // 13–23 can only mean one thing.
+    ["15", "11:00", "15:00"],
+    ["21:38", "11:00", "21:38"],
+    ["00:30", "11:00", "00:30"],
+  ])("leaves %s alone after %s", (input, after, expected) => {
+    expect(parseTime(input, after)).toBe(expected);
+  });
+
+  it("still reads a 24-hour clock when nothing comes before it", () => {
+    expect(parseTime("3")).toBe("03:00");
+    expect(parseTime("9:38")).toBe("09:38");
+    // An unusable reference must not turn into a guess.
+    expect(parseTime("3", "")).toBe("03:00");
+    expect(parseTime("3", "nonsense")).toBe("03:00");
+  });
+});
+
+describe("addMinutes", () => {
+  it.each([
+    ["15:00", 30, "15:30"],
+    ["11:45", 30, "12:15"],
+    ["23:45", 30, "00:15"], // a meal that runs past midnight
+    ["00:00", 30, "00:30"],
+  ])("%s + %d -> %s", (time, minutes, expected) => {
+    expect(addMinutes(time, minutes)).toBe(expected);
+  });
+
+  it("returns nothing it cannot compute rather than a wrong time", () => {
+    expect(addMinutes("", 30)).toBe("");
+    expect(addMinutes("nonsense", 30)).toBe("");
+  });
+
+  it("uses the half hour a meal actually is", () => {
+    expect(MEAL_MINUTES).toBe(30);
   });
 });

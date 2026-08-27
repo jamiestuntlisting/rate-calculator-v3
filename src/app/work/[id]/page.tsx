@@ -5,6 +5,7 @@ import { useParams, useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { TimeSelect } from "@/components/calculator/time-select";
+import { addMinutes, MEAL_MINUTES } from "@/components/calculator/time-select";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import {
@@ -711,6 +712,7 @@ export default function WorkDetailPage() {
                             id="edit-dismissOnSet"
                             value={editData.dismissOnSet}
                             onChange={(v) => setEditData(d => ({ ...d, dismissOnSet: v }))}
+                            after={editData.firstMealFinish || editData.callTime}
                           />
                         </div>
                         <div className="space-y-1">
@@ -719,6 +721,7 @@ export default function WorkDetailPage() {
                             id="edit-dismissMakeupWardrobe"
                             value={editData.dismissMakeupWardrobe || ""}
                             onChange={(v) => setEditData(d => ({ ...d, dismissMakeupWardrobe: v || null }))}
+                            after={editData.dismissOnSet || editData.callTime}
                             clearable
                           />
                         </div>
@@ -739,7 +742,18 @@ export default function WorkDetailPage() {
                           <TimeSelect
                             id="edit-firstMealStart"
                             value={editData.firstMealStart || ""}
-                            onChange={(v) => setEditData(d => ({ ...d, firstMealStart: v || null }))}
+                            onChange={(v) =>
+                              setEditData((d) => ({
+                                ...d,
+                                firstMealStart: v || null,
+                                // Offer the half hour back, never overwrite it.
+                                firstMealFinish:
+                                  v && !d.firstMealFinish
+                                    ? addMinutes(v, MEAL_MINUTES)
+                                    : d.firstMealFinish,
+                              }))
+                            }
+                            after={editData.callTime}
                             clearable
                           />
                         </div>
@@ -749,6 +763,7 @@ export default function WorkDetailPage() {
                             id="edit-firstMealFinish"
                             value={editData.firstMealFinish || ""}
                             onChange={(v) => setEditData(d => ({ ...d, firstMealFinish: v || null }))}
+                            after={editData.firstMealStart || editData.callTime}
                             clearable
                           />
                         </div>

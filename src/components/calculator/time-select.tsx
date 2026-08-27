@@ -39,12 +39,39 @@ export function toDisplay(value: string): string {
   return `${hour12}:${String(m).padStart(2, "0")} ${h < 12 ? "AM" : "PM"}`;
 }
 
+/** How long a meal runs when nobody says otherwise. */
+export const MEAL_MINUTES = 30;
+
+/** "15:00" + 30 -> "15:30", wrapping past midnight. */
+export function addMinutes(time: string, minutes: number): string {
+  const match = /^(\d{2}):(\d{2})$/.exec(time);
+  if (!match) return "";
+  const total =
+    (Number(match[1]) * 60 + Number(match[2]) + minutes) % (24 * 60);
+  return `${String(Math.floor(total / 60)).padStart(2, "0")}:${String(
+    total % 60
+  ).padStart(2, "0")}`;
+}
+
+const minutesOf = (value: string): number | null => {
+  const m = /^(\d{2}):(\d{2})$/.exec(value || "");
+  return m ? Number(m[1]) * 60 + Number(m[2]) : null;
+};
+
 /**
  * Parse what someone actually types: "9", "938", "9:38", "9:38p",
- * "9:38 PM", "21:38". Bare times without am/pm are read on a 24-hour clock,
- * so "21:38" and "9:38 PM" both work and nothing is guessed.
+ * "9:38 PM", "21:38".
+ *
+ * `after` is the time this one has to follow — the call, or whatever came
+ * before it in the day. Given one, a bare hour of 1–12 resolves to whichever
+ * meridiem lands soonest at or after it: type "3" against an 11am call and
+ * it is 3pm four hours later, not 3am sixteen hours later. Without one, a
+ * bare time is still read on a 24-hour clock.
+ *
+ * An am/pm the performer actually typed is never second-guessed, and neither
+ * is an hour of 13–23, which can only mean one thing.
  */
-export function parseTime(input: string): string | null {
+export function parseTime(input: string, after?: string): string | null {
   const text = input.trim().toLowerCase();
   if (!text) return null;
 
@@ -62,6 +89,16 @@ export function parseTime(input: string): string | null {
     hour = (hour % 12) + (meridiem === "p" ? 12 : 0);
   } else if (hour > 23) {
     return null;
+  } else if (hour >= 1 && hour <= 12) {
+    const reference = after ? minutesOf(after) : null;
+    if (reference !== null) {
+      const morning = (hour % 12) * 60 + minute;
+      const evening = morning + 12 * 60;
+      // Whichever comes round first from the reference. A day can run past
+      // midnight, so this is measured on the clock rather than on the number.
+      const wait = (t: number) => (t - reference + 24 * 60) % (24 * 60);
+      hour = Math.floor((wait(morning) <= wait(evening) ? morning : evening) / 60);
+    }
   }
 
   return `${String(hour).padStart(2, "0")}:${String(minute).padStart(2, "0")}`;
@@ -75,6 +112,12 @@ interface TimeSelectProps {
   onChange: (value: string) => void;
   clearable?: boolean;
   compact?: boolean;
+  /**
+   * The time this field follows — the call, or whatever precedes it in the
+   * day. A bare hour typed with no am/pm resolves to whichever meridiem
+   * comes round first after it.
+   */
+  after?: string;
 }
 
 /**
@@ -88,6 +131,7 @@ export function TimeSelect({
   value,
   onChange,
   compact = false,
+  after,
 }: TimeSelectProps) {
   const listId = `${useId()}-times`;
   const [text, setText] = useState(() => toDisplay(value));
@@ -108,7 +152,7 @@ export function TimeSelect({
       onChange("");
       return;
     }
-    const parsed = parseTime(text);
+    const parsed = parseTime(text, after);
     if (parsed) {
       setLastValue(parsed);
       setText(toDisplay(parsed));

@@ -32,6 +32,7 @@ import type { RateSchedule } from "@/lib/rate-constants";
 import { RATES } from "@/lib/rate-constants";
 import { Save } from "lucide-react";
 import { snapToSixMinutes, formatCurrency } from "@/lib/time-utils";
+import { addMinutes, MEAL_MINUTES } from "@/components/calculator/time-select";
 import { calculateRate } from "@/lib/rate-engine";
 
 /** Agreement names carry their current daily rate, straight from RATES. */
@@ -133,6 +134,30 @@ export function ExhibitGForm() {
   const update = useCallback((field: keyof ExhibitGInput, value: unknown) => {
     setInput((prev) => ({ ...prev, [field]: value }));
   }, []);
+
+  /**
+   * Setting when a meal started offers when it ended, half an hour on —
+   * what a meal usually is. Done in one update so the decision reads the
+   * finish time as it actually is, and it never overwrites one already
+   * entered.
+   */
+  const setMealStart = useCallback(
+    (
+      startField: "firstMealStart" | "secondMealStart",
+      finishField: "firstMealFinish" | "secondMealFinish",
+      value: string
+    ) => {
+      setInput((prev) => ({
+        ...prev,
+        [startField]: value || null,
+        [finishField]:
+          value && !prev[finishField]
+            ? addMinutes(value, MEAL_MINUTES)
+            : prev[finishField],
+      }));
+    },
+    []
+  );
 
   // Tick interval: 100ms for counter mode (smooth ticking), 60s for 6-min mode
   useEffect(() => {
@@ -492,11 +517,11 @@ export function ExhibitGForm() {
                     <div className="grid grid-cols-2 gap-2 px-2 pb-2">
                       <div>
                         <Label htmlFor="ndMealIn-hour" className="text-sm text-muted-foreground">In</Label>
-                        <TimeSelect id="ndMealIn" value={input.ndMealIn || ""} onChange={(v) => update("ndMealIn", v || null)} compact />
+                        <TimeSelect id="ndMealIn" value={input.ndMealIn || ""} onChange={(v) => update("ndMealIn", v || null)} after={input.callTime} compact />
                       </div>
                       <div>
                         <Label htmlFor="ndMealOut-hour" className="text-sm text-muted-foreground">Out</Label>
-                        <TimeSelect id="ndMealOut" value={input.ndMealOut || ""} onChange={(v) => update("ndMealOut", v || null)} compact />
+                        <TimeSelect id="ndMealOut" value={input.ndMealOut || ""} onChange={(v) => update("ndMealOut", v || null)} after={input.ndMealIn || input.callTime} compact />
                       </div>
                     </div>
                   )}
@@ -511,11 +536,11 @@ export function ExhibitGForm() {
                     <div className="grid grid-cols-2 gap-2 px-2 pb-2">
                       <div>
                         <Label htmlFor="firstMealStart-hour" className="text-sm text-muted-foreground">Out</Label>
-                        <TimeSelect id="firstMealStart" value={input.firstMealStart || ""} onChange={(v) => update("firstMealStart", v || null)} compact />
+                        <TimeSelect id="firstMealStart" value={input.firstMealStart || ""} onChange={(v) => setMealStart("firstMealStart", "firstMealFinish", v)} after={input.callTime} compact />
                       </div>
                       <div>
                         <Label htmlFor="firstMealFinish-hour" className="text-sm text-muted-foreground">In</Label>
-                        <TimeSelect id="firstMealFinish" value={input.firstMealFinish || ""} onChange={(v) => update("firstMealFinish", v || null)} compact />
+                        <TimeSelect id="firstMealFinish" value={input.firstMealFinish || ""} onChange={(v) => update("firstMealFinish", v || null)} after={input.firstMealStart || input.callTime} compact />
                       </div>
                     </div>
                   )}
@@ -531,11 +556,11 @@ export function ExhibitGForm() {
                     <div className="grid grid-cols-2 gap-2 px-2 pb-2">
                       <div>
                         <Label htmlFor="secondMealStart-hour" className="text-sm text-muted-foreground">Out</Label>
-                        <TimeSelect id="secondMealStart" value={input.secondMealStart || ""} onChange={(v) => update("secondMealStart", v || null)} compact />
+                        <TimeSelect id="secondMealStart" value={input.secondMealStart || ""} onChange={(v) => setMealStart("secondMealStart", "secondMealFinish", v)} after={input.firstMealFinish || input.callTime} compact />
                       </div>
                       <div>
                         <Label htmlFor="secondMealFinish-hour" className="text-sm text-muted-foreground">In</Label>
-                        <TimeSelect id="secondMealFinish" value={input.secondMealFinish || ""} onChange={(v) => update("secondMealFinish", v || null)} compact />
+                        <TimeSelect id="secondMealFinish" value={input.secondMealFinish || ""} onChange={(v) => update("secondMealFinish", v || null)} after={input.secondMealStart || input.callTime} compact />
                       </div>
                     </div>
                   )}
@@ -545,11 +570,11 @@ export function ExhibitGForm() {
 
               <div className="flex items-center justify-between gap-4 p-2">
                 <Label htmlFor="dismissOnSet" className="text-base shrink-0">Dismiss On Set</Label>
-                <div className="flex-1 min-w-0 max-w-[15rem]"><TimeSelect id="dismissOnSet" value={input.dismissOnSet} onChange={(v) => update("dismissOnSet", v)} /></div>
+                <div className="flex-1 min-w-0 max-w-[15rem]"><TimeSelect id="dismissOnSet" value={input.dismissOnSet} onChange={(v) => update("dismissOnSet", v)} after={input.secondMealFinish || input.firstMealFinish || input.callTime} /></div>
               </div>
               <div className="flex items-center justify-between gap-4 p-2 rounded bg-muted/50">
                 <Label htmlFor="dismissMakeupWardrobe" className="text-base shrink-0">Wrapped</Label>
-                <div className="flex-1 min-w-0 max-w-[15rem]"><TimeSelect id="dismissMakeupWardrobe" value={input.dismissMakeupWardrobe || ""} onChange={(v) => update("dismissMakeupWardrobe", v || null)} /></div>
+                <div className="flex-1 min-w-0 max-w-[15rem]"><TimeSelect id="dismissMakeupWardrobe" value={input.dismissMakeupWardrobe || ""} onChange={(v) => update("dismissMakeupWardrobe", v || null)} after={input.dismissOnSet || input.callTime} /></div>
               </div>
 
               {/* Stunt Adjustment */}
