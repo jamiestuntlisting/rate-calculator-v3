@@ -4,6 +4,7 @@ import {
   MEAL_MINUTES,
   MINUTE_OPTIONS,
   parseTime,
+  timeOptionsFor,
   toDisplay,
 } from "./time-select";
 
@@ -112,5 +113,59 @@ describe("addMinutes", () => {
 
   it("uses the half hour a meal actually is", () => {
     expect(MEAL_MINUTES).toBe(30);
+  });
+});
+
+describe("what to offer while someone types", () => {
+  it("offers only the two halves of the day once a whole time is typed", () => {
+    expect(timeOptionsFor("1100")).toEqual(["11:00 AM", "11:00 PM"]);
+    expect(timeOptionsFor("11:00")).toEqual(["11:00 AM", "11:00 PM"]);
+    expect(timeOptionsFor("930")).toEqual(["9:30 AM", "9:30 PM"]);
+    expect(timeOptionsFor("1230")).toEqual(["12:30 AM", "12:30 PM"]);
+  });
+
+  it("puts the likelier half first when there is a time to follow", () => {
+    // After an 11am call, 3:00 is four hours away and 3:00 AM is sixteen.
+    expect(timeOptionsFor("300", "11:00")).toEqual(["3:00 PM", "3:00 AM"]);
+    // After a 6am call, the morning reading is the near one.
+    expect(timeOptionsFor("700", "06:00")).toEqual(["7:00 AM", "7:00 PM"]);
+  });
+
+  it("settles it outright when an am or pm was typed", () => {
+    expect(timeOptionsFor("11am")).toEqual(["11:00 AM"]);
+    expect(timeOptionsFor("1100pm")).toEqual(["11:00 PM"]);
+    expect(timeOptionsFor("12a")).toEqual(["12:00 AM"]);
+  });
+
+  it("leaves a 24-hour time alone — it can only be read one way", () => {
+    expect(timeOptionsFor("2138")).toEqual(["9:38 PM"]);
+    expect(timeOptionsFor("00:30")).toEqual(["12:30 AM"]);
+  });
+
+  it("still offers an hour's minutes while only the hour is typed", () => {
+    const options = timeOptionsFor("11");
+    expect(options).toHaveLength(MINUTE_OPTIONS.length * 2);
+    expect(options[0]).toBe("11:00 AM");
+    expect(options).toContain("11:06 AM");
+    expect(options).toContain("11:00 PM");
+  });
+
+  it("leads with the afternoon on an hour that follows a late call", () => {
+    expect(timeOptionsFor("3", "11:00")[0]).toBe("3:00 PM");
+  });
+
+  it("offers everything when there is nothing to go on", () => {
+    expect(timeOptionsFor("").length).toBeGreaterThan(100);
+    expect(timeOptionsFor("nonsense").length).toBeGreaterThan(100);
+    // An impossible time is not narrowed to a wrong guess.
+    expect(timeOptionsFor("2575").length).toBeGreaterThan(100);
+  });
+
+  it("only ever offers times it would itself parse back", () => {
+    for (const text of ["1100", "930", "3", "11am", "2138"]) {
+      for (const option of timeOptionsFor(text)) {
+        expect(parseTime(option)).not.toBeNull();
+      }
+    }
   });
 });

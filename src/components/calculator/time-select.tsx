@@ -104,6 +104,68 @@ export function parseTime(input: string, after?: string): string | null {
   return `${String(hour).padStart(2, "0")}:${String(minute).padStart(2, "0")}`;
 }
 
+/** Whichever reading comes round first from the reference, first. */
+function orderByReference(times: string[], after?: string): string[] {
+  const reference = after ? minutesOf(after) : null;
+  if (reference === null) return times;
+  const wait = (t: string) => {
+    const parsed = parseTime(t);
+    const m = parsed ? minutesOf(parsed) : null;
+    return m === null ? Infinity : (m - reference + 24 * 60) % (24 * 60);
+  };
+  return [...times].sort((a, b) => wait(a) - wait(b));
+}
+
+/**
+ * What to offer while someone is typing.
+ *
+ * A whole time typed out leaves only one thing undecided — which half of
+ * the day it is — so those are the only two offered. Offering 11:06 and
+ * 11:12 to someone who has just typed 1100 is the list ignoring what they
+ * said. An hour on its own still offers that hour's minutes, and an am or
+ * pm they typed settles it outright.
+ */
+export function timeOptionsFor(text: string, after?: string): string[] {
+  const trimmed = (text || "").trim().toLowerCase();
+  if (!trimmed) return TIME_OPTIONS;
+
+  const match = /^(\d{1,2})[:.\s]?(\d{2})?\s*([ap])?\.?m?\.?$/.exec(trimmed);
+  if (!match) return TIME_OPTIONS;
+
+  const hour = Number(match[1]);
+  const minute = match[2] === undefined ? null : Number(match[2]);
+  const meridiem = match[3];
+  if (hour > 23 || (minute !== null && minute > 59)) return TIME_OPTIONS;
+
+  const at = (h: number, m: number) =>
+    toDisplay(`${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}`);
+
+  if (meridiem) {
+    if (hour < 1 || hour > 12) return TIME_OPTIONS;
+    return [at((hour % 12) + (meridiem === "p" ? 12 : 0), minute ?? 0)];
+  }
+
+  // Midnight and 13-23 can only be read one way.
+  if (hour === 0 || hour > 12) {
+    return minute !== null
+      ? [at(hour, minute)]
+      : MINUTE_OPTIONS.map((m) => at(hour, m));
+  }
+
+  const morning = hour % 12;
+  if (minute !== null) {
+    return orderByReference([at(morning, minute), at(morning + 12, minute)], after);
+  }
+
+  // Still only an hour: offer its minutes, the likelier half of the day first.
+  return orderByReference([at(morning, 0), at(morning + 12, 0)], after).flatMap(
+    (first) => {
+      const h = first.endsWith("PM") ? morning + 12 : morning;
+      return MINUTE_OPTIONS.map((m) => at(h, m));
+    }
+  );
+}
+
 interface TimeSelectProps {
   id: string;
   label?: string;
@@ -193,7 +255,7 @@ export function TimeSelect({
         }
       />
       <datalist id={listId}>
-        {TIME_OPTIONS.map((option) => (
+        {timeOptionsFor(text, after).map((option) => (
           <option key={option} value={option} />
         ))}
       </datalist>
