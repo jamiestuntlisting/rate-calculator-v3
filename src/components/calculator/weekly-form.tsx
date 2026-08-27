@@ -307,7 +307,7 @@ export function WeeklyForm() {
         )}
       </div>
 
-      {calculated.map(({ week, derivation, breakdown, override, turnarounds, rules }) => {
+      {calculated.map(({ week, breakdown, override, turnarounds, rules }) => {
         const open = openWeek === week.start;
         return (
           <div key={week.start} className="rounded-lg border border-border">
