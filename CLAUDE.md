@@ -105,6 +105,13 @@ state stays in step.
   `Content-Length` by hand truncates images.
 - Read `e.currentTarget` synchronously in event handlers — React clears it
   before a `setState` updater runs.
+- A pay stub is transcribed the way stubs are laid out — what the payment
+  was for, the hours, the money — so a shortfall points at a line rather
+  than at a total (`src/lib/pay-stub.ts`, `pay_stubs` table). It hangs off a
+  work day, or off a week's Sunday when the contract is weekly, because a
+  week is not a stored record. The note to payroll is drafted from the two
+  sets of working; **sending it from the app needs a mail provider, which is
+  not configured** — today it opens in the performer's own mail app.
 - Two Exhibit Gs on one day usually means two contracts. The engine works
   out one; each contract past the first adds a day rate minimum on top
   (`src/lib/multi-contract.ts`), except on a multiple-episode weekly where

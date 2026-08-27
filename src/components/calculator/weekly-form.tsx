@@ -20,6 +20,9 @@ import {
   turnaroundsFor,
 } from "@/lib/weekly/turnaround";
 import type { WorkRecord } from "@/types";
+import { PayStubSection } from "@/components/shared/pay-stub-section";
+import type { PayStubLine } from "@/lib/pay-stub";
+import { useAuth } from "@/context/auth-context";
 
 /**
  * The one thing left that a week's days cannot imply. Location allowance
@@ -52,6 +55,7 @@ const shortDate = (workDate: string) => {
 };
 
 export function WeeklyForm() {
+  const { user } = useAuth();
   // RATES is `as const`, so the literal type has to be widened to stay editable.
   const [scaleWeeklyRate, setScaleWeeklyRate] = useState<number>(
     CURRENT_WEEKLY_SCALE
@@ -329,6 +333,34 @@ export function WeeklyForm() {
                   <p className="text-sm text-muted-foreground">
                     Enter a scale and contract rate above to work this week out.
                   </p>
+                )}
+
+                {breakdown && (
+                  <div className="pt-3 border-t border-border space-y-2">
+                    <p className="text-xs uppercase tracking-wide text-muted-foreground">
+                      Pay stub for this week
+                    </p>
+                    <PayStubSection
+                      scope="week"
+                      weekStart={week.start}
+                      showName={week.records[0]?.showName || "this production"}
+                      owed={breakdown.grandTotal}
+                      performerName={
+                        user
+                          ? `${user.firstName ?? ""} ${user.lastName ?? ""}`.trim() ||
+                            user.email
+                          : "This performer"
+                      }
+                      period={weekLabel(week.start).toLowerCase()}
+                      owedLines={breakdown.lineItems.map(
+                        (item): PayStubLine => ({
+                          label: item.label,
+                          hours: item.multiplier !== 1 ? item.units : null,
+                          amount: item.amount,
+                        })
+                      )}
+                    />
+                  </div>
                 )}
 
                 {turnarounds.length > 0 && (

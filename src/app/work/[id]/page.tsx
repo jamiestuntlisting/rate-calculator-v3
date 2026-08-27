@@ -28,6 +28,9 @@ import { RateBreakdown } from "@/components/calculation/rate-breakdown";
 import { formatCurrency } from "@/lib/time-utils";
 import { RATES, type RateSchedule } from "@/lib/rate-constants";
 import { additionalContractPay } from "@/lib/multi-contract";
+import { PayStubSection } from "@/components/shared/pay-stub-section";
+import { useAuth } from "@/context/auth-context";
+import type { PayStubLine } from "@/lib/pay-stub";
 import { toast } from "sonner";
 import type { WorkDocument, WorkRecord } from "@/types";
 import { DOCUMENT_TYPE_LABELS } from "@/types";
@@ -82,6 +85,7 @@ function formatDateSafe(dateStr: string): string {
 }
 
 export default function WorkDetailPage() {
+  const { user } = useAuth();
   const params = useParams();
   const router = useRouter();
   const contentRef = useRef<HTMLDivElement>(null);
@@ -153,6 +157,35 @@ export default function WorkDetailPage() {
    * failing that any viewable file, since people do photograph a call sheet
    * or a timecard and work from that.
    */
+  /**
+   * What we make the day up of, in the same shape a stub is read in — so the
+   * note to payroll can put the two side by side.
+   */
+  const owedLines: PayStubLine[] = (() => {
+    const calculation = record?.calculation;
+    if (!calculation) return [];
+    const lines: PayStubLine[] = calculation.segments.map((segment) => ({
+      label: segment.label,
+      hours: segment.hours,
+      amount: segment.subtotal,
+    }));
+    if (calculation.penalties?.totalPenalties) {
+      lines.push({
+        label: "Meal penalties",
+        hours: null,
+        amount: calculation.penalties.totalPenalties,
+      });
+    }
+    if (record?.stuntAdjustment) {
+      lines.push({
+        label: "Stunt adjustment",
+        hours: null,
+        amount: record.stuntAdjustment,
+      });
+    }
+    return lines;
+  })();
+
   const transcribeDoc: WorkDocument | null = (() => {
     const viewable = (record?.documents ?? []).filter((doc) =>
       /\.(jpe?g|png|gif|webp|pdf)$/i.test(doc.filename)
@@ -956,6 +989,35 @@ export default function WorkDetailPage() {
             </Button>
           </CardContent>
         </Card>
+
+        {/* The stub for this day. A weekly contract's stub covers the week,
+            so it lives on /weekly instead and not here. */}
+        {!isOtherWorkType && !record.multipleEpisodeWeekly && (
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-lg">Pay stub</CardTitle>
+              <p className="text-sm text-muted-foreground">
+                What the stub says, line by line, against what we make it.
+              </p>
+            </CardHeader>
+            <CardContent>
+              <PayStubSection
+                scope="day"
+                workRecordId={record._id}
+                showName={record.showName || "this production"}
+                owed={record.expectedAmount || 0}
+                performerName={
+                  user
+                    ? `${user.firstName ?? ""} ${user.lastName ?? ""}`.trim() ||
+                      user.email
+                    : "This performer"
+                }
+                period={`the work day of ${formatDateSafe(record.workDate)}`}
+                owedLines={owedLines}
+              />
+            </CardContent>
+          </Card>
+        )}
 
         {/* Documents — displayed inline */}
         {record.documents && record.documents.length > 0 && (
