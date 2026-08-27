@@ -97,6 +97,11 @@ state stays in step.
   `Content-Length` by hand truncates images.
 - Read `e.currentTarget` synchronously in event handlers — React clears it
   before a `setState` updater runs.
+- An ND meal has to fall in the two hours after call — at or after the call
+  itself, finished by the end of that window. The vendored engine only
+  refuses one that *ends* late, and throws rather than explaining, so
+  `src/lib/nd-meal.ts` carries the whole rule and the form shows it. The
+  start check belongs upstream.
 - Sum money at full precision and round once. Rounding per line is a cent
   out on roughly one weekly card in twenty.
 - Vitest needs `vitest.config.ts` for the `@/` alias. `npm test` runs 59

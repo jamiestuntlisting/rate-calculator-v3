@@ -34,6 +34,8 @@ import { Save } from "lucide-react";
 import { snapToSixMinutes, formatCurrency } from "@/lib/time-utils";
 import { addMinutes, MEAL_MINUTES } from "@/components/calculator/time-select";
 import { calculateRate } from "@/lib/rate-engine";
+import { checkNdMeal, ND_MEAL_WINDOW_HOURS } from "@/lib/nd-meal";
+import { toDisplay } from "@/components/calculator/time-select";
 
 /** Agreement names carry their current daily rate, straight from RATES. */
 const dayRate = (amount: number) => `$${Math.round(amount).toLocaleString()}/day`;
@@ -171,6 +173,15 @@ export function ExhibitGForm() {
   // When showLiveRate is on, uses current time as dismiss time for the calculation
   // Counter mode: recalcs every second with seconds precision for smooth ticking
   // 6-min mode: recalcs every 60s with standard 6-min snapped time
+  /**
+   * An ND meal outside its window makes the engine throw, and the throw is
+   * swallowed — so the running total just vanishes. Say why instead.
+   */
+  const ndMeal = useMemo(
+    () => checkNdMeal(input.callTime, input.ndMealIn, input.ndMealOut),
+    [input.callTime, input.ndMealIn, input.ndMealOut]
+  );
+
   const liveBreakdown: CalculationBreakdown | null = useMemo(() => {
     if (isStuntCoordinator) return null;
     if (!input.callTime) return null;
@@ -524,6 +535,17 @@ export function ExhibitGForm() {
                         <TimeSelect id="ndMealOut" value={input.ndMealOut || ""} onChange={(v) => update("ndMealOut", v || null)} after={input.ndMealIn || input.callTime} compact />
                       </div>
                     </div>
+                  )}
+                  {showNdMeal && !ndMeal.ok && (
+                    <p className="px-2 pb-2 text-xs text-amber-400">
+                      {ndMeal.problem === "ends_before_it_starts"
+                        ? "An ND meal has to end after it starts."
+                        : `An ND meal has to fall in the ${ND_MEAL_WINDOW_HOURS} hours after your call — from ${toDisplay(
+                            input.callTime
+                          )} to ${toDisplay(
+                            ndMeal.windowEnd
+                          )}. Outside that it is a deductible meal, which pays differently.`}
+                    </p>
                   )}
                 </div>
                 {/* 1st Meal */}
