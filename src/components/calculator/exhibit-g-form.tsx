@@ -178,16 +178,28 @@ export function ExhibitGForm() {
     []
   );
 
+  /**
+   * The live rate is a running total for a day still going. Once a
+   * dismissal or a wrap is entered the day has an end, and a number that
+   * carries on climbing past it is not what the performer earned — the
+   * live calculation replaces `dismissOnSet` with the current time, so it
+   * would quietly ignore the time they just typed. Derived rather than
+   * held in state: there is then no moment where the toggle is hidden but
+   * the override is still running.
+   */
+  const wrapped = Boolean(input.dismissOnSet || input.dismissMakeupWardrobe);
+  const liveRate = showLiveRate && !wrapped;
+
   // Tick interval: 100ms for counter mode (smooth ticking), 60s for 6-min mode
   useEffect(() => {
-    if (!showLiveRate) return;
+    if (!liveRate) return;
     const ms = liveMode === "counter" ? 100 : 60_000;
     const interval = setInterval(() => setLiveTick((t) => t + 1), ms);
     return () => clearInterval(interval);
-  }, [showLiveRate, liveMode]);
+  }, [liveRate, liveMode]);
 
   // Live calculation — runs whenever input changes (not for stunt coordinator — flat rate)
-  // When showLiveRate is on, uses current time as dismiss time for the calculation
+  // While the day is still running, the current time stands in for the dismissal
   // Counter mode: recalcs every second with seconds precision for smooth ticking
   // 6-min mode: recalcs every 60s with standard 6-min snapped time
   /**
@@ -202,7 +214,7 @@ export function ExhibitGForm() {
   const liveBreakdown: CalculationBreakdown | null = useMemo(() => {
     if (isStuntCoordinator) return null;
     if (!input.callTime) return null;
-    if (showLiveRate) {
+    if (liveRate) {
       const now = new Date();
       const dismissTime = `${String(now.getHours()).padStart(2, "0")}:${String(now.getMinutes()).padStart(2, "0")}`;
       try {
@@ -227,7 +239,7 @@ export function ExhibitGForm() {
       return null;
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [input, isStuntCoordinator, showLiveRate, liveMode, liveTick]);
+  }, [input, isStuntCoordinator, liveRate, liveMode, liveTick]);
 
   // Live meal penalty summary from the breakdown
   const liveMealPenaltySummary = useMemo(() => {
@@ -774,7 +786,7 @@ export function ExhibitGForm() {
 
           {/* Live rate toggle — a setting for the day, so it sits with the times
               rather than beside the total it governs. */}
-          {!isStuntCoordinator && isToday(input.workDate) && (
+          {!isStuntCoordinator && isToday(input.workDate) && !wrapped && (
             <div className="flex items-center gap-4">
               <div className="flex items-center space-x-2">
                 <Checkbox
@@ -786,7 +798,7 @@ export function ExhibitGForm() {
                   Live rate
                 </Label>
               </div>
-              {showLiveRate && (
+              {liveRate && (
                 <Select value={liveMode} onValueChange={(v) => setLiveMode(v as "counter" | "6min")}>
                   <SelectTrigger className="w-44 h-8 text-xs">
                     <SelectValue />
@@ -874,7 +886,7 @@ export function ExhibitGForm() {
             <div className="rounded-lg border-2 border-primary bg-primary/5 p-4">
               <div className="text-center">
                 <p className="text-sm text-muted-foreground">
-                  {showLiveRate ? (liveMode === "counter" ? "Live Rate (real-time)" : "Live Rate (6-min intervals)") : "Calculated Total"}
+                  {liveRate ? (liveMode === "counter" ? "Live Rate (real-time)" : "Live Rate (6-min intervals)") : "Calculated Total"}
                 </p>
                 <p className="text-3xl font-bold tracking-tight tabular-nums">
                   <AnimatedCurrency
