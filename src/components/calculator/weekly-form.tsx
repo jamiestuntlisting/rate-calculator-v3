@@ -15,15 +15,22 @@ import {
 import { CURRENT_WEEKLY_SCALE } from "@/lib/weekly/weekly-rates";
 import { workRecordsToWeeklyInput } from "@/lib/weekly/from-work-records";
 import { groupIntoWeeks, weekLabel } from "@/lib/weekly/weeks";
+import {
+  DEFAULT_TURNAROUND_HOURS,
+  turnaroundsFor,
+} from "@/lib/weekly/turnaround";
 import type { WorkRecord } from "@/types";
 
-/** What the days cannot know, so it stays the performer's to enter. */
+/**
+ * The one thing left that a week's days cannot imply. Location allowance
+ * and holiday are properties of that week, not of the deal, so they stay
+ * here rather than moving up with the rates.
+ */
 interface WeekOverride {
-  weeklyOvertimeHours: number;
   extra: WeeklyExtra;
 }
 
-const NO_OVERRIDE: WeekOverride = { weeklyOvertimeHours: 0, extra: null };
+const NO_OVERRIDE: WeekOverride = { extra: null };
 
 const EXTRAS: Array<{ value: WeeklyExtra; label: string }> = [
   { value: null, label: "None" },
@@ -55,6 +62,16 @@ export function WeeklyForm() {
   const [records, setRecords] = useState<WorkRecord[] | null>(null);
   const [picked, setPicked] = useState<Set<string>>(new Set());
   const [overrides, setOverrides] = useState<Record<string, WeekOverride>>({});
+  /**
+   * Weekly overtime is a term of the deal, not a sum of the hours worked.
+   * Across 133 real cards, 32 were paid exactly 6.00 hours of it on weeks
+   * totalling 35, 40, 48 and 56 hours — the figure does not move with the
+   * work. So it is asked for once, with the rates, and applies to each week.
+   */
+  const [weeklyOvertimeHours, setWeeklyOvertimeHours] = useState(0);
+  const [turnaroundHours, setTurnaroundHours] = useState(
+    DEFAULT_TURNAROUND_HOURS
+  );
   const [openWeek, setOpenWeek] = useState<string | null>(null);
 
   const load = useCallback(async () => {
@@ -103,16 +120,25 @@ export function WeeklyForm() {
           try {
             breakdown = calculateWeekly({
               ...input,
-              weeklyOvertimeHours: override.weeklyOvertimeHours,
+              weeklyOvertimeHours,
               extra: override.extra,
             });
           } catch {
             breakdown = null;
           }
         }
-        return { week, derivation, breakdown, override };
+        const turnarounds = turnaroundsFor(week.records, turnaroundHours);
+        return { week, derivation, breakdown, override, turnarounds };
       }),
-    [weeks, overrides, scaleWeeklyRate, contractWeeklyRate, ready]
+    [
+      weeks,
+      overrides,
+      scaleWeeklyRate,
+      contractWeeklyRate,
+      ready,
+      weeklyOvertimeHours,
+      turnaroundHours,
+    ]
   );
 
   const grandTotal = calculated.reduce(
@@ -147,6 +173,28 @@ export function WeeklyForm() {
             id="contractWeeklyRate"
             value={contractWeeklyRate}
             onChange={setContractWeeklyRate}
+          />
+        </div>
+        <div className="flex items-center justify-between gap-4">
+          <Label htmlFor="weeklyOvertimeHours" className="text-base shrink-0">
+            Weekly OT (hrs)
+          </Label>
+          <PlainNumber
+            id="weeklyOvertimeHours"
+            value={weeklyOvertimeHours}
+            onChange={setWeeklyOvertimeHours}
+            step="0.1"
+          />
+        </div>
+        <div className="flex items-center justify-between gap-4">
+          <Label htmlFor="turnaroundHours" className="text-base shrink-0">
+            Turnaround (hrs)
+          </Label>
+          <PlainNumber
+            id="turnaroundHours"
+            value={turnaroundHours}
+            onChange={setTurnaroundHours}
+            step="0.5"
           />
         </div>
       </div>
@@ -192,7 +240,7 @@ export function WeeklyForm() {
         )}
       </div>
 
-      {calculated.map(({ week, derivation, breakdown, override }) => {
+      {calculated.map(({ week, derivation, breakdown, override, turnarounds }) => {
         const open = openWeek === week.start;
         return (
           <div key={week.start} className="rounded-lg border border-border">
@@ -223,26 +271,6 @@ export function WeeklyForm() {
 
             {open && (
               <div className="border-t border-border p-4 space-y-4">
-                <div className="flex items-center justify-between gap-4">
-                  <Label className="text-sm shrink-0">
-                    Weekly overtime (hrs)
-                  </Label>
-                  <Input
-                    type="number"
-                    inputMode="decimal"
-                    min="0"
-                    step="0.1"
-                    value={override.weeklyOvertimeHours || ""}
-                    onChange={(e) =>
-                      setOverride(week.start, {
-                        weeklyOvertimeHours: parseFloat(e.target.value) || 0,
-                      })
-                    }
-                    className="w-24 shrink-0"
-                    placeholder="0"
-                  />
-                </div>
-
                 <div className="flex flex-wrap items-center gap-1.5">
                   {EXTRAS.map((option) => (
                     <button
@@ -303,6 +331,32 @@ export function WeeklyForm() {
                   </p>
                 )}
 
+                {turnarounds.length > 0 && (
+                  <div className="space-y-1 pt-2 border-t border-border">
+                    <p className="text-xs uppercase tracking-wide text-muted-foreground">
+                      Turnaround
+                    </p>
+                    {turnarounds.map((rest) => (
+                      <div
+                        key={`${rest.from._id}-${rest.to._id}`}
+                        className="flex justify-between gap-3 text-xs"
+                      >
+                        <span className="text-muted-foreground">
+                          {shortDate(rest.from.workDate)} →{" "}
+                          {shortDate(rest.to.workDate)}
+                        </span>
+                        <span
+                          className={`tabular-nums shrink-0 ${
+                            rest.short ? "text-amber-400" : "text-muted-foreground"
+                          }`}
+                        >
+                          {rest.hours}h{rest.short ? " · short" : ""}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                )}
+
                 {derivation.daysWithoutCalculation > 0 && (
                   <p className="text-xs text-amber-400">
                     {derivation.daysWithoutCalculation} of these days has no
@@ -326,6 +380,32 @@ export function WeeklyForm() {
         </div>
       )}
     </div>
+  );
+}
+
+function PlainNumber({
+  id,
+  value,
+  onChange,
+  step,
+}: {
+  id: string;
+  value: number;
+  onChange: (value: number) => void;
+  step: string;
+}) {
+  return (
+    <Input
+      id={id}
+      type="number"
+      inputMode="decimal"
+      min="0"
+      step={step}
+      value={value || ""}
+      onChange={(e) => onChange(parseFloat(e.target.value) || 0)}
+      className="w-[10rem] shrink-0 text-center"
+      placeholder="0"
+    />
   );
 }
 

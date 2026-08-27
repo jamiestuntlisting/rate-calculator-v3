@@ -61,6 +61,11 @@ state stays in step.
   replacement across `showbiz_sample_*` rows in `app_config` and takes
   precedence over the bundle. This repository is public, so only bundle an
   export that is safe to publish.
+  Weekly overtime is **not** derivable from the hours worked — 32 cards were
+  paid exactly 6.00 hours of it on weeks totalling 35 to 56 hours, and one
+  103-hour week got none. It is a term of the deal, asked for once with the
+  rates; see docs/weekly-rules.md §4b before trying to compute it. Rest
+  between days *is* derivable, and `turnaround.ts` does it.
   Deriving a day's overtime tier from `segment.multiplier` is wrong:
   on a 6th or 7th day the daily engine raises every segment to the day
   multiplier, so straight hours read 1.5 — go by the segment label. Watch the two

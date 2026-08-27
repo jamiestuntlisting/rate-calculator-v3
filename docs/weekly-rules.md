@@ -170,6 +170,34 @@ def weekly_gross(c):
 
 ---
 
+## 4b. Weekly overtime (column 183) is not derived from hours
+
+Worth stating plainly, because it looks derivable and is not. Col 183 does
+not follow from the hours on the card:
+
+- 32 of the 133 cards carry **exactly 6.00** hours of weekly overtime. Their
+  weeks total **35, 40, 48 and 56 hours**. The figure does not move with the
+  work.
+- S1209 worked 35 hours against a 44-hour guarantee — under it — and was
+  paid 6.00 hours of weekly overtime anyway.
+- S1058 worked 103.42 hours against a 48-hour guarantee and was paid **none**.
+- Every value seen is a round number: 1.00 (10 cards), 2.00 (1), 6.00 (32).
+- None of the 21 Distant cards carry any, which fits the location allowance
+  taking its place.
+
+Six candidate rules were tested against all 133 cards — hours less 44, hours
+less the guarantee, either of those less the daily and double-time buckets,
+and the same on straight-time-only hours. The best managed 73/133, and
+predicting a flat zero scored better at 90/133.
+
+It reads as a term of the deal — guaranteed overtime written into the
+contract — rather than anything the week's work implies. The app asks for it
+once alongside the rates and applies it to each week, and must not try to
+compute it from logged days.
+
+Col 257 is no help here either: on 28 of the 133 cards the per-day hours
+array does not have as many entries as the day count.
+
 ## 5. Day codes (column 276)
 
 One token per day, aligned with the date array (252) and every other multi-day
