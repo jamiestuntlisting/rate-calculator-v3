@@ -5,6 +5,7 @@ import { useParams, useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { TimeSelect } from "@/components/calculator/time-select";
+import { agreementLabel, dayRate } from "@/lib/agreements";
 import { addMinutes, MEAL_MINUTES } from "@/components/calculator/time-select";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
@@ -58,15 +59,6 @@ const RECORD_STATUS_LABELS: Record<string, string> = {
   needs_times: "Needs Times",
   draft: "Draft",
   attachment_only: "Attachment Only",
-};
-
-/** Agreement names carry their current daily rate, straight from RATES. */
-const dayRate = (amount: number) => `$${Math.round(amount).toLocaleString()}/day`;
-
-const AGREEMENT_LABELS: Record<string, string> = {
-  theatrical_basic: `Theatrical Basic (${dayRate(RATES.theatrical_basic.daily)})`,
-  television: `Television (${dayRate(RATES.television.daily)})`,
-  stunt_coordinator: `Stunt Coordinator (${dayRate(RATES.stunt_coordinator.daily)})`,
 };
 
 const OTHER_CATEGORY_LABELS: Record<string, string> = {
@@ -881,7 +873,9 @@ export default function WorkDetailPage() {
                     <div>
                       <p className="text-muted-foreground">Agreement</p>
                       <p className="font-semibold">
-                        {AGREEMENT_LABELS[record.workStatus] || record.workStatus}
+                        {record.flatDayRate
+                          ? `Flat ${dayRate(record.flatDayRate)}`
+                          : agreementLabel(record.workStatus || "")}
                       </p>
                     </div>
                   )}

@@ -37,10 +37,26 @@ state stays in step.
 - **Rate engine** — `src/lib/rate-calculator/` is a *vendored verbatim copy*
   of the shared `StuntListing/rate-calculator` package (day rates, Exhibit G
   math). Do not edit it to fix app-level things; fix upstream and re-copy.
-  Its README lists the one deliberate divergence: rates were updated to the
-  07/01/2026 schedule here (day performer $1,283) and the source repo has
-  not been. `@/lib/rate-engine`, `rate-constants`, `time-utils` are
+  Its README lists the deliberate divergences: rates updated to the
+  07/01/2026 schedule (day performer $1,283), the three low budget
+  agreements, and the optional `flatDayRate` override — all of which the
+  source repo has not got. `@/lib/rate-engine`, `rate-constants`, `time-utils` are
   one-line re-export shims onto it.
+- **Agreements** — `src/lib/agreements.ts` is the only place the list of
+  offered agreements is written down; the picker, the work page and
+  `/api/contracts` all read it. Theatrical and Television pay the same, so
+  they are one entry — `television` stays in `RATES` only so records saved
+  under it still calculate. The three low budget tiers are derived rather
+  than typed, because that is how the agreements are written: 65% / 35% /
+  20% of "the applicable rate from the Basic Agreement current at the time
+  of performance", so they follow the basic rate whenever it moves. Stunt
+  coordinators are never reduced — Schedule K applies whatever the
+  production's budget, so a coordinator on a low budget show is still
+  `stunt_coordinator`. A deal that is none of these sets `flatDayRate` on
+  the record, which replaces the schedule's daily rate inside the engine
+  and leaves everything else — overtime tiers, the stunt adjustment, meal
+  penalties — worked out exactly as normal. Penalties are statutory
+  dollars and do not move with the rate; there is a test pinning that.
 - **Weekly engine** — `src/lib/weekly/` (app-level, not vendored).
   Reverse-engineered from 133 real ShowBiz cards; `docs/weekly-rules.md` is
   the derivation and `docs/showbiz-csv-format.md` the file format. Tests run

@@ -26,9 +26,11 @@ import type {
  * Pure function: takes Exhibit G input, returns full breakdown.
  */
 export function calculateRate(input: ExhibitGInput, options?: { skipRounding?: boolean; additionalSeconds?: number }): CalculationBreakdown {
-  const rates = RATES[input.workStatus as RateSchedule];
-  const baseRate = rates.daily;
-  const hourlyRate = rates.hourly;
+  const rates = RATES[input.workStatus as RateSchedule] ?? RATES.theatrical_basic;
+  // A flat deal names its own day rate; otherwise the schedule's applies.
+  const flat = input.flatDayRate;
+  const baseRate = flat != null && flat > 0 ? flat : rates.daily;
+  const hourlyRate = flat != null && flat > 0 ? flat / 8 : rates.hourly;
 
   // Step 1: Apply stunt adjustment to base rate BEFORE OT calculation
   const adjustedBaseRate = baseRate + input.stuntAdjustment;

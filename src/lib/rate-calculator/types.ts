@@ -18,6 +18,13 @@ export interface ExhibitGInput {
   isSeventhDay: boolean;
   isHoliday: boolean;
   workStatus: RateSchedule;
+  /**
+   * A negotiated day rate that is not one of the published schedules — a
+   * flat deal. Given one, it replaces the schedule's daily rate and
+   * everything else (overtime tiers, stunt adjustment, penalties) is worked
+   * out from it exactly as normal.
+   */
+  flatDayRate?: number | null;
   characterName: string;
   notes: string;
 }

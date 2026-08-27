@@ -374,7 +374,7 @@ const ENDPOINTS: EndpointGroup[] = [
         bodyNotes: [
           { name: "showName", type: "string", required: true, description: "Show / production name." },
           { name: "workDate", type: "YYYY-MM-DD", required: true, description: "The work date." },
-          { name: "workStatus", type: "theatrical_basic | television | stunt_coordinator", description: "Rate schedule; required for complete SAG-AFTRA records." },
+          { name: "workStatus", type: "theatrical_basic | stunt_coordinator | low_budget | modified_low_budget | ultra_low_budget", description: "Rate schedule; required for complete SAG-AFTRA records." },
           { name: "callTime / dismissOnSet", type: "HH:MM (24h)", description: "Required when recordStatus='complete' and workStatus is not stunt_coordinator." },
           { name: "recordStatus", type: "complete | needs_times | draft | attachment_only", description: "Defaults to 'complete'." },
           { name: "calculation", type: "object", description: "Optional. If omitted, computed from the input when possible." },

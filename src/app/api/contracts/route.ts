@@ -7,18 +7,13 @@ import {
   FORCED_CALL,
   EFFECTIVE_DATE,
 } from "@/lib/rate-constants";
-
-const CONTRACT_LABELS: Record<keyof typeof RATES, string> = {
-  theatrical_basic: "Theatrical Basic",
-  television: "Television",
-  stunt_coordinator: "Stunt Coordinator",
-};
+import { agreementName } from "@/lib/agreements";
 
 export async function GET() {
   const contracts = (Object.keys(RATES) as Array<keyof typeof RATES>).map(
     (key) => ({
       id: key,
-      label: CONTRACT_LABELS[key],
+      label: agreementName(key),
       daily: RATES[key].daily,
       weekly: RATES[key].weekly,
       hourly: RATES[key].hourly,

@@ -106,6 +106,8 @@ export interface WorkRecord {
   isSeventhDay: boolean;
   isHoliday: boolean;
   workStatus: RateSchedule | null;
+  /** A negotiated day rate instead of the schedule's — a flat deal. */
+  flatDayRate?: number | null;
   characterName: string;
   notes: string;
   recordStatus: RecordStatus;

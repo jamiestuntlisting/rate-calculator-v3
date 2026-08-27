@@ -26,6 +26,12 @@ import { ExhibitGDropzone } from "@/components/shared/exhibit-g-dropzone";
 import { SuggestInput } from "@/components/shared/suggest-input";
 import { CollapsibleSection } from "@/components/calculator/collapsible-section";
 import { TimeSelect } from "@/components/calculator/time-select";
+import {
+  AGREEMENTS,
+  agreementLabel,
+  dayRate,
+  dayRateFor,
+} from "@/lib/agreements";
 import { toast } from "sonner";
 import type { ExhibitGInput, WorkDocument, CalculationBreakdown } from "@/types";
 import type { RateSchedule } from "@/lib/rate-constants";
@@ -41,15 +47,6 @@ import {
   MIN_CONTRACTS_FOR_FIELD,
 } from "@/lib/multi-contract";
 import { toDisplay } from "@/components/calculator/time-select";
-
-/** Agreement names carry their current daily rate, straight from RATES. */
-const dayRate = (amount: number) => `$${Math.round(amount).toLocaleString()}/day`;
-
-const AGREEMENT_LABELS: Record<RateSchedule, string> = {
-  theatrical_basic: `Theatrical Basic (${dayRate(RATES.theatrical_basic.daily)})`,
-  television: `Television (${dayRate(RATES.television.daily)})`,
-  stunt_coordinator: `Stunt Coordinator (${dayRate(RATES.stunt_coordinator.daily)})`,
-};
 
 /** Get current time as HH:MM string, snapped to 6-min increments */
 function getCurrentTimeSnapped(): string {
@@ -76,6 +73,7 @@ const defaultInput: ExhibitGInput = {
   secondMealStart: null,
   secondMealFinish: null,
   stuntAdjustment: 0,
+  flatDayRate: null,
   forcedCall: false,
   isSixthDay: false,
   isSeventhDay: false,
@@ -132,6 +130,12 @@ export function ExhibitGForm() {
    * means two contracts, but not always, and it is theirs to correct.
    */
   const [contracts, setContracts] = useState(1);
+  /**
+   * A flat deal names its own day rate instead of taking a schedule's. The
+   * tick is separate state because "no rate yet" and "no flat deal" are the
+   * same value otherwise, and the box has to come before the number.
+   */
+  const [flatDeal, setFlatDeal] = useState(false);
   const [contractsTouched, setContractsTouched] = useState(false);
   const [multipleEpisodeWeekly, setMultipleEpisodeWeekly] = useState(false);
   const [showNdMeal, setShowNdMeal] = useState(false);
@@ -261,7 +265,7 @@ export function ExhibitGForm() {
 
       // Stunt coordinator is a flat deal — no time-based calculation
       if (isStuntCoordinator) {
-        const flatRate = RATES.stunt_coordinator.daily;
+        const flatRate = dayRateFor(input.workStatus, input.flatDayRate);
         const res = await fetch("/api/work-records", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -522,7 +526,9 @@ export function ExhibitGForm() {
                 input.showName,
                 input.workDate,
                 input.characterName,
-                AGREEMENT_LABELS[input.workStatus],
+                input.flatDayRate
+                  ? `Flat ${dayRate(input.flatDayRate)}`
+                  : agreementLabel(input.workStatus),
               ]
                 .filter(Boolean)
                 .join(" · ") || "Show title, date, character, agreement"
@@ -576,15 +582,63 @@ export function ExhibitGForm() {
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    {(
-                      Object.keys(AGREEMENT_LABELS) as RateSchedule[]
-                    ).map((key) => (
-                      <SelectItem key={key} value={key} className="text-base">
-                        {AGREEMENT_LABELS[key]}
+                    {AGREEMENTS.map((agreement) => (
+                      <SelectItem
+                        key={agreement.id}
+                        value={agreement.id}
+                        className="text-base"
+                      >
+                        {agreementLabel(agreement.id)}
                       </SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
+              </div>
+
+              <div className="space-y-2 min-w-0">
+                <div className="flex items-center space-x-2">
+                  <Checkbox
+                    id="flatDeal"
+                    checked={flatDeal}
+                    onCheckedChange={(v) => {
+                      setFlatDeal(!!v);
+                      if (!v) update("flatDayRate", null);
+                    }}
+                  />
+                  <Label htmlFor="flatDeal" className="text-base font-normal">
+                    Flat rate — a deal that is not one of these
+                  </Label>
+                </div>
+                {flatDeal && (
+                  <>
+                    <div className="flex items-center justify-between gap-4">
+                      <Label htmlFor="flatDayRate" className="text-base shrink-0">
+                        Day rate
+                      </Label>
+                      <div className="relative flex-1 min-w-0 max-w-[15rem]">
+                        <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground">
+                          $
+                        </span>
+                        <Input
+                          id="flatDayRate"
+                          type="number"
+                          min="0"
+                          step="50"
+                          value={input.flatDayRate || ""}
+                          onChange={(e) =>
+                            update("flatDayRate", parseFloat(e.target.value) || null)
+                          }
+                          className="pl-7 w-full"
+                          placeholder="0.00"
+                        />
+                      </div>
+                    </div>
+                    <p className="text-xs text-muted-foreground">
+                      Overtime, meal penalties and the stunt adjustment are
+                      still worked out from this rate.
+                    </p>
+                  </>
+                )}
               </div>
             </div>
 
