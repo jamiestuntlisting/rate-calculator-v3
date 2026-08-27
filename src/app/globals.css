@@ -103,4 +103,20 @@
   body {
     @apply bg-background text-foreground;
   }
+
+  /*
+   * iOS Safari sizes <input type="date"> from the text it renders rather
+   * than from its box, so `width: 100%` does not stop one growing past the
+   * card it sits in — which is why a date field, and only a date field,
+   * crossed the edge on a phone while Chrome looked fine. Clearing the
+   * native appearance and the UA's logical minimum is what actually holds
+   * it. Tapping still opens the iOS date picker.
+   */
+  input[type="date"] {
+    -webkit-appearance: none;
+    appearance: none;
+    -webkit-min-logical-width: 0;
+    min-width: 0;
+    max-width: 100%;
+  }
 }
