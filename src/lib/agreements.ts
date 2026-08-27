@@ -17,7 +17,16 @@ export const AGREEMENTS: ReadonlyArray<{
   note?: string;
 }> = [
   { id: "theatrical_basic", name: "Theatrical / Television" },
-  { id: "stunt_coordinator", name: "Stunt Coordinator" },
+  {
+    id: "stunt_coordinator",
+    name: "Stunt Coordinator — flat deal",
+    note: "One number for the day, no overtime",
+  },
+  {
+    id: "stunt_coordinator_daily",
+    name: "Stunt Coordinator — daily",
+    note: "Day rate, and overtime like anyone else",
+  },
   {
     id: "low_budget",
     name: "Low Budget",

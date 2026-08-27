@@ -27,10 +27,24 @@ export const RATES = {
     hourly: 160.375, // same rate as theatrical
     straightTimeHours: 8,
   },
+  // A coordinator on a "flat deal": one number for the day, no overtime.
+  // This is the higher Schedule K figure, and it is what `stunt_coordinator`
+  // has always meant here.
   stunt_coordinator: {
     daily: 1996.0,
     weekly: 7439.0,
     hourly: 249.5, // 1996 / 8
+    straightTimeHours: 8,
+  },
+
+  // A coordinator employed at *less than* flat deal is on a day rate and
+  // works overtime like anyone else — which is the reason the two exist
+  // separately. The rate tracks the day performer minimum ($1,246 → $1,283
+  // on 07/01/2026), and the weekly tracks weekly scale.
+  stunt_coordinator_daily: {
+    daily: 1283.0,
+    weekly: 4785.0,
+    hourly: 160.375, // 1283 / 8
     straightTimeHours: 8,
   },
 

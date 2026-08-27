@@ -52,11 +52,19 @@ state stays in step.
   of performance", so they follow the basic rate whenever it moves. Stunt
   coordinators are never reduced — Schedule K applies whatever the
   production's budget, so a coordinator on a low budget show is still
-  `stunt_coordinator`. A deal that is none of these sets `flatDayRate` on
-  the record, which replaces the schedule's daily rate inside the engine
-  and leaves everything else — overtime tiers, the stunt adjustment, meal
-  penalties — worked out exactly as normal. Penalties are statutory
-  dollars and do not move with the rate; there is a test pinning that.
+  `stunt_coordinator`. That one is the **flat deal** coordinator ($1,996,
+  the higher Schedule K figure, no times and no overtime);
+  `stunt_coordinator_daily` is a coordinator employed at less than flat
+  deal, which tracks the day performer minimum and earns overtime like
+  anyone else — the distinction is why both rates exist.
+  A deal that is none of the schedules sets `flatDayRate` on the record.
+  **A flat deal earns no overtime**: the number buys the day, so the engine
+  returns it as one segment however long the day ran, and a sixteen-hour
+  day pays what an eight-hour day pays. Meal penalties are not wages and
+  still land on top, as does a stunt adjustment the performer entered.
+  Penalties are statutory dollars and do not move with the rate; there is a
+  test pinning that, and another pinning that scale and a flat rate of the
+  same size agree at eight hours and diverge the moment overtime starts.
 - **Weekly engine** — `src/lib/weekly/` (app-level, not vendored).
   Reverse-engineered from 133 real ShowBiz cards; `docs/weekly-rules.md` is
   the derivation and `docs/showbiz-csv-format.md` the file format. Tests run

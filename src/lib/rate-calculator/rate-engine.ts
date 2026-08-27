@@ -29,8 +29,9 @@ export function calculateRate(input: ExhibitGInput, options?: { skipRounding?: b
   const rates = RATES[input.workStatus as RateSchedule] ?? RATES.theatrical_basic;
   // A flat deal names its own day rate; otherwise the schedule's applies.
   const flat = input.flatDayRate;
-  const baseRate = flat != null && flat > 0 ? flat : rates.daily;
-  const hourlyRate = flat != null && flat > 0 ? flat / 8 : rates.hourly;
+  const isFlatDeal = flat != null && flat > 0;
+  const baseRate = isFlatDeal ? flat : rates.daily;
+  const hourlyRate = isFlatDeal ? flat / 8 : rates.hourly;
 
   // Step 1: Apply stunt adjustment to base rate BEFORE OT calculation
   const adjustedBaseRate = baseRate + input.stuntAdjustment;
@@ -86,14 +87,24 @@ export function calculateRate(input: ExhibitGInput, options?: { skipRounding?: b
   const highStunt = input.stuntAdjustment > baseRate;
   const effectiveStraightTimeEnd = highStunt ? 12 : OVERTIME.straightTimeEnd;
   const effectiveTimeAndHalfEnd = highStunt ? 12 : OVERTIME.timeAndHalfEnd;
-  const segments = buildTimeSegments(
-    netWorkHours,
-    adjustedHourlyRate,
-    dayMultiplierInfo.multiplier,
-    effectiveStraightTimeEnd,
-    effectiveTimeAndHalfEnd,
-    !!options?.skipRounding
-  );
+  // A flat deal buys the day outright: there are no tiers to reach, so the
+  // day is one segment however long it ran. Penalties are not wages and
+  // still land on top of it.
+  const segments = isFlatDeal
+    ? buildFlatSegment(
+        netWorkHours,
+        adjustedBaseRate,
+        dayMultiplierInfo.multiplier,
+        !!options?.skipRounding
+      )
+    : buildTimeSegments(
+        netWorkHours,
+        adjustedHourlyRate,
+        dayMultiplierInfo.multiplier,
+        effectiveStraightTimeEnd,
+        effectiveTimeAndHalfEnd,
+        !!options?.skipRounding
+      );
 
   // Step 9: Calculate meal penalties
   const mealPenalties = calculateMealPenalties(input);
@@ -167,6 +178,35 @@ function getDayMultiplier(input: ExhibitGInput): {
  * 6th day: minimum 1.5x for all hours (OT still applies if higher)
  * 7th day / holiday: minimum 2.0x for all hours
  */
+/**
+ * A flat deal, as one segment.
+ *
+ * The number is the day. It does not matter whether that day ran six hours
+ * or sixteen — nobody reaches an overtime tier on a flat deal, which is the
+ * whole point of agreeing one. The hours are still recorded on the segment,
+ * because how long the day actually ran is worth knowing even when it does
+ * not change the money.
+ */
+function buildFlatSegment(
+  netWorkHours: number,
+  adjustedBaseRate: number,
+  dayMultiplier: number,
+  skipRounding: boolean = false
+): TimeSegment[] {
+  const multiplier = Math.max(MULTIPLIERS.straight, dayMultiplier);
+  const hours = skipRounding ? netWorkHours : round1(netWorkHours);
+  const subtotal = adjustedBaseRate * multiplier;
+  return [
+    {
+      label: `Flat deal — the day (${Number(hours.toFixed(1))} hrs)`,
+      hours,
+      rate: adjustedBaseRate,
+      multiplier,
+      subtotal: skipRounding ? Math.round(subtotal * 100) / 100 : round2(subtotal),
+    },
+  ];
+}
+
 function buildTimeSegments(
   netWorkHours: number,
   adjustedHourlyRate: number,

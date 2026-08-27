@@ -93,31 +93,73 @@ describe("a flat deal", () => {
     expect(dayRateFor("some_old_thing", null)).toBe(1283);
   });
 
-  it("pays exactly what the schedule would, given the schedule's own rate", () => {
-    // The strongest thing to assert: the override changes the rate and
-    // nothing else about how the day is worked out.
-    const scheduled = calculateRate(day());
-    const flat = calculateRate(
-      day({ flatDayRate: RATES.theatrical_basic.daily })
+  it("earns no overtime, however long the day runs", () => {
+    // The point of agreeing a flat number is that the day cannot cost more
+    // than it. A sixteen-hour day and an eight-hour day pay the same.
+    const short = calculateRate(day({ flatDayRate: 2000 }));
+    const long = calculateRate(
+      day({ flatDayRate: 2000, dismissOnSet: "23:00" })
     );
-    expect(flat.grandTotal).toBe(scheduled.grandTotal);
-    expect(flat.segments).toEqual(scheduled.segments);
+    expect(short.segments).toHaveLength(1);
+    expect(long.segments).toHaveLength(1);
+    expect(long.segments[0].label).toContain("Flat deal");
+    // Wages identical; only the meal penalties the long day drew differ.
+    const wages = (b: typeof short) =>
+      b.grandTotal - b.penalties.totalPenalties;
+    expect(wages(long)).toBe(2000);
+    expect(wages(short)).toBe(2000);
   });
 
-  it("carries overtime and the stunt adjustment on the flat rate", () => {
-    const long = day({ dismissOnSet: "21:30", stuntAdjustment: 200 });
-    const scheduled = calculateRate(long);
-    const flat = calculateRate({ ...long, flatDayRate: 2000 });
-
-    expect(flat.baseRate).toBe(2000);
-    expect(flat.hourlyRate).toBe(250);
-    expect(flat.adjustedBaseRate).toBe(2200); // the adjustment still applies
-    expect(flat.grandTotal).toBeGreaterThan(scheduled.grandTotal);
-    // Overtime was reached on both, and on the same hours.
-    expect(flat.segments.length).toBe(scheduled.segments.length);
-    expect(flat.segments.map((s) => s.hours)).toEqual(
-      scheduled.segments.map((s) => s.hours)
+  it("still records how long the day actually ran", () => {
+    const long = calculateRate(
+      day({ flatDayRate: 2000, dismissOnSet: "23:00" })
     );
+    expect(long.segments[0].hours).toBeCloseTo(long.netWorkHours, 1);
+    expect(long.netWorkHours).toBeGreaterThan(10);
+  });
+
+  it("still collects meal penalties, which are not wages", () => {
+    const noMeal = calculateRate(
+      day({ flatDayRate: 2000, firstMealStart: null, firstMealFinish: null })
+    );
+    expect(noMeal.penalties.totalPenalties).toBeGreaterThan(0);
+    expect(noMeal.grandTotal).toBe(2000 + noMeal.penalties.totalPenalties);
+  });
+
+  it("differs from the same rate on a schedule the moment overtime starts", () => {
+    // Eight hours: a flat 1,283 and scale both pay the day rate.
+    const eight = { callTime: "07:00", dismissOnSet: "15:30" };
+    expect(
+      calculateRate(day({ ...eight, flatDayRate: 1283 })).grandTotal
+    ).toBe(calculateRate(day(eight)).grandTotal);
+
+    // Fourteen hours: scale earns overtime, the flat deal does not.
+    const long = { callTime: "07:00", dismissOnSet: "21:30" };
+    const scheduled = calculateRate(day(long));
+    const flat = calculateRate(day({ ...long, flatDayRate: 1283 }));
+    expect(scheduled.grandTotal).toBeGreaterThan(flat.grandTotal);
+    expect(scheduled.segments.length).toBeGreaterThan(1);
+    expect(flat.segments).toHaveLength(1);
+  });
+
+  it("adds a stunt adjustment the performer entered on top of the flat number", () => {
+    const flat = calculateRate(day({ flatDayRate: 2000, stuntAdjustment: 200 }));
+    expect(flat.adjustedBaseRate).toBe(2200);
+    expect(flat.grandTotal - flat.penalties.totalPenalties).toBe(2200);
+  });
+
+  it("separates a coordinator on a flat deal from one on a day rate", () => {
+    // The flat deal is the higher Schedule K figure and buys the day; the
+    // daily coordinator tracks the performer minimum and works overtime.
+    expect(RATES.stunt_coordinator.daily).toBe(1996);
+    expect(RATES.stunt_coordinator_daily.daily).toBe(
+      RATES.theatrical_basic.daily
+    );
+    const long = { callTime: "07:00", dismissOnSet: "21:30" };
+    const daily = calculateRate(
+      day({ ...long, workStatus: "stunt_coordinator_daily" })
+    );
+    expect(daily.segments.length).toBeGreaterThan(1);
   });
 
   it("leaves the day on its schedule when no flat rate is given", () => {

@@ -25,10 +25,16 @@ Two further changes are local and also need carrying upstream:
   of performance"). Stunt coordinators are deliberately not reduced: their
   rates track Schedule K whatever the production's budget.
 - `types.ts` and `rate-engine.ts` accept an optional `flatDayRate` on the
-  input. Given one, it replaces the schedule's daily rate and everything
-  else is worked out from it unchanged; given nothing, the engine behaves
-  exactly as before. This is what a negotiated flat deal needs, and it is
-  three lines at the single point where the engine reads the rate table.
+  input — a negotiated flat deal. Given one, it replaces the schedule's
+  daily rate **and the day earns no overtime**: `buildFlatSegment` returns
+  the day as a single segment however long it ran, because nobody reaches a
+  tier on a flat deal. Meal penalties are not wages and still land on top.
+  Given nothing, the engine behaves exactly as before.
+- `rate-constants.ts` splits the stunt coordinator in two.
+  `stunt_coordinator` is the flat-deal figure it always was ($1,996); the
+  new `stunt_coordinator_daily` is a coordinator employed at *less than*
+  flat deal, which tracks the day performer minimum and works overtime like
+  anyone else. That distinction is the reason both rates exist in Schedule K.
 
 Rates are a flat set of current minimums, so a work day from an earlier
 contract year is calculated at today's rates. Historical schedules keyed by

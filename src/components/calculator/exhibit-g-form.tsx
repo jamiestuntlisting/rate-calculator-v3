@@ -646,8 +646,8 @@ export function ExhibitGForm() {
                       </div>
                     </div>
                     <p className="text-xs text-muted-foreground">
-                      Overtime, meal penalties and the stunt adjustment are
-                      still worked out from this rate.
+                      One number for the day — no overtime, however long it
+                      runs. Meal penalties still land on top.
                     </p>
                   </>
                 )}
