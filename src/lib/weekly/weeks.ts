@@ -7,15 +7,28 @@
  * as premiums, so a group has to be a week and not simply a run: ten
  * consecutive days with no break is two weeks, not a ten-day week.
  *
- * Weeks are taken to start on Sunday, which is the usual production
- * payroll week. Each group says which Sunday it runs from, so a week that
- * has been split the wrong way is visible rather than silent.
+ * Weeks start Monday unless told otherwise. Productions differ, so the day
+ * is a setting rather than a constant, and each group says which date it
+ * runs from — a week split the wrong way shows rather than hides.
  */
 
 import type { WorkRecord } from "@/types";
 
-/** 0 = Sunday. */
-export const WEEK_STARTS_ON = 0;
+/** 0 = Sunday … 6 = Saturday. */
+export type WeekStartDay = 0 | 1 | 2 | 3 | 4 | 5 | 6;
+
+/** Monday, unless a production runs its week differently. */
+export const DEFAULT_WEEK_STARTS_ON: WeekStartDay = 1;
+
+export const WEEK_DAY_NAMES = [
+  "Sunday",
+  "Monday",
+  "Tuesday",
+  "Wednesday",
+  "Thursday",
+  "Friday",
+  "Saturday",
+] as const;
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 
@@ -30,27 +43,33 @@ function toUtc(workDate: string): Date | null {
 
 const iso = (date: Date) => date.toISOString().slice(0, 10);
 
-/** The Sunday on or before a given day. */
-export function weekStartOf(workDate: string): string | null {
+/** The start of the week a given day falls in. */
+export function weekStartOf(
+  workDate: string,
+  startsOn: WeekStartDay = DEFAULT_WEEK_STARTS_ON
+): string | null {
   const date = toUtc(workDate);
   if (!date) return null;
-  const shift = (date.getUTCDay() - WEEK_STARTS_ON + 7) % 7;
+  const shift = (date.getUTCDay() - startsOn + 7) % 7;
   return iso(new Date(date.getTime() - shift * DAY_MS));
 }
 
 export interface WorkWeek {
-  /** "YYYY-MM-DD" of the Sunday this week runs from. */
+  /** "YYYY-MM-DD" of the day this week runs from. */
   start: string;
   /** The days that fall in it, earliest first. */
   records: WorkRecord[];
 }
 
 /** Group days into weeks, earliest week first. A day with no readable date is dropped. */
-export function groupIntoWeeks(records: WorkRecord[]): WorkWeek[] {
+export function groupIntoWeeks(
+  records: WorkRecord[],
+  startsOn: WeekStartDay = DEFAULT_WEEK_STARTS_ON
+): WorkWeek[] {
   const weeks = new Map<string, WorkRecord[]>();
 
   for (const record of records) {
-    const start = weekStartOf(record.workDate);
+    const start = weekStartOf(record.workDate, startsOn);
     if (!start) continue;
     const list = weeks.get(start);
     if (list) list.push(record);

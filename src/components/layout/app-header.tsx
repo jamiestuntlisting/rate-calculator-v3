@@ -16,7 +16,7 @@ import { isAdminEmail } from "@/lib/admin-emails";
  * (membership, preferences) live in the user menu, not here — they are about
  * the person rather than the work.
  *
- * Non-SAG is reached from a button on the Rate Calculator.
+ * Non-SAG is reached from a button on Log Work.
  */
 interface NavChild {
   href: string;
@@ -36,7 +36,7 @@ const NAV_SECTIONS: NavSection[] = [
     label: "Work",
     children: [
       { href: "/upload-g", label: "Exhibit G" },
-      { href: "/", label: "Rate Calculator" },
+      { href: "/", label: "Log Work" },
       { href: "/weekly", label: "Weekly" },
     ],
   },
@@ -79,7 +79,7 @@ const ACCOUNT_LINKS: NavChild[] = [
   { href: "/preferences", label: "Preferences" },
 ];
 
-/** Which page a path belongs to — the Rate Calculator owns the bare root. */
+/** Which page a path belongs to — Log Work owns the bare root. */
 function matchesChild(pathname: string, href: string): boolean {
   if (href === "/") return pathname === "/";
   if (href === "/residuals") {

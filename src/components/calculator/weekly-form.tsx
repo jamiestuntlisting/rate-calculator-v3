@@ -14,7 +14,13 @@ import {
 } from "@/lib/weekly/weekly-engine";
 import { CURRENT_WEEKLY_SCALE } from "@/lib/weekly/weekly-rates";
 import { workRecordsToWeeklyInput } from "@/lib/weekly/from-work-records";
-import { groupIntoWeeks, weekLabel } from "@/lib/weekly/weeks";
+import {
+  DEFAULT_WEEK_STARTS_ON,
+  WEEK_DAY_NAMES,
+  groupIntoWeeks,
+  weekLabel,
+  type WeekStartDay,
+} from "@/lib/weekly/weeks";
 import {
   DEFAULT_TURNAROUND_HOURS,
   turnaroundsFor,
@@ -73,6 +79,13 @@ export function WeeklyForm() {
    * work. So it is asked for once, with the rates, and applies to each week.
    */
   const [weeklyOvertimeHours, setWeeklyOvertimeHours] = useState(0);
+  /**
+   * Which day the production runs its payroll week from. Monday is the
+   * common one, but it is a term of the deal rather than a rule, and a
+   * week split on the wrong day misstates every guarantee in it.
+   */
+  const [weekStartsOn, setWeekStartsOn] =
+    useState<WeekStartDay>(DEFAULT_WEEK_STARTS_ON);
   const [turnaroundHours, setTurnaroundHours] = useState(
     DEFAULT_TURNAROUND_HOURS
   );
@@ -105,8 +118,8 @@ export function WeeklyForm() {
 
   const weeks = useMemo(() => {
     const chosen = (records ?? []).filter((r) => picked.has(r._id));
-    return groupIntoWeeks(chosen);
-  }, [records, picked]);
+    return groupIntoWeeks(chosen, weekStartsOn);
+  }, [records, picked, weekStartsOn]);
 
   const ready = scaleWeeklyRate > 0 && contractWeeklyRate > 0;
 
@@ -200,6 +213,25 @@ export function WeeklyForm() {
             onChange={setTurnaroundHours}
             step="0.5"
           />
+        </div>
+        <div className="flex items-center justify-between gap-4">
+          <Label htmlFor="weekStartsOn" className="text-base shrink-0">
+            Week starts
+          </Label>
+          <select
+            id="weekStartsOn"
+            value={weekStartsOn}
+            onChange={(e) =>
+              setWeekStartsOn(Number(e.target.value) as WeekStartDay)
+            }
+            className="border-input dark:bg-input/30 h-9 w-[10rem] shrink-0 rounded-md border bg-transparent px-3 py-1 text-center text-base shadow-xs outline-none focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px] md:text-sm"
+          >
+            {WEEK_DAY_NAMES.map((name, index) => (
+              <option key={name} value={index}>
+                {name}
+              </option>
+            ))}
+          </select>
         </div>
       </div>
 

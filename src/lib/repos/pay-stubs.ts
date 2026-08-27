@@ -8,7 +8,7 @@ export interface PayStub {
   scope: PayStubScope;
   /** Set when the stub covers one work day. */
   workRecordId: string | null;
-  /** The Sunday a weekly stub runs from. */
+  /** The date a weekly stub's week runs from. */
   weekStart: string | null;
   showName: string;
   lineItems: PayStubLine[];

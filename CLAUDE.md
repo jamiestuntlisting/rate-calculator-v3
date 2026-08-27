@@ -49,11 +49,13 @@ state stays in step.
   Two files map onto the engine and are the only places those mappings are
   written down: `from-showbiz.ts` for a parsed payroll card, and
   `from-work-records.ts` for the performer's own logged days. `/weekly` is
-  driven by picking days off the Tracker: `weeks.ts` splits them on Sunday
+  driven by picking days off the Tracker: `weeks.ts` splits them on week
   boundaries and each week is a separate contract and a separate
   calculation, so a run across three weeks is three of them, never one long
-  one. Weeks-start-Sunday is an assumption — every group is labelled with
-  the Sunday it runs from so a wrong split shows rather than hides. `/admin/weekly-bench` runs an export through it card by
+  one. The week starts Monday (`DEFAULT_WEEK_STARTS_ON`) and the page lets
+  it be moved to any day, because productions differ; every group is
+  labelled with the date it runs from so a wrong split shows rather than
+  hides. `/admin/weekly-bench` runs an export through it card by
   card; it opens on a bundled reference export (`src/lib/showbiz-sample.ts`,
   gzipped and base64'd — regenerate with `scripts/build-showbiz-sample.py`),
   which should always read 132 of 133, the one miss being S1234. An admin can
@@ -108,8 +110,8 @@ state stays in step.
 - A pay stub is transcribed the way stubs are laid out — what the payment
   was for, the hours, the money — so a shortfall points at a line rather
   than at a total (`src/lib/pay-stub.ts`, `pay_stubs` table). It hangs off a
-  work day, or off a week's Sunday when the contract is weekly, because a
-  week is not a stored record. The note to payroll is drafted from the two
+  work day, or off a week's start date when the contract is weekly, because
+  a week is not a stored record. The note to payroll is drafted from the two
   sets of working; **sending it from the app needs a mail provider, which is
   not configured** — today it opens in the performer's own mail app.
 - Two Exhibit Gs on one day usually means two contracts. The engine works
