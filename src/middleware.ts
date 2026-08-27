@@ -5,7 +5,15 @@ import { jwtVerify } from "jose";
 const SESSION_COOKIE = "stl_session";
 
 // Routes that don't require authentication
-const PUBLIC_PATHS = ["/login", "/api/auth/login", "/api/auth/logout", "/api/auth/me"];
+// /how-it-works explains the app to someone who has not signed in, so it
+// has to be reachable without a session.
+const PUBLIC_PATHS = [
+  "/login",
+  "/how-it-works",
+  "/api/auth/login",
+  "/api/auth/logout",
+  "/api/auth/me",
+];
 
 function getEnvSecretKey(): Uint8Array | null {
   const secret = process.env.SESSION_SECRET;

@@ -1,5 +1,7 @@
 "use client";
 
+import Link from "next/link";
+
 import { useState } from "react";
 import { useAuth } from "@/context/auth-context";
 import { Button } from "@/components/ui/button";
@@ -60,6 +62,12 @@ export default function LoginPage() {
           <p className="text-muted-foreground text-sm">
             Bookkeeper
           </p>
+          <Link
+            href="/how-it-works"
+            className="text-xs text-muted-foreground underline hover:text-foreground mt-1"
+          >
+            How it works
+          </Link>
         </CardHeader>
 
         <CardContent className="space-y-6">

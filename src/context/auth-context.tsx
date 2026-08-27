@@ -44,6 +44,13 @@ interface AuthContextValue {
 
 const AuthContext = createContext<AuthContextValue | undefined>(undefined);
 
+/**
+ * Pages a signed-out visitor is allowed to be on. /how-it-works explains the
+ * app to someone who has not signed in, so sending them to /login would
+ * defeat it.
+ */
+const SIGNED_OUT_PATHS = ["/login", "/how-it-works"];
+
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<AuthUser | null>(null);
   const [loading, setLoading] = useState(true);
@@ -103,7 +110,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   // Redirect unauthenticated users to /login (client-side backup for proxy)
   useEffect(() => {
-    if (!loading && !user && pathname !== "/login") {
+    if (!loading && !user && !SIGNED_OUT_PATHS.includes(pathname)) {
       router.replace("/login");
     }
   }, [loading, user, pathname, router]);
