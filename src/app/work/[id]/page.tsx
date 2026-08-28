@@ -5,7 +5,7 @@ import { useParams, useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { TimeSelect } from "@/components/calculator/time-select";
-import { agreementLabel, dayRate } from "@/lib/agreements";
+import { AGREEMENTS, agreementLabel, dayRate } from "@/lib/agreements";
 import { addMinutes, MEAL_MINUTES } from "@/components/calculator/time-select";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
@@ -91,6 +91,7 @@ export default function WorkDetailPage() {
   // Inline edit state
   const [editing, setEditing] = useState(false);
   const [editData, setEditData] = useState({
+    flatDayRate: null as number | null,
     showName: "",
     workDate: "",
     characterName: "",
@@ -212,6 +213,7 @@ export default function WorkDetailPage() {
         isSeventhDay: record.isSeventhDay || false,
         isHoliday: record.isHoliday || false,
         workStatus: record.workStatus || "theatrical_basic",
+        flatDayRate: record.flatDayRate ?? null,
         ndMealIn: record.ndMealIn || "",
         ndMealOut: record.ndMealOut || "",
         firstMealStart: record.firstMealStart || "",
@@ -330,6 +332,9 @@ export default function WorkDetailPage() {
         isSeventhDay: editData.isSeventhDay,
         isHoliday: editData.isHoliday,
         workStatus: editData.workStatus,
+        // Without this the recalculation drops the flat deal, puts the day
+        // back on scale and pays it overtime a flat deal never earns.
+        flatDayRate: editData.flatDayRate || null,
         characterName: editData.characterName,
         notes: record?.notes || "",
       };
@@ -355,7 +360,8 @@ export default function WorkDetailPage() {
             additionalContractPay(
               record?.contracts,
               editData.workStatus as RateSchedule | null,
-              record?.multipleEpisodeWeekly ?? false
+              record?.multipleEpisodeWeekly ?? false,
+              editData.flatDayRate
             ).pay;
         }
       }
@@ -715,12 +721,43 @@ export default function WorkDetailPage() {
                           <SelectValue />
                         </SelectTrigger>
                         <SelectContent>
-                          <SelectItem value="theatrical_basic">Theatrical Basic</SelectItem>
-                          <SelectItem value="television">Television</SelectItem>
-                          <SelectItem value="stunt_coordinator">Stunt Coordinator</SelectItem>
+                          {AGREEMENTS.map((agreement) => (
+                            <SelectItem key={agreement.id} value={agreement.id}>
+                              {agreementLabel(agreement.id)}
+                            </SelectItem>
+                          ))}
                         </SelectContent>
                       </Select>
                     </div>
+                  </div>
+
+                  <div className="space-y-1">
+                    <Label
+                      htmlFor="edit-flatDayRate"
+                      className="text-sm text-muted-foreground"
+                    >
+                      Flat day rate ($) — leave empty to use the agreement
+                    </Label>
+                    <Input
+                      id="edit-flatDayRate"
+                      type="number"
+                      min="0"
+                      step="50"
+                      value={editData.flatDayRate ?? ""}
+                      onChange={(e) =>
+                        setEditData((d) => ({
+                          ...d,
+                          flatDayRate: parseFloat(e.target.value) || null,
+                        }))
+                      }
+                      placeholder="0.00"
+                    />
+                    {editData.flatDayRate ? (
+                      <p className="text-xs text-muted-foreground">
+                        One number for the day — no overtime, however long it
+                        ran. Meal penalties still land on top.
+                      </p>
+                    ) : null}
                   </div>
                   {/* Non-stunt-coordinator fields */}
                   {editData.workStatus !== "stunt_coordinator" && (

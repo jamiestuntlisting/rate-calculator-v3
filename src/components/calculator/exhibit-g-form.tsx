@@ -390,8 +390,13 @@ export function ExhibitGForm() {
 
   const extraContracts = useMemo(
     () =>
-      additionalContractPay(contracts, input.workStatus, multipleEpisodeWeekly),
-    [contracts, input.workStatus, multipleEpisodeWeekly]
+      additionalContractPay(
+        contracts,
+        input.workStatus,
+        multipleEpisodeWeekly,
+        input.flatDayRate
+      ),
+    [contracts, input.workStatus, multipleEpisodeWeekly, input.flatDayRate]
   );
 
   const handleExhibitGRotate = (index: number, rotation: number) => {

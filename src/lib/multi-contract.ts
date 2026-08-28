@@ -14,7 +14,8 @@
  * returns rather than changing it.
  */
 
-import { RATES, type RateSchedule } from "@/lib/rate-constants";
+import { type RateSchedule } from "@/lib/rate-constants";
+import { dayRateFor } from "@/lib/agreements";
 
 /** One Exhibit G is one contract, so the field only means something above this. */
 export const MIN_CONTRACTS_FOR_FIELD = 2;
@@ -36,14 +37,18 @@ export interface AdditionalContracts {
 /**
  * `contracts` counts every contract worked that day, including the one that
  * was calculated. The day rate is scale for the agreement — a stunt
- * adjustment is negotiated for the work done, not owed again per contract.
+ * adjustment is negotiated for the work done, not owed again per contract —
+ * except on a flat deal, where the flat number *is* the day rate, so that is
+ * what a second contract is owed. Taking scale there would pay a performer
+ * on a $2,500 flat deal $1,283 for their second contract.
  */
 export function additionalContractPay(
   contracts: number | null | undefined,
   schedule: RateSchedule | null | undefined,
-  multipleEpisodeWeekly: boolean
+  multipleEpisodeWeekly: boolean,
+  flatDayRate?: number | null
 ): AdditionalContracts {
-  const dayRate = RATES[schedule ?? "theatrical_basic"].daily;
+  const dayRate = dayRateFor(schedule, flatDayRate);
   const whole = Math.floor(contracts ?? 1);
   const count = Number.isFinite(whole) ? Math.max(0, whole - 1) : 0;
 

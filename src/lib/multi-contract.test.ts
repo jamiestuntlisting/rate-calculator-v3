@@ -65,4 +65,28 @@ describe("a day worked under more than one contract", () => {
   it("falls back to the theatrical day rate when no agreement is set", () => {
     expect(additionalContractPay(2, null, false).dayRate).toBe(DAY);
   });
+
+  it("owes a second contract the flat rate, not scale", () => {
+    // On a $2,500 flat deal the second contract is worth $2,500. Reaching
+    // for the schedule here would pay it $1,283 and lose the difference in
+    // silence — the flat number is this performer's day rate.
+    const flat = additionalContractPay(2, "theatrical_basic", false, 2500);
+    expect(flat.dayRate).toBe(2500);
+    expect(flat.pay).toBe(2500);
+
+    const scale = additionalContractPay(2, "theatrical_basic", false);
+    expect(scale.pay).toBe(DAY);
+  });
+
+  it("still stacks flat-deal contracts, and still lets a weekly absorb them", () => {
+    expect(additionalContractPay(4, "theatrical_basic", false, 2500).pay).toBe(7500);
+    expect(additionalContractPay(4, "theatrical_basic", true, 2500).pay).toBe(0);
+  });
+
+  it("ignores a flat rate of nothing, which is how the form says there is none", () => {
+    for (const none of [0, null, undefined]) {
+      expect(additionalContractPay(2, "theatrical_basic", false, none).dayRate)
+        .toBe(DAY);
+    }
+  });
 });
