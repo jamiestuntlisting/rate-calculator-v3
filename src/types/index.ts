@@ -108,6 +108,8 @@ export interface WorkRecord {
   workStatus: RateSchedule | null;
   /** A negotiated day rate instead of the schedule's — a flat deal. */
   flatDayRate?: number | null;
+  /** The day belongs to a weekly contract; its money comes from the week. */
+  weeklyContract?: boolean;
   characterName: string;
   notes: string;
   recordStatus: RecordStatus;

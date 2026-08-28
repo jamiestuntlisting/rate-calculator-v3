@@ -20,6 +20,7 @@ interface WorkRecordRow {
   secondMealFinish: string | null;
   stuntAdjustment: number;
   flatDayRate: number | null;
+  weeklyContract: number;
   contracts: number;
   multipleEpisodeWeekly: number;
   forcedCall: number;
@@ -62,6 +63,7 @@ export interface WorkRecordDoc {
   secondMealFinish: string | null;
   stuntAdjustment: number;
   flatDayRate: number | null;
+  weeklyContract: boolean;
   contracts: number;
   multipleEpisodeWeekly: boolean;
   forcedCall: boolean;
@@ -104,6 +106,7 @@ function toDoc(row: WorkRecordRow): WorkRecordDoc {
     secondMealFinish: row.secondMealFinish,
     stuntAdjustment: row.stuntAdjustment,
     flatDayRate: row.flatDayRate ?? null,
+    weeklyContract: i2b(row.weeklyContract),
     contracts: row.contracts ?? 1,
     multipleEpisodeWeekly: i2b(row.multipleEpisodeWeekly),
     forcedCall: i2b(row.forcedCall),
@@ -149,6 +152,7 @@ const FIELD_SERIALIZERS: Record<string, (v: unknown) => unknown> = {
   stuntAdjustment: (v) => Number(v) || 0,
   // Null rather than zero: a flat deal either names a rate or does not exist.
   flatDayRate: (v) => (Number(v) > 0 ? Number(v) : null),
+  weeklyContract: (v) => b2i(v),
   // A day is one contract unless told otherwise, never zero.
   contracts: (v) => Math.max(1, Math.floor(Number(v) || 1)),
   multipleEpisodeWeekly: (v) => b2i(v),

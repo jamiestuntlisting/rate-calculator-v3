@@ -126,7 +126,7 @@ export default function AnalyticsPage() {
   if (!stats || records.length === 0) {
     return (
       <div className="space-y-6">
-        <h1 className="text-2xl font-bold">Analytics</h1>
+        <h1 className="text-2xl font-bold">Summary</h1>
         <p className="text-muted-foreground">No work records yet. Start recording work days to see analytics.</p>
       </div>
     );
@@ -134,7 +134,7 @@ export default function AnalyticsPage() {
 
   return (
     <div className="space-y-6">
-      <h1 className="text-2xl font-bold">Analytics</h1>
+      <h1 className="text-2xl font-bold">Summary</h1>
 
       {/* Top-level stats */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">

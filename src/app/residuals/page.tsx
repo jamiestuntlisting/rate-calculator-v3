@@ -170,7 +170,7 @@ export default function ResidualsPage() {
     return (
       <div className="max-w-3xl mx-auto space-y-6">
         <div className="flex items-center justify-between">
-          <h1 className="text-2xl font-bold">Residuals Tracker</h1>
+          <h1 className="text-2xl font-bold">Residuals</h1>
         </div>
 
         <Card>
@@ -247,7 +247,7 @@ export default function ResidualsPage() {
   if (processing) {
     return (
       <div className="max-w-3xl mx-auto space-y-6">
-        <h1 className="text-2xl font-bold">Residuals Tracker</h1>
+        <h1 className="text-2xl font-bold">Residuals</h1>
         <Card>
           <CardContent className="pt-6">
             <div className="text-center space-y-4 py-12">
@@ -279,7 +279,7 @@ export default function ResidualsPage() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold">Residuals Tracker</h1>
+          <h1 className="text-2xl font-bold">Residuals</h1>
           {activeImport && (
             <p className="text-sm text-muted-foreground mt-1">
               {activeImport.performerName} &middot; {activeImport.filename}

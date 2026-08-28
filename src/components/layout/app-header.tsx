@@ -16,7 +16,7 @@ import { isAdminEmail } from "@/lib/admin-emails";
  * (membership, preferences) live in the user menu, not here — they are about
  * the person rather than the work.
  *
- * Non-SAG is reached from a button on Log Work.
+ * Other Work (commercials, music videos) is a button on Log Work.
  */
 interface NavChild {
   href: string;

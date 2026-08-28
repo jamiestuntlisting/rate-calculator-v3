@@ -132,7 +132,7 @@ export default function OtherWorkPage() {
     <div className="max-w-3xl mx-auto space-y-6">
       <Card>
         <CardHeader>
-          <CardTitle className="text-2xl">Non-SAG</CardTitle>
+          <CardTitle className="text-2xl">Other Work</CardTitle>
         </CardHeader>
         <CardContent className="space-y-6">
           {/* Work Category */}

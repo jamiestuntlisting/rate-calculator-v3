@@ -67,6 +67,26 @@ export function agreementLabel(id: string): string {
   return `${agreementName(id)} (${dayRate(rates.daily)})`;
 }
 
+/** "$4,785/wk", cents only where the tier lands on them. */
+export function weekRate(amount: number): string {
+  return `$${amount.toLocaleString("en-US", {
+    minimumFractionDigits: amount % 1 === 0 ? 0 : 2,
+    maximumFractionDigits: 2,
+  })}/wk`;
+}
+
+/**
+ * The same agreement, named with its weekly scale — what the picker shows
+ * when the day being logged belongs to a weekly contract. Same list, same
+ * ids: a weekly Theatrical performer is still `theatrical_basic`, the
+ * weekliness lives on the record, and the days are added into a week on
+ * /weekly.
+ */
+export function weeklyAgreementLabel(id: string): string {
+  const rates = RATES[id as RateSchedule] ?? RATES.theatrical_basic;
+  return `${agreementName(id)} (${weekRate(rates.weekly)})`;
+}
+
 /** The day rate a record is calculated on, flat deal or schedule. */
 export function dayRateFor(
   id: string | null | undefined,

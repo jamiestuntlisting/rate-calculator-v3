@@ -31,6 +31,7 @@ import {
   agreementLabel,
   dayRate,
   dayRateFor,
+  weeklyAgreementLabel,
 } from "@/lib/agreements";
 import { toast } from "sonner";
 import type { ExhibitGInput, WorkDocument, CalculationBreakdown } from "@/types";
@@ -136,15 +137,28 @@ export function ExhibitGForm() {
    * same value otherwise, and the box has to come before the number.
    */
   const [flatDeal, setFlatDeal] = useState(false);
+  /**
+   * The day belongs to a weekly contract. It still logs its times and
+   * still gets a daily working (the weekly derivation reads its overtime
+   * hours), but the money comes from folding it into a week on /weekly —
+   * five days at weekly scale is less than five day rates, so the daily
+   * figure is the working, not the entitlement. The flag rides the record
+   * so the weekly page can say which days are week days.
+   */
+  const [weeklyContract, setWeeklyContract] = useState(false);
   const [contractsTouched, setContractsTouched] = useState(false);
   const [multipleEpisodeWeekly, setMultipleEpisodeWeekly] = useState(false);
   const [showNdMeal, setShowNdMeal] = useState(false);
   const [showFirstMeal, setShowFirstMeal] = useState(true); // 1st meal selected by default
   const [showSecondMeal, setShowSecondMeal] = useState(false);
-  // Show live rate toggle (only available when work date is today)
-  const [showLiveRate, setShowLiveRate] = useState(false);
-  // Live rate mode: "counter" = real-time by the second, "6min" = 6-minute intervals
-  const [liveMode, setLiveMode] = useState<"counter" | "6min">("6min");
+  /**
+   * On by default: a day being logged as it happens should show what it is
+   * earning without being asked. It only applies while the day is running —
+   * today's date, no end time entered — and there is one mode, 6-minute
+   * intervals, because tenths of an hour are what payroll actually pays in.
+   * The by-the-second counter mode is gone: it looked precise and was not.
+   */
+  const [showLiveRate, setShowLiveRate] = useState(true);
   // Tick counter to trigger recalc for live rate
   const [liveTick, setLiveTick] = useState(0);
 
@@ -190,18 +204,14 @@ export function ExhibitGForm() {
   const wrapped = Boolean(input.dismissOnSet || input.dismissMakeupWardrobe);
   const liveRate = showLiveRate && !wrapped;
 
-  // Tick interval: 100ms for counter mode (smooth ticking), 60s for 6-min mode
   useEffect(() => {
     if (!liveRate) return;
-    const ms = liveMode === "counter" ? 100 : 60_000;
-    const interval = setInterval(() => setLiveTick((t) => t + 1), ms);
+    const interval = setInterval(() => setLiveTick((t) => t + 1), 60_000);
     return () => clearInterval(interval);
-  }, [liveRate, liveMode]);
+  }, [liveRate]);
 
   // Live calculation — runs whenever input changes (not for stunt coordinator — flat rate)
   // While the day is still running, the current time stands in for the dismissal
-  // Counter mode: recalcs every second with seconds precision for smooth ticking
-  // 6-min mode: recalcs every 60s with standard 6-min snapped time
   /**
    * An ND meal outside its window makes the engine throw, and the throw is
    * swallowed — so the running total just vanishes. Say why instead.
@@ -215,18 +225,8 @@ export function ExhibitGForm() {
     if (isStuntCoordinator) return null;
     if (!input.callTime) return null;
     if (liveRate) {
-      const now = new Date();
-      const dismissTime = `${String(now.getHours()).padStart(2, "0")}:${String(now.getMinutes()).padStart(2, "0")}`;
       try {
-        if (liveMode === "counter") {
-          // Pass current seconds + milliseconds for smooth real-time ticking
-          return calculateRate(
-            { ...input, dismissOnSet: dismissTime },
-            { skipRounding: true, additionalSeconds: now.getSeconds() + now.getMilliseconds() / 1000 }
-          );
-        } else {
-          return calculateRate({ ...input, dismissOnSet: getCurrentTimeSnapped() });
-        }
+        return calculateRate({ ...input, dismissOnSet: getCurrentTimeSnapped() });
       } catch {
         return null;
       }
@@ -239,7 +239,7 @@ export function ExhibitGForm() {
       return null;
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [input, isStuntCoordinator, liveRate, liveMode, liveTick]);
+  }, [input, isStuntCoordinator, liveRate, liveTick]);
 
   // Live meal penalty summary from the breakdown
   const liveMealPenaltySummary = useMemo(() => {
@@ -304,6 +304,7 @@ export function ExhibitGForm() {
             isHoliday: false,
             recordStatus: "complete",
             documents: allDocuments,
+            weeklyContract,
             expectedAmount: flatRate,
             paymentStatus: "unpaid",
             paidAmount: 0,
@@ -355,6 +356,7 @@ export function ExhibitGForm() {
           expectedAmount,
           contracts,
           multipleEpisodeWeekly,
+          weeklyContract,
           paymentStatus: "unpaid",
           paidAmount: 0,
         }),
@@ -545,7 +547,9 @@ export function ExhibitGForm() {
                 input.characterName,
                 input.flatDayRate
                   ? `Flat ${dayRate(input.flatDayRate)}`
-                  : agreementLabel(input.workStatus),
+                  : weeklyContract
+                    ? weeklyAgreementLabel(input.workStatus)
+                    : agreementLabel(input.workStatus),
               ]
                 .filter(Boolean)
                 .join(" · ") || "Show title, date, character, agreement"
@@ -589,6 +593,22 @@ export function ExhibitGForm() {
                   />
                 </div>
               )}
+              <div className="flex items-center space-x-2">
+                <Checkbox
+                  id="weeklyContract"
+                  checked={weeklyContract}
+                  onCheckedChange={(v) => setWeeklyContract(!!v)}
+                />
+                <Label htmlFor="weeklyContract" className="text-base font-normal">
+                  Weekly contract
+                </Label>
+              </div>
+              {weeklyContract && (
+                <p className="text-xs text-muted-foreground -mt-1">
+                  This day folds into a week — log it here, then add the days
+                  together on the Weekly page. Rates shown are weekly scale.
+                </p>
+              )}
               <div className="space-y-1 min-w-0">
                 <Label htmlFor="workStatus" className="text-base">Agreement Type</Label>
                 <Select
@@ -605,7 +625,9 @@ export function ExhibitGForm() {
                         value={agreement.id}
                         className="text-base"
                       >
-                        {agreementLabel(agreement.id)}
+                        {weeklyContract
+                          ? weeklyAgreementLabel(agreement.id)
+                          : agreementLabel(agreement.id)}
                       </SelectItem>
                     ))}
                   </SelectContent>
@@ -789,10 +811,12 @@ export function ExhibitGForm() {
             </div>
           </CollapsibleSection>
 
-          {/* Live rate toggle — a setting for the day, so it sits with the times
-              rather than beside the total it governs. */}
+          {/* Live rate — on by default while the day is running, and the
+              counter sits right under its own switch rather than at the
+              bottom of the page. Once an end time is entered the day is
+              over, this whole block goes, and the total shows below. */}
           {!isStuntCoordinator && isToday(input.workDate) && !wrapped && (
-            <div className="flex items-center gap-4">
+            <div className="space-y-3">
               <div className="flex items-center space-x-2">
                 <Checkbox
                   id="showLiveRate"
@@ -800,19 +824,29 @@ export function ExhibitGForm() {
                   onCheckedChange={(v) => setShowLiveRate(!!v)}
                 />
                 <Label htmlFor="showLiveRate" className="text-base font-normal">
-                  Live rate
+                  Show live rate
                 </Label>
               </div>
-              {liveRate && (
-                <Select value={liveMode} onValueChange={(v) => setLiveMode(v as "counter" | "6min")}>
-                  <SelectTrigger className="w-44 h-8 text-xs">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="counter">Counter (real-time)</SelectItem>
-                    <SelectItem value="6min">6-Minute Intervals</SelectItem>
-                  </SelectContent>
-                </Select>
+              {liveRate && liveBreakdown && (
+                <div className="rounded-lg border-2 border-primary bg-primary/5 p-4">
+                  <div className="text-center">
+                    <p className="text-sm text-muted-foreground">Live Rate</p>
+                    <p className="text-3xl font-bold tracking-tight tabular-nums">
+                      <AnimatedCurrency
+                        value={liveBreakdown.grandTotal + extraContracts.pay}
+                      />
+                    </p>
+                    <div className="flex justify-center gap-4 mt-2 text-xs text-muted-foreground">
+                      <span>{Number(liveBreakdown.netWorkHours.toFixed(1))}h worked</span>
+                      {liveBreakdown.penalties.totalPenalties > 0 && (
+                        <span>+ {formatCurrency(liveBreakdown.penalties.totalPenalties)} penalties</span>
+                      )}
+                    </div>
+                    <p className="text-xs text-muted-foreground mt-1">
+                      In 6-minute intervals — pay moves in tenths of an hour
+                    </p>
+                  </div>
+                </div>
               )}
             </div>
           )}
@@ -886,13 +920,12 @@ export function ExhibitGForm() {
             </div>
           </div>
 
-          {/* Live Rate Display */}
-          {liveBreakdown && (
+          {/* The settled total, once the day has an end. While the day is
+              still running the live counter above is the number. */}
+          {!liveRate && liveBreakdown && (
             <div className="rounded-lg border-2 border-primary bg-primary/5 p-4">
               <div className="text-center">
-                <p className="text-sm text-muted-foreground">
-                  {liveRate ? (liveMode === "counter" ? "Live Rate (real-time)" : "Live Rate (6-min intervals)") : "Calculated Total"}
-                </p>
+                <p className="text-sm text-muted-foreground">Calculated Total</p>
                 <p className="text-3xl font-bold tracking-tight tabular-nums">
                   <AnimatedCurrency
                     value={liveBreakdown.grandTotal + extraContracts.pay}

@@ -301,6 +301,11 @@ export function WeeklyForm() {
                     {record.showName || "—"}
                   </span>
                 </span>
+                {record.weeklyContract && (
+                  <span className="shrink-0 rounded px-1.5 py-0.5 text-[10px] uppercase tracking-wide border border-primary/40 text-primary">
+                    Weekly
+                  </span>
+                )}
               </label>
             ))}
           </div>

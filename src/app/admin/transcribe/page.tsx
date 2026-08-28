@@ -144,7 +144,7 @@ export default function AdminTranscribePage() {
             ← Admin
           </button>
         </div>
-        <h1 className="text-2xl font-bold">Transcribe Exhibit G</h1>
+        <h1 className="text-2xl font-bold">Transcribe</h1>
         <p className="text-sm text-muted-foreground mt-1">
           Pick a performer, then choose one of the Exhibit Gs they have
           uploaded but not transcribed. The next screen opens their G with the

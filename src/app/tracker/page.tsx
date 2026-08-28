@@ -127,7 +127,7 @@ export default function TrackerPage() {
       {/* The title wraps rather than running under the button: a flex item
           will not shrink below its content unless told to. */}
       <div className="flex items-center justify-between gap-3">
-        <h1 className="text-2xl font-bold min-w-0">Payment Tracker</h1>
+        <h1 className="text-2xl font-bold min-w-0">Tracker</h1>
         <Button asChild className="shrink-0">
           <Link href="/">Add Work Day</Link>
         </Button>

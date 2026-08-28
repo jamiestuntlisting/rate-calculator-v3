@@ -52,7 +52,7 @@ export default function UpcomingFeaturesPage() {
         >
           ← Admin
         </button>
-        <h1 className="text-2xl font-bold">Upcoming features</h1>
+        <h1 className="text-2xl font-bold">Upcoming</h1>
         <p className="text-sm text-muted-foreground mt-1">
           What is planned next for the Bookkeeper.
         </p>

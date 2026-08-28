@@ -166,7 +166,7 @@ export default function WeeklyBenchPage() {
         >
           ← Admin
         </button>
-        <h1 className="text-2xl font-bold">Weekly bench</h1>
+        <h1 className="text-2xl font-bold">Weekly Bench</h1>
         <p className="text-sm text-muted-foreground mt-1">
           Every weekly card in a ShowBiz SAG Cards export is run through our
           calculation and compared against what payroll actually paid. The
