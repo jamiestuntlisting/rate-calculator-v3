@@ -59,6 +59,7 @@ export default function AnalyticsPage() {
   /** Per-show paycheck amounts waiting to be applied. */
   const [checks, setChecks] = useState<Record<string, string>>({});
   const [busyShow, setBusyShow] = useState<string | null>(null);
+  const [checkOpenFor, setCheckOpenFor] = useState<string | null>(null);
 
   /** Write one day's payment and mirror it locally. */
   const savePaid = async (record: WorkRecord, amount: number) => {
@@ -229,13 +230,6 @@ export default function AnalyticsPage() {
       .map(([type, data]) => ({ type, ...data }))
       .sort((a, b) => b.expected - a.expected);
 
-    // Average daily rate (SAG-AFTRA only)
-    const sagRecords = records.filter(
-      (r) => r.workType !== "other" && r.expectedAmount && r.expectedAmount > 0
-    );
-    const avgDailyRate = sagRecords.length > 0
-      ? sagRecords.reduce((s, r) => s + (r.expectedAmount || 0), 0) / sagRecords.length
-      : 0;
 
     return {
       totalExpected,
@@ -250,7 +244,6 @@ export default function AnalyticsPage() {
       byShow,
       byMonth,
       byAgreement,
-      avgDailyRate,
     };
   }, [records]);
 
@@ -275,77 +268,52 @@ export default function AnalyticsPage() {
     <div className="space-y-6">
       <h1 className="text-2xl font-bold">Summary</h1>
 
-      {/* Top-level stats */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+      {/* Two questions, answered as a number and its split: how much money,
+          and how many days — each with a bar of where things stand. Colored
+          segments never stand alone: the legend names each with its count. */}
+      <div className="grid gap-4 md:grid-cols-2">
         <Card>
-          <CardContent className="pt-4">
-            <p className="text-sm text-muted-foreground">Total Work Days</p>
-            <p className="text-2xl font-bold">{stats.totalDays}</p>
+          <CardContent className="pt-4 space-y-3">
+            <div className="flex items-baseline justify-between gap-3">
+              <p className="text-sm text-muted-foreground">Total expected</p>
+              <p className="text-2xl font-bold tabular-nums">
+                {formatCurrency(stats.totalExpected)}
+              </p>
+            </div>
+            <Meter
+              segments={[
+                { label: "Paid", value: stats.totalPaid, className: "bg-green-500" },
+                { label: "Outstanding", value: Math.max(0, stats.totalOwed), className: "bg-red-400" },
+              ]}
+              format={formatCurrency}
+            />
           </CardContent>
         </Card>
+
         <Card>
-          <CardContent className="pt-4">
-            <p className="text-sm text-muted-foreground">Total Expected</p>
-            <p className="text-2xl font-bold">{formatCurrency(stats.totalExpected)}</p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="pt-4">
-            <p className="text-sm text-muted-foreground">Total Paid</p>
-            <p className="text-2xl font-bold text-green-400">{formatCurrency(stats.totalPaid)}</p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="pt-4">
-            <p className="text-sm text-muted-foreground">Outstanding</p>
-            <p className={`text-2xl font-bold ${stats.totalOwed > 0 ? "text-red-400" : ""}`}>
-              {formatCurrency(stats.totalOwed)}
-            </p>
+          <CardContent className="pt-4 space-y-3">
+            <div className="flex items-baseline justify-between gap-3">
+              <p className="text-sm text-muted-foreground">Work days</p>
+              <p className="text-2xl font-bold tabular-nums">{stats.totalDays}</p>
+            </div>
+            <Meter
+              segments={[
+                { label: "Paid", value: stats.paidCount, className: "bg-green-500" },
+                { label: "Underpaid", value: stats.underpaidCount, className: "bg-yellow-400" },
+                { label: "Late", value: stats.lateCount, className: "bg-purple-400" },
+                { label: "Unpaid", value: stats.unpaidCount, className: "bg-red-400" },
+              ]}
+              format={(n) => String(n)}
+            />
+            {stats.missingGCount > 0 && (
+              <p className="text-xs text-muted-foreground">
+                {stats.missingGCount} day{stats.missingGCount === 1 ? "" : "s"}{" "}
+                still missing an Exhibit G.
+              </p>
+            )}
           </CardContent>
         </Card>
       </div>
-
-      {/* Payment status overview */}
-      <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
-        <Card>
-          <CardContent className="pt-4">
-            <p className="text-sm text-muted-foreground">Paid</p>
-            <p className="text-xl font-bold text-green-400">{stats.paidCount}</p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="pt-4">
-            <p className="text-sm text-muted-foreground">Unpaid</p>
-            <p className="text-xl font-bold text-red-400">{stats.unpaidCount}</p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="pt-4">
-            <p className="text-sm text-muted-foreground">Late</p>
-            <p className="text-xl font-bold text-purple-400">{stats.lateCount}</p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="pt-4">
-            <p className="text-sm text-muted-foreground">Underpaid</p>
-            <p className="text-xl font-bold text-yellow-400">{stats.underpaidCount}</p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="pt-4">
-            <p className="text-sm text-muted-foreground">Missing G</p>
-            <p className="text-xl font-bold text-red-400">{stats.missingGCount}</p>
-          </CardContent>
-        </Card>
-      </div>
-
-      {/* Average daily rate */}
-      <Card>
-        <CardContent className="pt-4">
-          <p className="text-sm text-muted-foreground">Average Daily Rate (SAG-AFTRA)</p>
-          <p className="text-2xl font-bold">{formatCurrency(stats.avgDailyRate)}</p>
-        </CardContent>
-      </Card>
 
       {/* Earnings by Show */}
       <Card>
@@ -357,6 +325,14 @@ export default function AnalyticsPage() {
             <p className="text-muted-foreground text-sm">No data</p>
           ) : (
             <div className="space-y-1">
+              <div className="flex items-center gap-2 pb-1 border-b border-border text-[11px] uppercase tracking-wide text-muted-foreground">
+                <span className="flex-1 min-w-0">Show · date</span>
+                <span className="w-20 text-right shrink-0">Calculated</span>
+                <span className="w-24 text-right shrink-0 border-l border-border/40 pl-2">
+                  Paid
+                </span>
+                <span className="w-14 shrink-0" aria-hidden />
+              </div>
               {/* One row per day: show, date, what we calculated, what they
                   were paid (typed straight in), and the verdict — the same
                   ledger shape as a pay stub, nothing to open. */}
@@ -384,7 +360,7 @@ export default function AnalyticsPage() {
                         <span className="text-sm tabular-nums shrink-0 w-20 text-right">
                           {formatCurrency(record.expectedAmount || 0)}
                         </span>
-                        <div className="relative w-24 shrink-0">
+                        <div className="relative w-24 shrink-0 border-l border-border/40 pl-2">
                           <span className="absolute left-2 top-1/2 -translate-y-1/2 text-muted-foreground text-sm">
                             $
                           </span>
@@ -420,39 +396,65 @@ export default function AnalyticsPage() {
                   })}
 
                   <div className="flex items-center gap-2 py-1.5">
-                    <span className="flex-1 min-w-0 text-xs text-muted-foreground truncate">
-                      Add a paycheck for {show.name} — fills the oldest unpaid
-                      day first
+                    <span className="flex-1 min-w-0 text-xs font-medium">
+                      Total
                     </span>
-                    <div className="relative w-24 shrink-0">
-                      <span className="absolute left-2 top-1/2 -translate-y-1/2 text-muted-foreground text-sm">
-                        $
-                      </span>
-                      <Input
-                        type="number"
-                        inputMode="decimal"
-                        min="0"
-                        value={checks[show.name] ?? ""}
-                        onChange={(e) =>
-                          setChecks((prev) => ({
-                            ...prev,
-                            [show.name]: e.target.value,
-                          }))
+                    <span className="text-sm font-semibold tabular-nums shrink-0 w-20 text-right">
+                      {formatCurrency(show.expected)}
+                    </span>
+                    <span className="text-sm font-semibold tabular-nums shrink-0 w-24 text-right border-l border-border/40 pl-2">
+                      {formatCurrency(show.paid)}
+                    </span>
+                    <span className="w-14 shrink-0 text-center">
+                      <button
+                        type="button"
+                        aria-expanded={checkOpenFor === show.name}
+                        onClick={() =>
+                          setCheckOpenFor((prev) =>
+                            prev === show.name ? null : show.name
+                          )
                         }
-                        placeholder="0.00"
-                        className="pl-6 h-9 text-sm"
-                      />
-                    </div>
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      className="w-14 px-0"
-                      disabled={busyShow === show.name}
-                      onClick={() => applyCheck(show.name, show.records)}
-                    >
-                      {busyShow === show.name ? "…" : "Apply"}
-                    </Button>
+                        className="rounded border border-border px-1.5 py-0.5 text-[10px] text-muted-foreground hover:bg-accent"
+                      >
+                        ＋ Check
+                      </button>
+                    </span>
                   </div>
+                  {checkOpenFor === show.name && (
+                    <div className="flex items-center gap-2 py-1.5">
+                      <span className="flex-1 min-w-0 text-xs text-muted-foreground">
+                        Paycheck — fills the oldest unpaid day first
+                      </span>
+                      <div className="relative w-24 shrink-0">
+                        <span className="absolute left-2 top-1/2 -translate-y-1/2 text-muted-foreground text-sm">
+                          $
+                        </span>
+                        <Input
+                          type="number"
+                          inputMode="decimal"
+                          min="0"
+                          value={checks[show.name] ?? ""}
+                          onChange={(e) =>
+                            setChecks((prev) => ({
+                              ...prev,
+                              [show.name]: e.target.value,
+                            }))
+                          }
+                          placeholder="0.00"
+                          className="pl-6 h-9 text-sm"
+                        />
+                      </div>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="w-14 px-0"
+                        disabled={busyShow === show.name}
+                        onClick={() => applyCheck(show.name, show.records)}
+                      >
+                        {busyShow === show.name ? "…" : "Apply"}
+                      </Button>
+                    </div>
+                  )}
                 </div>
               ))}
             </div>
@@ -515,6 +517,49 @@ export default function AnalyticsPage() {
           </div>
         </CardContent>
       </Card>
+    </div>
+  );
+}
+
+/**
+ * A single stacked bar with its legend: the number's split, in one glance.
+ * Segments keep a 2px surface gap so adjacent colors never touch, and the
+ * legend carries every label and amount — the color is reinforcement, not
+ * the message.
+ */
+function Meter({
+  segments,
+  format,
+}: {
+  segments: Array<{ label: string; value: number; className: string }>;
+  format: (n: number) => string;
+}) {
+  const shown = segments.filter((s) => s.value > 0);
+  const total = shown.reduce((n, s) => n + s.value, 0);
+  if (total <= 0) {
+    return <p className="text-xs text-muted-foreground">Nothing yet.</p>;
+  }
+  return (
+    <div className="space-y-2">
+      <div className="flex h-3 w-full gap-[2px] overflow-hidden rounded-full bg-muted/30">
+        {shown.map((segment) => (
+          <div
+            key={segment.label}
+            title={`${segment.label}: ${format(segment.value)}`}
+            style={{ width: `${(segment.value / total) * 100}%` }}
+            className={`${segment.className} min-w-[3px]`}
+          />
+        ))}
+      </div>
+      <div className="flex flex-wrap gap-x-4 gap-y-1">
+        {shown.map((segment) => (
+          <span key={segment.label} className="flex items-center gap-1.5 text-xs">
+            <span aria-hidden className={`h-2 w-2 rounded-sm ${segment.className}`} />
+            <span className="text-muted-foreground">{segment.label}</span>
+            <span className="tabular-nums font-medium">{format(segment.value)}</span>
+          </span>
+        ))}
+      </div>
     </div>
   );
 }

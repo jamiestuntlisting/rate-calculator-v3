@@ -231,7 +231,9 @@ export default function UploadGPage() {
             Camera
           </Button>
           <Button asChild variant="outline">
-            <Link href="/membership">Need help transcribing?</Link>
+            {/* Straight to the page that can actually request the help —
+                it asks us to transcribe and explains what it costs. */}
+            <Link href="/get-started">Need help transcribing?</Link>
           </Button>
           <Button
             onClick={() => fileInputRef.current?.click()}
