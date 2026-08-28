@@ -138,3 +138,82 @@ export async function saveWeekly(
     .first<WeeklyRow>();
   return saved!;
 }
+
+/**
+ * Put one day into a weekly (or take it out), after the fact.
+ *
+ * The weekly page stamps a whole week at once; the tracker assigns days
+ * one at a time as people tidy up history. An unnamed day joining a
+ * weekly takes the weekly's title with the next free Day number, same as
+ * a bulk save, so the tracker never shows an anonymous row inside a
+ * named group.
+ */
+export async function assignRecordToWeekly(
+  userId: string,
+  recordId: string,
+  weeklyId: string | null
+): Promise<void> {
+  const db = await getDb();
+  const now = nowIso();
+
+  if (weeklyId === null) {
+    await db
+      .prepare(
+        "UPDATE work_records SET weeklyId = NULL, weeklyContract = 0, updatedAt = ?2 WHERE _id = ?1 AND userId = ?3"
+      )
+      .bind(recordId, now, userId)
+      .run();
+    return;
+  }
+
+  const weekly = await db
+    .prepare("SELECT * FROM weeklies WHERE _id = ?1 AND userId = ?2")
+    .bind(weeklyId, userId)
+    .first<WeeklyRow>();
+  if (!weekly) throw new Error("No such weekly");
+
+  const row = await db
+    .prepare("SELECT showName FROM work_records WHERE _id = ?1 AND userId = ?2")
+    .bind(recordId, userId)
+    .first<{ showName: string }>();
+  if (!row) throw new Error("No such record");
+
+  const unnamed =
+    !row.showName.trim() ||
+    /^Untranscribed Exhibit G \d+$/.test(row.showName) ||
+    row.showName.startsWith(`${weekly.title} — Day `);
+
+  if (unnamed) {
+    const { results } = await db
+      .prepare(
+        "SELECT showName FROM work_records WHERE userId = ?1 AND weeklyId = ?2"
+      )
+      .bind(userId, weeklyId)
+      .all<{ showName: string }>();
+    let max = 0;
+    for (const member of results ?? []) {
+      const n = Number(/ — Day (\d+)$/.exec(member.showName)?.[1]);
+      if (Number.isFinite(n) && n > max) max = n;
+    }
+    await db
+      .prepare(
+        "UPDATE work_records SET weeklyId = ?2, weeklyContract = 1, workStatus = ?3, showName = ?4, updatedAt = ?5 WHERE _id = ?1 AND userId = ?6"
+      )
+      .bind(
+        recordId,
+        weeklyId,
+        weekly.agreement,
+        `${weekly.title} — Day ${max + 1}`,
+        now,
+        userId
+      )
+      .run();
+  } else {
+    await db
+      .prepare(
+        "UPDATE work_records SET weeklyId = ?2, weeklyContract = 1, workStatus = ?3, updatedAt = ?4 WHERE _id = ?1 AND userId = ?5"
+      )
+      .bind(recordId, weeklyId, weekly.agreement, now, userId)
+      .run();
+  }
+}

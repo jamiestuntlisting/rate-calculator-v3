@@ -137,6 +137,16 @@ state stays in step.
   go live for everyone. The defaults stay written in the code, so an empty
   override store is exactly the page as committed. Reading is public,
   writing is admin-only. Admin → Pages links to them.
+- **Email intake** — mail an Exhibit G to the intake Gmail and it lands in
+  the sender's account: a Google Apps Script inside the mailbox POSTs each
+  message to `/api/inbound-email` (secret in `app_config` under
+  `INBOUND_EMAIL_SECRET`; the route is exempt from the session middleware
+  and authenticates the header itself). Senders match on their login
+  email; unknown senders are refused and the script labels the thread
+  `unmatched`. Setup and the script live in docs/email-in-exhibit-gs.md —
+  James still has to install it in the Gmail account. All upload paths
+  share `src/lib/g-ingest.ts`, so email, the Upload button and the bulk
+  page behave identically (dedupe, numbered rows, the queue).
 - **Auth** — StuntListing GraphQL login → JWT session cookie. The signing
   key comes from `SESSION_SECRET` on the Worker if set, else from the
   `app_config` table in D1 (`src/lib/session-secret.ts`). The D1 fallback is

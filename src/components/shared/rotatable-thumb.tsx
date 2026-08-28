@@ -31,13 +31,16 @@ export function RotatableThumb({
 }) {
   return (
     <div className={`relative ${className}`}>
-      <div className="aspect-square w-full overflow-hidden rounded-md border border-border bg-muted/40 flex items-center justify-center">
+      <div className="relative aspect-square w-full overflow-hidden rounded-md border border-border bg-muted/40">
+        {/* Absolute fill + object-contain: the one sizing recipe browsers
+            get right for images of any intrinsic size. Flex centering with
+            max-height collapsed big phone photos to slivers. */}
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img
           src={src}
           alt={alt}
           style={{ transform: `rotate(${rotation}deg)` }}
-          className="max-w-full max-h-full object-contain transition-transform"
+          className="absolute inset-0 h-full w-full object-contain transition-transform"
         />
       </div>
       {onRotate && (

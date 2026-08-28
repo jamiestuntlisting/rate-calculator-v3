@@ -1,11 +1,13 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { TimeSelect, toDisplay } from "@/components/calculator/time-select";
 import { AGREEMENTS, agreementLabel, dayRate } from "@/lib/agreements";
+import { GapLine } from "@/components/calculator/gap-line";
 import { effectiveHourlyRate, workHoursFor } from "@/lib/work-hours";
 import { addMinutes, MEAL_MINUTES } from "@/components/calculator/time-select";
 import { Label } from "@/components/ui/label";
@@ -93,7 +95,7 @@ export default function WorkDetailPage() {
   // Inline edit state
   const [editing, setEditing] = useState(false);
   const [editData, setEditData] = useState({
-    flatDayRate: null as number | null,
+    weeklyContract: false,
     showName: "",
     workDate: "",
     characterName: "",
@@ -188,6 +190,27 @@ export default function WorkDetailPage() {
     return lines;
   })();
 
+  /** Shows this member has logged, for the Show field's autocomplete. */
+  const [knownShows, setKnownShows] = useState<string[]>([]);
+  /** The g_upload linked to this record, if it still needs transcribing. */
+  const [linkedUpload, setLinkedUpload] = useState<string | null>(null);
+  useEffect(() => {
+    fetch("/api/suggestions?kind=show")
+      .then((r) => r.json())
+      .then((data) => setKnownShows(data.names ?? []))
+      .catch(() => {});
+    fetch("/api/g-uploads")
+      .then((r) => r.json())
+      .then((data) => {
+        const mine = (data.uploads ?? []).find(
+          (u: { workRecordId?: string | null; transcription: unknown }) =>
+            u.workRecordId === id && !u.transcription
+        );
+        setLinkedUpload(mine?._id ?? null);
+      })
+      .catch(() => {});
+  }, [id]);
+
   const transcribeDoc: (WorkDocument & { index: number }) | null = (() => {
     const viewable = (record?.documents ?? [])
       .map((doc, index) => ({ ...doc, index }))
@@ -229,7 +252,7 @@ export default function WorkDetailPage() {
         isSeventhDay: record.isSeventhDay || false,
         isHoliday: record.isHoliday || false,
         workStatus: record.workStatus || "theatrical_basic",
-        flatDayRate: record.flatDayRate ?? null,
+        weeklyContract: record.weeklyContract || false,
         ndMealIn: record.ndMealIn || "",
         ndMealOut: record.ndMealOut || "",
         firstMealStart: record.firstMealStart || "",
@@ -244,6 +267,33 @@ export default function WorkDetailPage() {
   const cancelEditing = () => {
     setEditing(false);
   };
+
+  /**
+   * Edits save themselves: two and a half seconds after the last change,
+   * the record is written and recalculated in place, without closing the
+   * form or raising a toast. The Save button remains for the impatient
+   * and as the visible promise that the work is kept.
+   */
+  const editDataRef = useRef(editData);
+  editDataRef.current = editData;
+  const autoSaveArmed = useRef(false);
+  useEffect(() => {
+    if (!editing || isOtherWorkType) return;
+    // Skip the render that opened the form; only real changes save.
+    if (!autoSaveArmed.current) {
+      autoSaveArmed.current = true;
+      return;
+    }
+    if (!editData.showName.trim()) return;
+    const timer = setTimeout(() => {
+      handleSaveEdit({ silent: true });
+    }, 2500);
+    return () => clearTimeout(timer);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [editData, editing, isOtherWorkType]);
+  useEffect(() => {
+    if (!editing) autoSaveArmed.current = false;
+  }, [editing]);
 
   const handleSaveOtherEdit = async () => {
     if (!otherEditData.showName.trim()) {
@@ -285,7 +335,7 @@ export default function WorkDetailPage() {
     }
   };
 
-  const handleSaveEdit = async () => {
+  const handleSaveEdit = async (opts?: { silent?: boolean }) => {
     if (isOtherWorkType) {
       return handleSaveOtherEdit();
     }
@@ -331,8 +381,10 @@ export default function WorkDetailPage() {
         if (!res.ok) throw new Error("Failed to update");
         const updated = await res.json();
         setRecord(updated);
-        setEditing(false);
-        toast.success("Record updated!");
+        if (!opts?.silent) {
+          setEditing(false);
+          toast.success("Record updated!");
+        }
         return;
       }
 
@@ -356,8 +408,10 @@ export default function WorkDetailPage() {
         isHoliday: editData.isHoliday,
         workStatus: editData.workStatus,
         // Without this the recalculation drops the flat deal, puts the day
-        // back on scale and pays it overtime a flat deal never earns.
-        flatDayRate: editData.flatDayRate || null,
+        // back on scale and pays it overtime a flat deal never earns. The
+        // flat rate is set on Log Work; here it just survives the edit.
+        flatDayRate: record?.flatDayRate ?? null,
+        weeklyContract: editData.weeklyContract,
         characterName: editData.characterName,
         notes: record?.notes || "",
       };
@@ -384,7 +438,7 @@ export default function WorkDetailPage() {
               record?.contracts,
               editData.workStatus as RateSchedule | null,
               record?.multipleEpisodeWeekly ?? false,
-              editData.flatDayRate
+              record?.flatDayRate
             ).pay;
         }
       }
@@ -417,8 +471,10 @@ export default function WorkDetailPage() {
 
       const updated = await res.json();
       setRecord(updated);
-      setEditing(false);
-      toast.success("Record updated and recalculated!");
+      if (!opts?.silent) {
+        setEditing(false);
+        toast.success("Record updated and recalculated!");
+      }
     } catch {
       toast.error("Failed to save changes");
     } finally {
@@ -609,7 +665,7 @@ export default function WorkDetailPage() {
                 <div className="flex gap-2">
                   <Button
                     size="sm"
-                    onClick={handleSaveEdit}
+                    onClick={() => handleSaveEdit()}
                     disabled={savingEdit}
                   >
                     <Save className="mr-1 h-3 w-3" />
@@ -646,6 +702,13 @@ export default function WorkDetailPage() {
                     initialRotation={transcribeDoc.rotation ?? 0}
                     onRotate={(r) => rotateDocument(transcribeDoc.index, r)}
                   />
+                  {linkedUpload && (
+                    <Button asChild size="sm" className="mt-2">
+                      <Link href={`/upload-g/${linkedUpload}`}>
+                        Open the transcription view
+                      </Link>
+                    </Button>
+                  )}
                   <p className="text-xs text-muted-foreground mt-2">
                     Pinch or use the controls to get in close, and rotate if
                     it came in sideways. Fill the fields below from the card.
@@ -808,9 +871,15 @@ export default function WorkDetailPage() {
                     <div className="space-y-1">
                       <Label className="text-sm text-muted-foreground">Show</Label>
                       <Input
+                        list="known-shows-edit"
                         value={editData.showName}
                         onChange={(e) => setEditData(d => ({ ...d, showName: e.target.value }))}
                       />
+                      <datalist id="known-shows-edit">
+                        {knownShows.map((name) => (
+                          <option key={name} value={name} />
+                        ))}
+                      </datalist>
                     </div>
                     <div className="space-y-1">
                       <Label className="text-sm text-muted-foreground">Date</Label>
@@ -820,13 +889,13 @@ export default function WorkDetailPage() {
                         onChange={(e) => setEditData(d => ({ ...d, workDate: e.target.value }))}
                       />
                     </div>
-                    <div className="space-y-1">
+                    <div className="space-y-1 min-w-0">
                       <Label className="text-sm text-muted-foreground">Agreement Type</Label>
                       <Select
                         value={editData.workStatus}
                         onValueChange={(v) => setEditData(d => ({ ...d, workStatus: v }))}
                       >
-                        <SelectTrigger>
+                        <SelectTrigger className="w-full min-w-0">
                           <SelectValue />
                         </SelectTrigger>
                         <SelectContent>
@@ -840,35 +909,23 @@ export default function WorkDetailPage() {
                     </div>
                   </div>
 
-                  <div className="space-y-1">
-                    <Label
-                      htmlFor="edit-flatDayRate"
-                      className="text-sm text-muted-foreground"
-                    >
-                      Flat day rate ($) — leave empty to use the agreement
-                    </Label>
-                    <Input
-                      id="edit-flatDayRate"
-                      type="number"
-                      min="0"
-                      step="50"
-                      value={editData.flatDayRate ?? ""}
-                      onChange={(e) =>
-                        setEditData((d) => ({
-                          ...d,
-                          flatDayRate: parseFloat(e.target.value) || null,
-                        }))
-                      }
-                      placeholder="0.00"
+                  <div className="flex items-center space-x-2">
+                    <Checkbox
+                      id="edit-weeklyContract"
+                      checked={editData.weeklyContract}
+                      onCheckedChange={(v) => setEditData(d => ({ ...d, weeklyContract: !!v }))}
                     />
-                    {editData.flatDayRate ? (
-                      <p className="text-xs text-muted-foreground">
-                        One number for the day — no overtime, however long it
-                        ran. Meal penalties still land on top.
-                      </p>
-                    ) : null}
+                    <Label htmlFor="edit-weeklyContract" className="text-sm font-normal">
+                      Weekly contract — this day folds into a week on the
+                      Weekly page
+                    </Label>
                   </div>
-                  {/* Non-stunt-coordinator fields */}
+
+                  {/* Non-stunt-coordinator fields, in the same order the
+                      Log Work page asks: call, the meals in the middle,
+                      then the two ends of the day. The engine reads the
+                      meals for penalties, so they belong where they
+                      happened, not at the bottom. */}
                   {editData.workStatus !== "stunt_coordinator" && (
                     <>
                       <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
@@ -887,27 +944,6 @@ export default function WorkDetailPage() {
                             onChange={(v) => setEditData(d => ({ ...d, callTime: v }))}
                           />
                         </div>
-                      </div>
-                      <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-                        <div className="space-y-1">
-                          <Label className="text-sm text-muted-foreground">Dismiss On Set</Label>
-                          <TimeSelect
-                            id="edit-dismissOnSet"
-                            value={editData.dismissOnSet}
-                            onChange={(v) => setEditData(d => ({ ...d, dismissOnSet: v }))}
-                          />
-                        </div>
-                        <div className="space-y-1">
-                          <Label className="text-sm text-muted-foreground">Wrapped</Label>
-                          <TimeSelect
-                            id="edit-dismissMakeupWardrobe"
-                            value={editData.dismissMakeupWardrobe || ""}
-                            onChange={(v) => setEditData(d => ({ ...d, dismissMakeupWardrobe: v || null }))}
-                            clearable
-                          />
-                        </div>
-                      </div>
-                      <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
                         <div className="space-y-1">
                           <Label className="text-sm text-muted-foreground">Stunt Adj ($)</Label>
                           <Input
@@ -918,6 +954,36 @@ export default function WorkDetailPage() {
                             onChange={(e) => setEditData(d => ({ ...d, stuntAdjustment: parseFloat(e.target.value) || 0 }))}
                           />
                         </div>
+                      </div>
+
+                      <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+                        <div className="space-y-1">
+                          <Label className="text-sm text-muted-foreground">ND Meal In</Label>
+                          <TimeSelect
+                            id="edit-ndMealIn"
+                            value={editData.ndMealIn || ""}
+                            onChange={(v) => setEditData(d => ({ ...d, ndMealIn: v || null }))}
+                            clearable
+                          />
+                        </div>
+                        <div className="space-y-1">
+                          <Label className="text-sm text-muted-foreground">ND Meal Out</Label>
+                          <TimeSelect
+                            id="edit-ndMealOut"
+                            value={editData.ndMealOut || ""}
+                            onChange={(v) => setEditData(d => ({ ...d, ndMealOut: v || null }))}
+                            clearable
+                          />
+                        </div>
+                      </div>
+
+                      <GapLine
+                        from={editData.callTime}
+                        to={editData.firstMealStart}
+                        label="from call to 1st meal"
+                        warnAfterHours={6}
+                      />
+                      <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
                         <div className="space-y-1">
                           <Label className="text-sm text-muted-foreground">1st Meal Start</Label>
                           <TimeSelect
@@ -947,6 +1013,77 @@ export default function WorkDetailPage() {
                           />
                         </div>
                       </div>
+
+                      <GapLine
+                        from={editData.firstMealFinish}
+                        to={editData.secondMealStart}
+                        label="from 1st meal to 2nd"
+                        warnAfterHours={6}
+                      />
+                      <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+                        <div className="space-y-1">
+                          <Label className="text-sm text-muted-foreground">2nd Meal Start</Label>
+                          <TimeSelect
+                            id="edit-secondMealStart"
+                            value={editData.secondMealStart || ""}
+                            onChange={(v) =>
+                              setEditData((d) => ({
+                                ...d,
+                                secondMealStart: v || null,
+                                secondMealFinish:
+                                  v && !d.secondMealFinish
+                                    ? addMinutes(v, MEAL_MINUTES)
+                                    : d.secondMealFinish,
+                              }))
+                            }
+                            clearable
+                          />
+                        </div>
+                        <div className="space-y-1">
+                          <Label className="text-sm text-muted-foreground">2nd Meal Finish</Label>
+                          <TimeSelect
+                            id="edit-secondMealFinish"
+                            value={editData.secondMealFinish || ""}
+                            onChange={(v) => setEditData(d => ({ ...d, secondMealFinish: v || null }))}
+                            clearable
+                          />
+                        </div>
+                      </div>
+
+                      <GapLine
+                        from={
+                          editData.secondMealFinish ||
+                          editData.firstMealFinish ||
+                          editData.callTime
+                        }
+                        to={editData.dismissOnSet}
+                        label={
+                          editData.secondMealFinish || editData.firstMealFinish
+                            ? "from the last meal to dismissal"
+                            : "from call to dismissal"
+                        }
+                        warnAfterHours={6}
+                      />
+                      <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+                        <div className="space-y-1">
+                          <Label className="text-sm text-muted-foreground">Dismiss On Set</Label>
+                          <TimeSelect
+                            id="edit-dismissOnSet"
+                            value={editData.dismissOnSet}
+                            onChange={(v) => setEditData(d => ({ ...d, dismissOnSet: v }))}
+                          />
+                        </div>
+                        <div className="space-y-1">
+                          <Label className="text-sm text-muted-foreground">Wrapped</Label>
+                          <TimeSelect
+                            id="edit-dismissMakeupWardrobe"
+                            value={editData.dismissMakeupWardrobe || ""}
+                            onChange={(v) => setEditData(d => ({ ...d, dismissMakeupWardrobe: v || null }))}
+                            clearable
+                          />
+                        </div>
+                      </div>
+
                       {/* Day Type & Penalties checkboxes */}
                       <div className="flex flex-wrap gap-4 pt-2">
                         <div className="flex items-center space-x-2">
@@ -984,6 +1121,19 @@ export default function WorkDetailPage() {
                       </div>
                     </>
                   )}
+
+                  <Button
+                    className="w-full"
+                    onClick={() => handleSaveEdit()}
+                    disabled={savingEdit}
+                  >
+                    <Save className="mr-2 h-4 w-4" />
+                    {savingEdit ? "Saving…" : "Save Changes"}
+                  </Button>
+                  <p className="text-xs text-muted-foreground -mt-2 text-center">
+                    Changes also save themselves a moment after you stop
+                    editing.
+                  </p>
                 </div>
               ) : (
                 <div className="grid grid-cols-2 md:grid-cols-3 gap-4 text-sm">

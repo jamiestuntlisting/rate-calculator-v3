@@ -29,8 +29,10 @@ export async function POST(req: Request) {
     if (!title) {
       return NextResponse.json({ error: "A show title is required" }, { status: 400 });
     }
-    if (!/^\d{4}-\d{2}-\d{2}$/.test(weekStart) || recordIds.length === 0) {
-      return NextResponse.json({ error: "A week and its days are required" }, { status: 400 });
+    // Days are optional: a weekly can be created bare from the tracker and
+    // have its days assigned to it one at a time afterwards.
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(weekStart)) {
+      return NextResponse.json({ error: "A start date is required" }, { status: 400 });
     }
     const userId = await getEffectiveUserId(auth.session);
     const weekly = await saveWeekly(userId, {

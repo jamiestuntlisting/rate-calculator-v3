@@ -85,6 +85,22 @@ export function TimeSelect({
         step={STEP_SECONDS}
         value={toFieldValue(value)}
         onChange={(e) => onChange(e.target.value)}
+        onKeyDown={(e) => {
+          // A or P flips the meridiem from any segment, not just the last
+          // one — the native field only honours them with AM/PM focused,
+          // and nobody knows which segment their cursor is in.
+          const key = e.key.toLowerCase();
+          if (key !== "a" && key !== "p") return;
+          const current = toFieldValue(value);
+          const m = /^(\d{2}):(\d{2})$/.exec(current);
+          if (!m) return;
+          const hour = Number(m[1]);
+          const next =
+            key === "p" ? (hour % 12) + 12 : hour % 12;
+          if (next !== hour) {
+            onChange(`${String(next).padStart(2, "0")}:${m[2]}`);
+          }
+        }}
         className={
           "w-full min-w-0 rounded-md border border-input bg-background " +
           "focus:outline-none focus:ring-2 focus:ring-ring " +
