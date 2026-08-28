@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { Editable, EditablePage } from "@/components/shared/editable-page";
 
 import { useEffect, useState } from "react";
 import { Check, HelpCircle, Loader2, Minus } from "lucide-react";
@@ -71,9 +72,12 @@ export default function MembershipPage() {
   };
 
   return (
+    <EditablePage page="membership">
     <div className="container mx-auto px-4 py-8 max-w-5xl">
       <div className="text-center mb-8">
-        <h1 className="text-3xl font-bold">Membership</h1>
+        <h1 className="text-3xl font-bold">
+          <Editable k="title" d="Membership" />
+        </h1>
         <p className="text-muted-foreground mt-2">
           {loading
             ? "Checking your membership…"
@@ -82,7 +86,10 @@ export default function MembershipPage() {
               : "Pick the membership that fits how you work."}
         </p>
         <p className="text-sm text-muted-foreground mt-1">
-          No payment is collected yet — switch freely while we finish billing.
+          <Editable
+            k="billing-note"
+            d="No payment is collected yet — switch freely while we finish billing."
+          />
         </p>
         <Link
           href="/membership/quiz"
@@ -105,25 +112,32 @@ export default function MembershipPage() {
                   : "border-border"
               }`}
             >
-              <h2 className="text-xl font-semibold">{plan.name}</h2>
+              <h2 className="text-xl font-semibold">
+                <Editable k={`plan.${plan.id}.name`} d={plan.name} />
+              </h2>
 
               <p className="mt-2">
-                <span className="text-3xl font-bold">${plan.price}</span>
+                <span className="text-3xl font-bold">
+                  <Editable k={`plan.${plan.id}.price`} d={`$${plan.price}`} />
+                </span>
                 <span className="text-muted-foreground text-sm">/month</span>
               </p>
               {plan.perGPrice !== undefined && (
                 <p className="text-sm font-medium mt-1">
-                  + ${plan.perGPrice} per Exhibit G
+                  <Editable
+                    k={`plan.${plan.id}.perG`}
+                    d={`+ $${plan.perGPrice} per Exhibit G`}
+                  />
                 </p>
               )}
               {plan.priceNote && (
                 <p className="text-xs text-muted-foreground mt-1">
-                  {plan.priceNote}
+                  <Editable k={`plan.${plan.id}.priceNote`} d={plan.priceNote} />
                 </p>
               )}
 
               <p className="text-sm text-muted-foreground mt-3 flex-1">
-                {plan.tagline}
+                <Editable k={`plan.${plan.id}.tagline`} d={plan.tagline} />
               </p>
 
               <Button
@@ -208,5 +222,6 @@ export default function MembershipPage() {
         </table>
       </div>
     </div>
+    </EditablePage>
   );
 }

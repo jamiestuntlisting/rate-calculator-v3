@@ -121,6 +121,13 @@ state stays in step.
   work is quoted as a day rate, and a day rate means nothing until you know
   whether the day ran eight hours or sixteen. The columns already existed
   on `work_records`, so this needed no migration.
+- **Editable pages** — `/how-it-works` and `/membership` render through
+  `EditablePage`/`Editable` (`src/components/shared/editable-page.tsx`).
+  An admin gets an "Edit page" button; edits save as JSON overrides in
+  `app_config` (`page_content:<page>`) via `/api/page-content/[page]` and
+  go live for everyone. The defaults stay written in the code, so an empty
+  override store is exactly the page as committed. Reading is public,
+  writing is admin-only. Admin → Pages links to them.
 - **Auth** — StuntListing GraphQL login → JWT session cookie. The signing
   key comes from `SESSION_SECRET` on the Worker if set, else from the
   `app_config` table in D1 (`src/lib/session-secret.ts`). The D1 fallback is

@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { HowItWorksFlow } from "@/components/how-it-works/flow";
+import { Editable, EditablePage } from "@/components/shared/editable-page";
 
 export const metadata = {
   title: "How the Bookkeeper works",
@@ -17,15 +18,17 @@ export const metadata = {
  */
 export default function HowItWorksPage() {
   return (
+    <EditablePage page="how-it-works">
     <div className="max-w-2xl mx-auto px-4 py-8 space-y-6">
       <div className="space-y-2">
         <h1 className="text-3xl font-bold tracking-tight">
-          What this actually does
+          <Editable k="hero.title" d="What this actually does" />
         </h1>
         <p className="text-muted-foreground leading-relaxed">
-          It works out what you are owed for a day, checks it against what you
-          were paid, and writes the email when those two do not match. Walk
-          through it — the numbers and the email below are the real ones.
+          <Editable
+            k="hero.body"
+            d="It works out what you are owed for a day, checks it against what you were paid, and writes the email when those two do not match. Walk through it — the numbers and the email below are the real ones."
+          />
         </p>
       </div>
 
@@ -43,5 +46,6 @@ export default function HowItWorksPage() {
         </span>
       </div>
     </div>
+    </EditablePage>
   );
 }

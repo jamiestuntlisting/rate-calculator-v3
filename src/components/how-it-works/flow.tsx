@@ -5,6 +5,7 @@ import Link from "next/link";
 import { calculateRate } from "@/lib/rate-engine";
 import { formatCurrency } from "@/lib/time-utils";
 import { compareStub, disputeMessage, type PayStubLine } from "@/lib/pay-stub";
+import { Editable } from "@/components/shared/editable-page";
 
 /**
  * How the Bookkeeper works, walked rather than read.
@@ -242,13 +243,15 @@ export function HowItWorksFlow() {
       >
         <div className="space-y-1">
           <p className="text-xs uppercase tracking-wide text-muted-foreground">
-            {node.step}
+            <Editable k={`${current}.step`} d={node.step} />
           </p>
-          <h2 className="text-xl font-semibold tracking-tight">{node.title}</h2>
+          <h2 className="text-xl font-semibold tracking-tight">
+            <Editable k={`${current}.title`} d={node.title} />
+          </h2>
         </div>
 
         <p className="text-base leading-relaxed text-foreground/90">
-          {node.body}
+          <Editable k={`${current}.body`} d={node.body} />
         </p>
 
         {node.detail === "calculation" && <ExampleCalculation />}
@@ -263,10 +266,18 @@ export function HowItWorksFlow() {
               onClick={() => go(choice.to)}
               className="w-full text-left rounded-md border border-border px-4 py-3 hover:border-foreground/40 hover:bg-accent/40 transition-colors"
             >
-              <span className="block font-medium">{choice.label}</span>
+              <span className="block font-medium">
+                <Editable
+                  k={`${current}.choice.${choice.to}.label`}
+                  d={choice.label}
+                />
+              </span>
               {choice.hint && (
                 <span className="block text-xs text-muted-foreground mt-0.5">
-                  {choice.hint}
+                  <Editable
+                    k={`${current}.choice.${choice.to}.hint`}
+                    d={choice.hint}
+                  />
                 </span>
               )}
             </button>
