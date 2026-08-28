@@ -23,7 +23,16 @@ in `src/lib/repos/`. See README.md for commands.
 
 `git push` to `main` → Cloudflare Workers Builds runs `npm run build`
 (wired to `opennextjs-cloudflare build`) then `npx wrangler deploy`. A push
-is a deploy; it lands in ~3 minutes. Work happens on
+is a deploy; it lands in ~3 minutes. **Check the deploy actually landed**
+when it matters: builds on the work branch only upload *versions*; the
+`main` build is the one that deploys, and the dashboard's Active deployment
+says which version serves traffic. `npm run build` deletes
+`.next/cache/turbopack` first, on purpose: Workers Builds restores the
+previous build's `.next` cache, a build canceled mid-write once left that
+cache truncated, and Turbopack 16 hard-crashes on an inconsistent cache
+instead of cold-building — which silently pinned production to a stale
+version for most of a day while branch builds stayed green. The cold
+compile costs ~30s and cannot be poisoned. Work happens on
 `claude/rate-calculator-cloudflare-migration-43cdc3` and is fast-forwarded
 into `main`.
 

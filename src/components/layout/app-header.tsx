@@ -177,6 +177,10 @@ export function AppHeader() {
         <div className="container flex h-14 items-center justify-between mx-auto px-4">
           <div className="flex items-center gap-6">
             <Link href="/" className="flex items-center font-bold text-lg tracking-tight">
+              {/* The same calculator the browser tab wears — app/icon.svg
+                  is served at /icon.svg, so there is one drawing of it. */}
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src="/icon.svg" alt="" className="h-6 w-6 mr-2" />
               <span className="text-white uppercase">Stunt</span>
               <span className="text-stunt-red uppercase">Listing</span>
               <span className="text-muted-foreground font-normal text-sm ml-2">Bookkeeper</span>
