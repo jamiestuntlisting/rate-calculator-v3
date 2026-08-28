@@ -47,7 +47,6 @@ export default function UploadGPage() {
   const [uploads, setUploads] = useState<GUpload[]>([]);
   const [loading, setLoading] = useState(true);
   const [uploading, setUploading] = useState(false);
-  const [dragging, setDragging] = useState(false);
   const [view, setView] = useState<ViewMode>("grid");
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editingTitle, setEditingTitle] = useState("");
@@ -137,12 +136,6 @@ export default function UploadGPage() {
     [load]
   );
 
-  const onDrop = (e: React.DragEvent) => {
-    e.preventDefault();
-    setDragging(false);
-    uploadFiles(Array.from(e.dataTransfer.files));
-  };
-
   const rotate = async (upload: GUpload) => {
     const rotation = (upload.rotation + 90) % 360;
     setUploads((prev) =>
@@ -199,7 +192,7 @@ export default function UploadGPage() {
     <div className="container mx-auto px-4 py-8 max-w-6xl">
       <div className="flex flex-wrap items-center justify-between gap-4 mb-6">
         <div>
-          <h1 className="text-3xl font-bold">Exhibit G</h1>
+          <h1 className="text-3xl font-bold">Transcribe</h1>
           <p className="text-muted-foreground text-sm mt-1">
             Exhibit Gs, call sheets and timecards. Tap one to transcribe it.
           </p>
@@ -274,27 +267,6 @@ export default function UploadGPage() {
           e.target.value = "";
         }}
       />
-
-      <div
-        onDragOver={(e) => {
-          e.preventDefault();
-          setDragging(true);
-        }}
-        onDragLeave={() => setDragging(false)}
-        onDrop={onDrop}
-        className={`rounded-lg border-2 border-dashed p-8 text-center transition-colors mb-8 ${
-          dragging
-            ? "border-primary bg-primary/5"
-            : "border-border hover:border-muted-foreground/40"
-        }`}
-      >
-        <Upload className="h-8 w-8 mx-auto mb-3 text-muted-foreground" />
-        <p className="font-medium">Drag and drop your Exhibit Gs here</p>
-        <p className="text-sm text-muted-foreground mt-1">
-          Or use Upload to browse, or Camera to shoot one on your phone.
-          Duplicates are detected automatically.
-        </p>
-      </div>
 
       {loading ? (
         <p className="text-muted-foreground text-center py-12">Loading…</p>

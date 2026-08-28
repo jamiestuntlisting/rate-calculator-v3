@@ -37,6 +37,7 @@ import { toast } from "sonner";
 import type { WorkDocument, WorkRecord } from "@/types";
 import { DOCUMENT_TYPE_LABELS } from "@/types";
 import { ExhibitGViewer } from "@/components/shared/exhibit-g-viewer";
+import { RotatableThumb } from "@/components/shared/rotatable-thumb";
 import { ArrowLeft, Save, Upload, Trash2, Pencil, X } from "lucide-react";
 
 const STATUS_LABELS: Record<string, string> = {
@@ -187,10 +188,10 @@ export default function WorkDetailPage() {
     return lines;
   })();
 
-  const transcribeDoc: WorkDocument | null = (() => {
-    const viewable = (record?.documents ?? []).filter((doc) =>
-      /\.(jpe?g|png|gif|webp|pdf)$/i.test(doc.filename)
-    );
+  const transcribeDoc: (WorkDocument & { index: number }) | null = (() => {
+    const viewable = (record?.documents ?? [])
+      .map((doc, index) => ({ ...doc, index }))
+      .filter((doc) => /\.(jpe?g|png|gif|webp|pdf)$/i.test(doc.filename));
     return (
       viewable.find((doc) => doc.documentType === "exhibit_g") ??
       viewable[0] ??
@@ -465,11 +466,32 @@ export default function WorkDetailPage() {
     }
   };
 
+  /** Turn a saved attachment and keep the turn. */
+  const rotateDocument = async (index: number, rotation: number) => {
+    if (!record) return;
+    const documents = record.documents.map((doc, i) =>
+      i === index ? { ...doc, rotation } : doc
+    );
+    setRecord({ ...record, documents });
+    try {
+      const res = await fetch(`/api/work-records/${id}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ documents }),
+      });
+      if (!res.ok) throw new Error();
+    } catch {
+      toast.error("Couldn't save the rotation");
+    }
+  };
+
   const handleUploadPhoto = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (!e.target.files?.[0]) return;
+    // Read synchronously — React clears the input before the awaits run.
+    const file = e.target.files?.[0];
+    if (!file) return;
 
     const formData = new FormData();
-    formData.append("file", e.target.files[0]);
+    formData.append("file", file);
 
     try {
       const uploadRes = await fetch("/api/uploads", {
@@ -478,13 +500,24 @@ export default function WorkDetailPage() {
       });
 
       if (!uploadRes.ok) throw new Error("Upload failed");
-      const { path } = await uploadRes.json();
+      const { filename } = await uploadRes.json();
 
+      // New uploads join the documents list, which is the structure that
+      // knows how to preview and rotate; the old photos array is legacy
+      // strings with nowhere to keep a rotation, shown read-only below.
       const res = await fetch(`/api/work-records/${id}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          photos: [...(record?.photos || []), path],
+          documents: [
+            ...(record?.documents || []),
+            {
+              filename,
+              originalName: file.name,
+              documentType: "other",
+              uploadedAt: new Date().toISOString(),
+            },
+          ],
         }),
       });
 
@@ -611,6 +644,7 @@ export default function WorkDetailPage() {
                     label={`${DOCUMENT_TYPE_LABELS[transcribeDoc.documentType]} — ${transcribeDoc.originalName}`}
                     height="42vh"
                     initialRotation={transcribeDoc.rotation ?? 0}
+                    onRotate={(r) => rotateDocument(transcribeDoc.index, r)}
                   />
                   <p className="text-xs text-muted-foreground mt-2">
                     Pinch or use the controls to get in close, and rotate if
@@ -1152,13 +1186,15 @@ export default function WorkDetailPage() {
                         </Badge>
                       </div>
                       {isImage && (
-                        /* eslint-disable-next-line @next/next/no-img-element */
-                        <img
-                          src={`/api/uploads/${doc.filename}`}
-                          alt={doc.originalName}
-                          style={{ transform: `rotate(${doc.rotation ?? 0}deg)` }}
-                          className="w-full max-h-[600px] object-contain bg-muted"
-                        />
+                        <div className="p-2">
+                          <RotatableThumb
+                            src={`/api/uploads/${doc.filename}`}
+                            alt={doc.originalName}
+                            rotation={doc.rotation ?? 0}
+                            onRotate={(r) => rotateDocument(i, r)}
+                            className="w-full max-w-md mx-auto"
+                          />
+                        </div>
                       )}
                       {isPdf && (
                         <iframe

@@ -77,6 +77,12 @@ export default function OtherWorkPage() {
     setDocuments((prev) => prev.filter((_, i) => i !== index));
   }, []);
 
+  const handleDocRotate = useCallback((index: number, rotation: number) => {
+    setDocuments((prev) =>
+      prev.map((doc, i) => (i === index ? { ...doc, rotation } : doc))
+    );
+  }, []);
+
   const handleSave = async () => {
     if (!showName.trim()) {
       toast.error("Show / Production name is required");
@@ -334,6 +340,7 @@ export default function OtherWorkPage() {
               documents={documents}
               onUpload={handleDocUpload}
               onRemove={handleDocRemove}
+              onRotate={handleDocRotate}
               documentTypes={["timecard", "contract", "paystub", "other"]}
             />
           </div>

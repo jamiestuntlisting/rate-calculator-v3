@@ -7,6 +7,7 @@ import type { WorkDocument, DocumentType } from "@/types";
 import { DOCUMENT_TYPE_LABELS } from "@/types";
 import { isUploadable, UPLOAD_ACCEPT } from "@/lib/uploadable";
 import { Upload, X, FileText, Image } from "lucide-react";
+import { RotatableThumb } from "@/components/shared/rotatable-thumb";
 
 const DEFAULT_DOCUMENT_TYPES: DocumentType[] = [
   "call_sheet",
@@ -20,6 +21,8 @@ interface DocumentUploadProps {
   documents: WorkDocument[];
   onUpload: (doc: WorkDocument) => void;
   onRemove: (index: number) => void;
+  /** Persist a rotation on documents[index]; omitting it hides the control. */
+  onRotate?: (index: number, rotation: number) => void;
   disabled?: boolean;
   /** Override which document types to show. Defaults to contract, wardrobe_photo, other, paystub */
   documentTypes?: DocumentType[];
@@ -29,6 +32,7 @@ export function DocumentUpload({
   documents,
   onUpload,
   onRemove,
+  onRotate,
   disabled = false,
   documentTypes = DEFAULT_DOCUMENT_TYPES,
 }: DocumentUploadProps) {
@@ -87,6 +91,9 @@ export function DocumentUpload({
     }
   };
 
+  const isImageFile = (filename: string) =>
+    /\.(jpe?g|png|gif|webp|heic)$/i.test(filename);
+
   const getFileIcon = (docType: DocumentType) => {
     if (docType === "wardrobe_photo" || docType === "exhibit_g") {
       return <Image className="h-4 w-4" />;
@@ -135,32 +142,65 @@ export function DocumentUpload({
               />
             </div>
 
-            {/* Show uploaded files for this type */}
+            {/* Show uploaded files for this type. An image is shown as a
+                picture that can be turned; anything else stays a filename. */}
             {uploaded.length > 0 && (
               <div className="pl-4 space-y-1">
-                {uploaded.map(({ doc, index }) => (
-                  <div
-                    key={`${doc.filename}-${index}`}
-                    className="flex items-center justify-between p-1.5 rounded-md bg-muted/30"
-                  >
-                    <div className="flex items-center gap-2 min-w-0">
-                      {getFileIcon(doc.documentType)}
-                      <span className="text-sm truncate">
+                {uploaded.map(({ doc, index }) =>
+                  isImageFile(doc.filename) ? (
+                    <div
+                      key={`${doc.filename}-${index}`}
+                      className="flex items-start gap-2 p-1.5 rounded-md bg-muted/30"
+                    >
+                      <RotatableThumb
+                        src={`/api/uploads/${doc.filename}`}
+                        alt={doc.originalName}
+                        rotation={doc.rotation ?? 0}
+                        onRotate={
+                          onRotate && !disabled
+                            ? (r) => onRotate(index, r)
+                            : undefined
+                        }
+                        className="w-24 shrink-0"
+                      />
+                      <span className="text-sm truncate flex-1 min-w-0 pt-1">
                         {doc.originalName}
                       </span>
+                      {!disabled && (
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="h-6 w-6 p-0 shrink-0"
+                          onClick={() => onRemove(index)}
+                        >
+                          <X className="h-3 w-3" />
+                        </Button>
+                      )}
                     </div>
-                    {!disabled && (
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        className="h-6 w-6 p-0 shrink-0"
-                        onClick={() => onRemove(index)}
-                      >
-                        <X className="h-3 w-3" />
-                      </Button>
-                    )}
-                  </div>
-                ))}
+                  ) : (
+                    <div
+                      key={`${doc.filename}-${index}`}
+                      className="flex items-center justify-between p-1.5 rounded-md bg-muted/30"
+                    >
+                      <div className="flex items-center gap-2 min-w-0">
+                        {getFileIcon(doc.documentType)}
+                        <span className="text-sm truncate">
+                          {doc.originalName}
+                        </span>
+                      </div>
+                      {!disabled && (
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="h-6 w-6 p-0 shrink-0"
+                          onClick={() => onRemove(index)}
+                        >
+                          <X className="h-3 w-3" />
+                        </Button>
+                      )}
+                    </div>
+                  )
+                )}
               </div>
             )}
           </div>

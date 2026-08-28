@@ -258,6 +258,30 @@ export async function findWorkRecord(
   return row ? toDoc(row) : null;
 }
 
+/**
+ * The highest number any of this user's placeholder titles has reached.
+ * Ten Exhibit Gs photographed in one sitting all land on the same date,
+ * and without a number in the title the tracker shows ten identical rows —
+ * the number is the only thing telling them apart until each is
+ * transcribed and takes its real show name. The max rather than the count,
+ * so a number is never reissued while an older placeholder still holds it.
+ */
+export async function maxUntranscribedTitle(userId: string): Promise<number> {
+  const db = await getDb();
+  const { results } = await db
+    .prepare(
+      "SELECT showName FROM work_records WHERE userId = ?1 AND showName LIKE 'Untranscribed Exhibit G%'"
+    )
+    .bind(userId)
+    .all<{ showName: string }>();
+  let max = 0;
+  for (const row of results ?? []) {
+    const n = Number(/^Untranscribed Exhibit G (\d+)$/.exec(row.showName)?.[1]);
+    if (Number.isFinite(n) && n > max) max = n;
+  }
+  return max;
+}
+
 export async function createWorkRecord(
   data: Record<string, unknown>,
   userId: string

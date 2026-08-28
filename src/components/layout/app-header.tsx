@@ -32,18 +32,19 @@ interface NavSection {
 
 const NAV_SECTIONS: NavSection[] = [
   {
+    // One page on purpose: logging the day is the thing done on set, in a
+    // hurry, and it should not share a bar with anything. A section with a
+    // single page renders no second row at all.
     id: "work",
     label: "Work",
-    children: [
-      { href: "/upload-g", label: "Exhibit G" },
-      { href: "/", label: "Log Work" },
-      { href: "/weekly", label: "Weekly" },
-    ],
+    children: [{ href: "/", label: "Log Work" }],
   },
   {
     id: "income",
     label: "Income",
     children: [
+      { href: "/upload-g", label: "Transcribe" },
+      { href: "/weekly", label: "Weekly" },
       { href: "/tracker", label: "Tracker" },
       { href: "/analytics", label: "Summary" },
     ],
@@ -477,8 +478,9 @@ export function AppHeader() {
             )}
           </div>
         </div>
-        {/* Second layer: the pages inside the active section */}
-        {user && !isLoginPage && activeSection && (
+        {/* Second layer: the pages inside the active section. A section
+            with one page needs no second bar — its top tab is the page. */}
+        {user && !isLoginPage && activeSection && activeSection.children.length > 1 && (
           <div className="hidden md:block border-t border-border/40 bg-[#0d0d0d]">
             <div className="container mx-auto px-4 flex h-10 items-center gap-4 overflow-x-auto">
               {activeSection.children.map((child) => (

@@ -6,7 +6,10 @@ import {
   findGUploadByHash,
   listGUploads,
 } from "@/lib/repos/g-uploads";
-import { createWorkRecord } from "@/lib/repos/work-records";
+import {
+  createWorkRecord,
+  maxUntranscribedTitle,
+} from "@/lib/repos/work-records";
 import { requireAuth, getEffectiveUserId } from "@/lib/api-auth";
 
 const MIME_TYPES: Record<string, string> = {
@@ -65,6 +68,9 @@ export async function POST(request: Request) {
     const created = [];
     const duplicates = [];
 
+    let untranscribedCount = await maxUntranscribedTitle(userId);
+
+
     for (const file of files) {
       const bytes = await file.arrayBuffer();
       const hash = await sha256Hex(bytes);
@@ -90,10 +96,14 @@ export async function POST(request: Request) {
       // An Exhibit G is one work day, so it gets a tracker row straight
       // away. It sits as attachment-only, dated the day it was uploaded,
       // until someone transcribes the real date and show off the form.
+      // Ten uploaded in one sitting share that date, so each carries a
+      // numbered placeholder title until transcription gives it a real
+      // one — otherwise the tracker shows ten indistinguishable rows.
+      untranscribedCount += 1;
       const uploadedOn = new Date().toISOString();
       const workRecord = await createWorkRecord(
         {
-          showName: "",
+          showName: `Untranscribed Exhibit G ${untranscribedCount}`,
           workDate: uploadedOn,
           recordStatus: "attachment_only",
           documents: [

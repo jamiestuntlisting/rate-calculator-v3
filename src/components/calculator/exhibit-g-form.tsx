@@ -265,6 +265,12 @@ export function ExhibitGForm() {
     setDocuments((prev) => prev.filter((_, i) => i !== index));
   };
 
+  const handleDocRotate = (index: number, rotation: number) => {
+    setDocuments((prev) =>
+      prev.map((doc, i) => (i === index ? { ...doc, rotation } : doc))
+    );
+  };
+
   const handleSaveDraft = async () => {
     if (!input.showName || !input.workDate) {
       toast.error("Show name and work date are required to save");
@@ -981,6 +987,7 @@ export function ExhibitGForm() {
               documents={documents}
               onUpload={handleDocUpload}
               onRemove={handleDocRemove}
+              onRotate={handleDocRotate}
               documentTypes={isStuntCoordinator
                 ? ["call_sheet", "contract", "other", "paystub"]
                 : ["call_sheet", "contract", "wardrobe_photo", "other", "paystub"]
