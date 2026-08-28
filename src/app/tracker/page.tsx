@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
+import React, { useEffect, useState, useCallback } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { formatCurrency } from "@/lib/time-utils";
@@ -28,6 +28,8 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import type { WorkRecord } from "@/types";
+import { weekLabel } from "@/lib/weekly/weeks";
+import { ChevronDown, ChevronRight } from "lucide-react";
 
 const STATUS_COLORS: Record<string, string> = {
   unpaid: "bg-red-900/40 text-red-300 border-red-700/50",
@@ -59,9 +61,50 @@ const RECORD_STATUS_LABELS: Record<string, string> = {
   attachment_only: "Attachment Only",
 };
 
+interface WeeklyGroup {
+  _id: string;
+  title: string;
+  weekStart: string;
+  weeklyRate: number;
+  expectedAmount: number;
+}
+
+/**
+ * Saved weeklies fold their days under one header; everything else stays a
+ * flat row. Order interleaves naturally because a group sorts where its
+ * first (most recent) member would have.
+ */
+function groupByWeekly(records: WorkRecord[], weeklies: WeeklyGroup[]) {
+  const byId = new Map(weeklies.map((w) => [w._id, w]));
+  const out: Array<
+    | { kind: "record"; record: WorkRecord }
+    | { kind: "weekly"; weekly: WeeklyGroup; records: WorkRecord[] }
+  > = [];
+  const seen = new Set<string>();
+  for (const record of records) {
+    const weeklyId = record.weeklyId ?? null;
+    if (weeklyId && byId.has(weeklyId)) {
+      if (seen.has(weeklyId)) continue;
+      seen.add(weeklyId);
+      out.push({
+        kind: "weekly",
+        weekly: byId.get(weeklyId)!,
+        records: records.filter((r) => r.weeklyId === weeklyId),
+      });
+    } else {
+      out.push({ kind: "record", record });
+    }
+  }
+  return out;
+}
+
 export default function TrackerPage() {
   const router = useRouter();
   const [records, setRecords] = useState<WorkRecord[]>([]);
+  const [weeklies, setWeeklies] = useState<WeeklyGroup[]>([]);
+  const [collapsedWeeklies, setCollapsedWeeklies] = useState<Set<string>>(
+    new Set()
+  );
   const [loading, setLoading] = useState(true);
   const [searchShow, setSearchShow] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
@@ -75,6 +118,10 @@ export default function TrackerPage() {
         ...(statusFilter !== "all" && { status: statusFilter }),
         ...(searchShow && { show: searchShow }),
       });
+      fetch("/api/weeklies")
+        .then((r) => r.json())
+        .then((d) => setWeeklies(d.weeklies ?? []))
+        .catch(() => {});
       const res = await fetch(`/api/work-records?${params}`);
       if (res.ok) {
         const data = await res.json();
@@ -218,13 +265,77 @@ export default function TrackerPage() {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {records.map((record) => (
+                  {groupByWeekly(records, weeklies).map((entry) => {
+                    if (entry.kind === "record") return renderRow(entry.record);
+                    const { weekly, records: members } = entry;
+                    const folded = collapsedWeeklies.has(weekly._id);
+                    const paid = members.reduce((n, r) => n + (r.paidAmount || 0), 0);
+                    return (
+                      <React.Fragment key={`weekly-${weekly._id}`}>
+                        <TableRow
+                          className="cursor-pointer bg-primary/5 hover:bg-primary/10"
+                          onClick={() =>
+                            setCollapsedWeeklies((prev) => {
+                              const next = new Set(prev);
+                              if (next.has(weekly._id)) next.delete(weekly._id);
+                              else next.add(weekly._id);
+                              return next;
+                            })
+                          }
+                        >
+                          <TableCell className="font-medium whitespace-nowrap">
+                            <span className="inline-flex items-center gap-1">
+                              {folded ? (
+                                <ChevronRight className="h-3.5 w-3.5" />
+                              ) : (
+                                <ChevronDown className="h-3.5 w-3.5" />
+                              )}
+                              {weekLabel(weekly.weekStart).replace("Week of ", "")}
+                            </span>
+                          </TableCell>
+                          <TableCell className="font-semibold">
+                            {weekly.title}
+                            <span className="ml-2 rounded px-1.5 py-0.5 text-[10px] uppercase tracking-wide border border-primary/40 text-primary">
+                              Weekly · {members.length} day{members.length === 1 ? "" : "s"}
+                            </span>
+                          </TableCell>
+                          <TableCell className="hidden md:table-cell text-muted-foreground text-xs">
+                            Weekly contract
+                          </TableCell>
+                          <TableCell className="text-right font-semibold">
+                            {weekly.expectedAmount
+                              ? formatCurrency(weekly.expectedAmount)
+                              : "—"}
+                          </TableCell>
+                          <TableCell className="text-right">
+                            {paid > 0 ? formatCurrency(paid) : "—"}
+                          </TableCell>
+                          <TableCell className="text-xs text-muted-foreground">
+                            {folded ? "Tap to expand" : ""}
+                          </TableCell>
+                        </TableRow>
+                        {!folded && members.map((record) => renderRow(record, true))}
+                      </React.Fragment>
+                    );
+                  })}
+                </TableBody>
+              </Table>
+            </div>
+          )}
+        </CardContent>
+      </Card>
+    </div>
+  );
+
+  /** One day's row — a weekly member renders indented under its header. */
+  function renderRow(record: WorkRecord, inWeekly = false) {
+    return (
                     <TableRow
                       key={record._id}
                       className="cursor-pointer hover:bg-muted/50"
                       onClick={() => router.push(`/work/${record._id}`)}
                     >
-                      <TableCell className="font-medium">
+                      <TableCell className={`font-medium ${inWeekly ? "pl-8" : ""}`}>
                         {(() => {
                           const ymd = record.workDate.split("T")[0];
                           const [y, m, d] = ymd.split("-").map(Number);
@@ -276,13 +387,6 @@ export default function TrackerPage() {
                         </div>
                       </TableCell>
                     </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </div>
-          )}
-        </CardContent>
-      </Card>
-    </div>
-  );
+    );
+  }
 }

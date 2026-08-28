@@ -110,6 +110,8 @@ export interface WorkRecord {
   flatDayRate?: number | null;
   /** The day belongs to a weekly contract; its money comes from the week. */
   weeklyContract?: boolean;
+  /** The saved weekly this day is grouped under in the tracker. */
+  weeklyId?: string | null;
   characterName: string;
   notes: string;
   recordStatus: RecordStatus;

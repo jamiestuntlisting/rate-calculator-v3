@@ -257,7 +257,7 @@ export function PayStubSection({
           ) : (
             <ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground" />
           )}
-          <span className="text-sm font-medium">Query this with payroll</span>
+          <span className="text-sm font-medium">Email payroll</span>
         </button>
 
         {openDispute && (
