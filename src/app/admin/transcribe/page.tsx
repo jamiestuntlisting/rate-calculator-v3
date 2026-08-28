@@ -111,6 +111,50 @@ export default function AdminTranscribePage() {
     }
   }, []);
 
+  interface QueueItem {
+    _id: string;
+    userId: string;
+    performer: string;
+    displayTitle: string;
+    requested: boolean;
+  }
+  const [queue, setQueue] = useState<QueueItem[] | null>(null);
+  const [loadingQueue, setLoadingQueue] = useState(false);
+
+  /**
+   * The queue across every member: open it and transcribe one thing after
+   * another. Each open switches view-as to that member first, exactly as
+   * picking them by hand would, so the editor writes to the right account.
+   */
+  const loadQueue = async () => {
+    setLoadingQueue(true);
+    try {
+      const res = await fetch("/api/admin/transcribe-queue");
+      if (!res.ok) throw new Error();
+      const data = await res.json();
+      setQueue(data.queue ?? []);
+    } catch {
+      toast.error("Failed to load the queue");
+    } finally {
+      setLoadingQueue(false);
+    }
+  };
+
+  const openQueueItem = async (item: QueueItem) => {
+    setNavigating(true);
+    const vaRes = await fetch("/api/admin/view-as", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ userId: item.userId }),
+    });
+    if (!vaRes.ok) {
+      toast.error("Failed to switch context");
+      setNavigating(false);
+      return;
+    }
+    window.location.href = `/upload-g/${item._id}`;
+  };
+
   const handleSelectUser = (userId: string) => {
     setSelectedUserId(userId);
     if (userId) {
@@ -187,6 +231,63 @@ export default function AdminTranscribePage() {
               </SelectContent>
             </Select>
           )}
+
+          <div className="mt-4 pt-4 border-t border-border/50 space-y-3">
+            <button
+              type="button"
+              onClick={() => (queue === null ? loadQueue() : setQueue(null))}
+              className="rounded-lg border border-border px-4 py-2 text-sm font-medium hover:bg-accent"
+            >
+              {loadingQueue
+                ? "Loading the queue…"
+                : queue === null
+                  ? "Transcribe queue"
+                  : "Hide the queue"}
+            </button>
+            {queue !== null && (
+              <div className="space-y-1">
+                {queue.length === 0 ? (
+                  <p className="text-sm text-muted-foreground">
+                    Nothing waiting — every upload is transcribed.
+                  </p>
+                ) : (
+                  <>
+                    <p className="text-xs text-muted-foreground">
+                      {queue.length} waiting, requested ones first. Open the
+                      top item, transcribe it, come back and the next is on
+                      top.
+                    </p>
+                    {queue.map((item, index) => (
+                      <button
+                        key={item._id}
+                        type="button"
+                        disabled={navigating}
+                        onClick={() => openQueueItem(item)}
+                        className="w-full text-left flex items-center gap-3 p-2 rounded border border-border/50 hover:bg-accent/40 disabled:opacity-50"
+                      >
+                        <span className="text-xs text-muted-foreground tabular-nums w-6 shrink-0">
+                          {index + 1}.
+                        </span>
+                        <span className="flex-1 min-w-0">
+                          <span className="block text-sm truncate">
+                            {item.displayTitle}
+                          </span>
+                          <span className="block text-xs text-muted-foreground truncate">
+                            {item.performer}
+                          </span>
+                        </span>
+                        {item.requested && (
+                          <span className="shrink-0 rounded px-1.5 py-0.5 text-[10px] uppercase tracking-wide border border-primary/50 text-primary">
+                            Requested
+                          </span>
+                        )}
+                      </button>
+                    ))}
+                  </>
+                )}
+              </div>
+            )}
+          </div>
         </CardContent>
       </Card>
 

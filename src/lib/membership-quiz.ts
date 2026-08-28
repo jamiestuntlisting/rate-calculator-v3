@@ -85,12 +85,13 @@ export const QUIZ_STEPS: QuizStep[] = [
   {
     id: "noticed",
     question: "I noticed you didn't pick accounting.",
-    note:
-      "Nobody got into this to do data entry, but the paperwork is how you " +
-      "find out you were underpaid. Would it help if someone else did the " +
-      "bookkeeping side for you?",
+    note: "Would you like help with the bookkeeping and paperwork?",
     options: [
-      { value: "yes", label: "Honestly, yes", next: { step: "handOver" } },
+      {
+        value: "yes",
+        label: "Yes, I would really like help",
+        next: { step: "handOver" },
+      },
       {
         value: "no",
         label: "I don't mind doing it myself",
@@ -107,13 +108,13 @@ export const QUIZ_STEPS: QuizStep[] = [
     options: [
       {
         value: "everything",
-        label: "All of it",
+        label: "As much as possible",
         detail: "Send us the photo. We read it, enter it and calculate it.",
         next: { step: "volume" },
       },
       {
         value: "math",
-        label: "Just the math",
+        label: "I just have questions here and there",
         detail: "You enter your own Gs; we work out what you are owed.",
         next: { plan: "plus" },
       },

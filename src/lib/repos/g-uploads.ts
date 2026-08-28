@@ -46,6 +46,24 @@ export async function listGUploads(userId: string): Promise<GUpload[]> {
   return results.map(toDoc);
 }
 
+/**
+ * Every untranscribed upload across every member — the transcription queue.
+ * Asked-for ones first, then oldest first: the people waiting longest on a
+ * request they actually made are the front of the line.
+ */
+export async function listTranscriptionQueue(): Promise<
+  Array<GUpload & { queueUserId: string }>
+> {
+  const db = await getDb();
+  const { results } = await db
+    .prepare(
+      `SELECT * FROM g_uploads WHERE transcription IS NULL
+       ORDER BY transcriptionRequested DESC, createdAt ASC LIMIT 100`
+    )
+    .all<GUploadRow>();
+  return (results ?? []).map((row) => ({ ...toDoc(row), queueUserId: row.userId }));
+}
+
 export async function findGUpload(
   id: string,
   userId: string

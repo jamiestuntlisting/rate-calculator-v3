@@ -282,11 +282,13 @@ export default function WeeklyBenchPage() {
                 aria-pressed={onlyDifferences}
                 className={`text-xs rounded px-3 py-1.5 border transition-colors ${
                   onlyDifferences
-                    ? "border-foreground/40 text-foreground"
-                    : "border-border/40 text-muted-foreground hover:bg-accent/50"
+                    ? "bg-rose-600/20 border-rose-600/60 text-rose-300"
+                    : result && result.mismatched > 0
+                      ? "border-rose-600/60 text-rose-400 hover:bg-rose-600/10"
+                      : "border-border/40 text-muted-foreground hover:bg-accent/50"
                 }`}
               >
-                Only differences
+                Only differences{result && result.mismatched > 0 ? ` (${result.mismatched})` : ""}
               </button>
             </CardHeader>
             <CardContent className="space-y-2">
@@ -354,7 +356,15 @@ function CardRow({
   const { card, breakdown, error, grossDelta, matches } = check;
 
   return (
-    <div className="rounded border border-border/50">
+    <div
+      className={`rounded border ${
+        error
+          ? "border-amber-600/60 bg-amber-950/15"
+          : matches
+            ? "border-border/50"
+            : "border-rose-600/70 bg-rose-950/20"
+      }`}
+    >
       <button
         type="button"
         onClick={onToggle}
@@ -382,19 +392,21 @@ function CardRow({
             {card.location ? ` · ${card.location}` : ""}
           </div>
         </div>
-        <div className="text-right shrink-0">
+        <div className="text-right shrink-0 space-y-1">
           <div className="text-sm tabular-nums">{money.format(card.gross)}</div>
-          <div
-            className={`text-xs tabular-nums ${
-              error
-                ? "text-amber-400"
-                : matches
-                  ? "text-muted-foreground"
-                  : "text-rose-400"
-            }`}
-          >
-            {error ? "can't calculate" : signedMoney(grossDelta)}
-          </div>
+          {error ? (
+            <span className="inline-block rounded px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide bg-amber-600/20 text-amber-400 border border-amber-600/50">
+              Can&rsquo;t calculate
+            </span>
+          ) : matches ? (
+            <span className="inline-block rounded px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide bg-green-600/15 text-green-500 border border-green-600/40">
+              Match
+            </span>
+          ) : (
+            <span className="inline-block rounded px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide bg-rose-600/20 text-rose-400 border border-rose-600/60">
+              Off by {signedMoney(grossDelta)}
+            </span>
+          )}
         </div>
       </button>
 

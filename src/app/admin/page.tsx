@@ -10,7 +10,6 @@ import {
 import {
   FileText,
   ArrowRight,
-  Sparkles,
   Code2,
   Ban,
   ListTodo,
@@ -62,12 +61,6 @@ const ADMIN_PAGES = [
     title: "Tasks",
     detail: "What still needs doing, and who it is waiting on.",
     icon: ListTodo,
-  },
-  {
-    href: "/admin/upcoming",
-    title: "Upcoming features",
-    detail: "What is planned next.",
-    icon: Sparkles,
   },
   {
     href: "/admin/api",

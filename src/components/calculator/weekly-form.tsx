@@ -344,7 +344,7 @@ export function WeeklyForm() {
             {showLocationInfo && (
               <p className="text-xs text-muted-foreground rounded-md bg-muted/40 border border-border/60 p-3">
                 An overnight (distant) location is one far enough from the
-                production's base that you were put up rather than going home
+                production&rsquo;s base that you were put up rather than going home
                 — hotel and per diem, not your own bed. It changes the deal:
                 the weekly guarantee is 48 hours instead of 44 (the extra
                 four paid as location allowance), and rest between days can
