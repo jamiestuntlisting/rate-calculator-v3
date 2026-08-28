@@ -110,6 +110,17 @@ state stays in step.
   adjustment columns: 202 is per-day stunt adjustments and feeds the overtime
   rate, 190 is allowances and meal penalties landing after the subtotal, and
   swapping them still yields a plausible gross.
+- **Non-SAG work** — commercials, music videos, low budget and anything
+  else go through `/other-work`, and carry the same times as a SAG day:
+  call, both meals, dismissal and wrap. They are deliberately **not** run
+  through the rate engine — a commercial is not on the Basic Agreement and
+  calculating one at scale would state a figure nobody is owed. What they
+  get instead is `src/lib/work-hours.ts`, which is agreement-free: hours on
+  the clock, meal time out, hours worked, and the fee the performer entered
+  divided by those hours. That last number is the whole point — non-union
+  work is quoted as a day rate, and a day rate means nothing until you know
+  whether the day ran eight hours or sixteen. The columns already existed
+  on `work_records`, so this needed no migration.
 - **Auth** — StuntListing GraphQL login → JWT session cookie. The signing
   key comes from `SESSION_SECRET` on the Worker if set, else from the
   `app_config` table in D1 (`src/lib/session-secret.ts`). The D1 fallback is

@@ -4,8 +4,9 @@ import { useEffect, useRef, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { TimeSelect } from "@/components/calculator/time-select";
+import { TimeSelect, toDisplay } from "@/components/calculator/time-select";
 import { AGREEMENTS, agreementLabel, dayRate } from "@/lib/agreements";
+import { effectiveHourlyRate, workHoursFor } from "@/lib/work-hours";
 import { addMinutes, MEAL_MINUTES } from "@/components/calculator/time-select";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
@@ -119,6 +120,13 @@ export default function WorkDetailPage() {
     workDate: "",
     expectedAmount: 0,
     notes: "",
+    callTime: "",
+    firstMealStart: "",
+    firstMealFinish: "",
+    secondMealStart: "",
+    secondMealFinish: "",
+    dismissOnSet: "",
+    dismissMakeupWardrobe: "",
   });
 
   const id = params.id as string;
@@ -194,6 +202,13 @@ export default function WorkDetailPage() {
     if (!record) return;
     if (isOtherWorkType) {
       setOtherEditData({
+        callTime: record.callTime || "",
+        firstMealStart: record.firstMealStart || "",
+        firstMealFinish: record.firstMealFinish || "",
+        secondMealStart: record.secondMealStart || "",
+        secondMealFinish: record.secondMealFinish || "",
+        dismissOnSet: record.dismissOnSet || "",
+        dismissMakeupWardrobe: record.dismissMakeupWardrobe || "",
         showName: record.showName,
         workDate: record.workDate?.split("T")[0] || "",
         expectedAmount: record.expectedAmount || 0,
@@ -245,6 +260,13 @@ export default function WorkDetailPage() {
           workDate: otherEditData.workDate,
           expectedAmount: otherEditData.expectedAmount,
           notes: otherEditData.notes,
+          callTime: otherEditData.callTime || null,
+          firstMealStart: otherEditData.firstMealStart || null,
+          firstMealFinish: otherEditData.firstMealFinish || null,
+          secondMealStart: otherEditData.secondMealStart || null,
+          secondMealFinish: otherEditData.secondMealFinish || null,
+          dismissOnSet: otherEditData.dismissOnSet || null,
+          dismissMakeupWardrobe: otherEditData.dismissMakeupWardrobe || null,
         }),
       });
 
@@ -639,6 +661,44 @@ export default function WorkDetailPage() {
                       </div>
                     </div>
                   </div>
+                  <div className="space-y-3">
+                    <p className="text-sm font-medium">Work Times</p>
+                    {(
+                      [
+                        ["Call Time", "callTime"],
+                        ["1st Meal — out", "firstMealStart"],
+                        ["1st Meal — in", "firstMealFinish"],
+                        ["2nd Meal — out", "secondMealStart"],
+                        ["2nd Meal — in", "secondMealFinish"],
+                        ["Dismiss On Set", "dismissOnSet"],
+                        ["Wrapped", "dismissMakeupWardrobe"],
+                      ] as const
+                    ).map(([label, key]) => (
+                      <div key={key} className="flex items-center justify-between gap-4">
+                        <Label
+                          htmlFor={`other-${key}`}
+                          className="text-sm text-muted-foreground shrink-0"
+                        >
+                          {label}
+                        </Label>
+                        <div className="flex-1 min-w-0 max-w-[13rem]">
+                          <TimeSelect
+                            id={`other-${key}`}
+                            value={otherEditData[key]}
+                            onChange={(v) =>
+                              setOtherEditData((d) => ({ ...d, [key]: v }))
+                            }
+                            compact
+                          />
+                        </div>
+                      </div>
+                    ))}
+                    <OtherWorkHours
+                      times={otherEditData}
+                      amount={otherEditData.expectedAmount}
+                    />
+                  </div>
+
                   <div className="space-y-1">
                     <Label className="text-sm text-muted-foreground">Notes</Label>
                     <Textarea
@@ -683,6 +743,21 @@ export default function WorkDetailPage() {
                       <p className="font-semibold">{record.characterName}</p>
                     </div>
                   )}
+                  {record.callTime && (
+                    <div>
+                      <p className="text-muted-foreground">Call</p>
+                      <p className="font-semibold">
+                        {toDisplay(record.callTime)}
+                        {(record.dismissMakeupWardrobe || record.dismissOnSet) &&
+                          ` → ${toDisplay(
+                            record.dismissMakeupWardrobe || record.dismissOnSet || ""
+                          )}`}
+                      </p>
+                    </div>
+                  )}
+                  <div className="col-span-2 md:col-span-3">
+                    <OtherWorkHours times={record} amount={record.expectedAmount} />
+                  </div>
                   {record.notes && (
                     <div className="col-span-2 md:col-span-3">
                       <p className="text-muted-foreground">Notes</p>
@@ -1175,6 +1250,49 @@ export default function WorkDetailPage() {
           Delete work day
         </Button>
       </div>
+    </div>
+  );
+}
+
+/**
+ * Hours from the times, and what a flat fee came to per hour of them.
+ *
+ * Non-SAG work is not on the Basic Agreement, so nothing here goes near the
+ * rate engine — a commercial calculated at scale would state a figure the
+ * performer is not owed. The hours are still theirs to know, and against a
+ * day rate they are the number that says whether it was worth taking.
+ */
+function OtherWorkHours({
+  times,
+  amount,
+}: {
+  times: Parameters<typeof workHoursFor>[0];
+  amount: number | null | undefined;
+}) {
+  const hours = workHoursFor(times);
+  if (!hours) return null;
+  const perHour = effectiveHourlyRate(amount, hours.netHours);
+
+  return (
+    <div className="rounded-lg border border-border p-3 space-y-1">
+      <div className="flex justify-between gap-3 text-sm">
+        <span className="text-muted-foreground">Worked</span>
+        <span className="tabular-nums">{hours.netHours}h</span>
+      </div>
+      {hours.mealHours > 0 && (
+        <div className="flex justify-between gap-3 text-sm">
+          <span className="text-muted-foreground">
+            Meals, out of {hours.elapsedHours}h on the clock
+          </span>
+          <span className="tabular-nums">{hours.mealHours}h</span>
+        </div>
+      )}
+      {perHour !== null && (
+        <div className="flex justify-between gap-3 text-sm font-medium pt-1 border-t border-border">
+          <span>That fee, per hour worked</span>
+          <span className="tabular-nums">{formatCurrency(perHour)}</span>
+        </div>
+      )}
     </div>
   );
 }
