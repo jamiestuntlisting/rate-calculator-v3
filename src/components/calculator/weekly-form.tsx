@@ -122,16 +122,24 @@ export function WeeklyForm() {
     load();
   }, [load]);
 
-  /** The shows this member has actually logged, for the title pulldown. */
+  /**
+   * The shows this member has logged, newest first — the show being worked
+   * this week is almost always the one touched most recently, so it should
+   * be the first thing the pulldown offers.
+   */
   const knownShows = useMemo(() => {
-    const names = new Set<string>();
+    const latest = new Map<string, string>();
     for (const record of records ?? []) {
       const name = record.showName?.trim();
-      if (name && !/^Untranscribed Exhibit G \d+$/.test(name) && !/ — Day \d+$/.test(name)) {
-        names.add(name);
+      if (!name || /^Untranscribed Exhibit G \d+$/.test(name) || / — Day \d+$/.test(name)) {
+        continue;
       }
+      const touched = record.updatedAt || record.workDate || "";
+      if (touched > (latest.get(name) ?? "")) latest.set(name, touched);
     }
-    return [...names].sort();
+    return [...latest.entries()]
+      .sort((a, b) => b[1].localeCompare(a[1]))
+      .map(([name]) => name);
   }, [records]);
 
   /**
@@ -722,7 +730,7 @@ function FieldSelect({
       id={id}
       value={value}
       onChange={(e) => onChange(e.target.value)}
-      className="border-input dark:bg-input/30 h-9 max-w-[14rem] min-w-0 flex-1 rounded-md border bg-transparent px-2 py-1 text-base shadow-xs outline-none focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px] md:text-sm"
+      className="border-input dark:bg-input/30 h-9 max-w-[16rem] min-w-0 flex-1 truncate rounded-md border bg-transparent py-1 pl-2 pr-7 text-base shadow-xs outline-none focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px] md:text-sm"
     >
       {options.map((option) => (
         <option key={option.value} value={option.value}>

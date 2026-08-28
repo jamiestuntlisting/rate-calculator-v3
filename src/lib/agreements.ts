@@ -18,16 +18,6 @@ export const AGREEMENTS: ReadonlyArray<{
 }> = [
   { id: "theatrical_basic", name: "Theatrical / Television" },
   {
-    id: "stunt_coordinator",
-    name: "Stunt Coordinator — flat deal",
-    note: "One number for the day, no overtime",
-  },
-  {
-    id: "stunt_coordinator_daily",
-    name: "Stunt Coordinator — daily",
-    note: "Day rate, and overtime like anyone else",
-  },
-  {
     id: "low_budget",
     name: "Low Budget",
     note: "65% of basic scale",
@@ -41,6 +31,17 @@ export const AGREEMENTS: ReadonlyArray<{
     id: "ultra_low_budget",
     name: "Ultra Low Budget / Short Project",
     note: "20% of basic scale",
+  },
+  // Coordinators last: most people picking are performers.
+  {
+    id: "stunt_coordinator",
+    name: "Stunt Coordinator — flat deal",
+    note: "One number for the day, no overtime",
+  },
+  {
+    id: "stunt_coordinator_daily",
+    name: "Stunt Coordinator — daily",
+    note: "Day rate, and overtime like anyone else",
   },
 ];
 

@@ -112,6 +112,18 @@
    * fine. Clearing the native appearance and the UA's logical minimum is
    * what actually holds it. Tapping still opens the iOS picker.
    */
+  /* Numbers are typed, not nudged — the spin buttons only invite
+     one-dollar taps and validation bubbles on a phone. */
+  input[type="number"]::-webkit-outer-spin-button,
+  input[type="number"]::-webkit-inner-spin-button {
+    -webkit-appearance: none;
+    margin: 0;
+  }
+  input[type="number"] {
+    -moz-appearance: textfield;
+    appearance: textfield;
+  }
+
   input[type="date"],
   input[type="time"] {
     -webkit-appearance: none;
