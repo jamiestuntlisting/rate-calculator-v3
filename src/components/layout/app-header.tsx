@@ -43,9 +43,9 @@ const NAV_SECTIONS: NavSection[] = [
     id: "income",
     label: "Income",
     children: [
-      { href: "/upload-g", label: "Transcribe" },
-      { href: "/weekly", label: "Weekly" },
       { href: "/tracker", label: "Tracker" },
+      { href: "/weekly", label: "Weekly" },
+      { href: "/upload-g", label: "Transcriptions" },
       { href: "/analytics", label: "Summary" },
     ],
   },
@@ -180,10 +180,16 @@ export function AppHeader() {
               {/* The same calculator the browser tab wears — app/icon.svg
                   is served at /icon.svg, so there is one drawing of it. */}
               {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src="/icon.svg" alt="" className="h-6 w-6 mr-2" />
-              <span className="text-white uppercase">Stunt</span>
-              <span className="text-stunt-red uppercase">Listing</span>
-              <span className="text-muted-foreground font-normal text-sm ml-2">Bookkeeper</span>
+              <img src="/icon.svg" alt="" className="h-7 w-7 mr-2" />
+              <span className="flex flex-col leading-none">
+                <span className="leading-none">
+                  <span className="text-white uppercase">Stunt</span>
+                  <span className="text-stunt-red uppercase">Listing</span>
+                </span>
+                <span className="text-muted-foreground font-normal text-[11px] tracking-wide leading-none mt-0.5">
+                  Bookkeeper
+                </span>
+              </span>
             </Link>
 
             {/* Desktop nav — top layer only; pages sit in the bar below */}

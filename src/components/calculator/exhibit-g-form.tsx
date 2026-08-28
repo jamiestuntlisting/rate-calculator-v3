@@ -98,8 +98,10 @@ function AnimatedCurrency({ value }: { value: number }) {
 
       if (diff === 0) return;
 
-      // Large jump (> $5) — snap immediately
-      if (Math.abs(diff) > 500) {
+      // Only a small climb animates. A decrease is a mode switch or an
+      // edited time, not earnings draining away, so it jumps; so does any
+      // large move.
+      if (diff < 0 || Math.abs(diff) > 500) {
         displayedRef.current = targetCents;
         setDisplayed(targetCents);
         return;
@@ -853,6 +855,7 @@ export function ExhibitGForm() {
                     <p className="text-sm text-muted-foreground">Live Rate</p>
                     <p className="text-3xl font-bold tracking-tight tabular-nums">
                       <AnimatedCurrency
+                        key={sixMinIntervals ? "6min" : "counter"}
                         value={liveBreakdown.grandTotal + extraContracts.pay}
                       />
                     </p>

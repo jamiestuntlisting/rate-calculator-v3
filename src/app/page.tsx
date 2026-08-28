@@ -31,7 +31,7 @@ export default function HomePage() {
             href="/get-started"
             className="rounded-lg border border-border px-3 py-1.5 text-sm font-medium hover:bg-accent"
           >
-            Upload many Exhibit G&rsquo;s
+            Got many Exhibit Gs?
           </Link>
           <Link
             href="/other-work"

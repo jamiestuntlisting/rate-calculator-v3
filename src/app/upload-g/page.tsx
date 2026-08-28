@@ -192,7 +192,7 @@ export default function UploadGPage() {
     <div className="container mx-auto px-4 py-8 max-w-6xl">
       <div className="flex flex-wrap items-center justify-between gap-4 mb-6">
         <div>
-          <h1 className="text-3xl font-bold">Transcribe</h1>
+          <h1 className="text-3xl font-bold">Transcriptions</h1>
           <p className="text-muted-foreground text-sm mt-1">
             Exhibit Gs, call sheets and timecards. Tap one to transcribe it.
           </p>
@@ -229,6 +229,9 @@ export default function UploadGPage() {
           >
             <Camera className="h-4 w-4 mr-2" />
             Camera
+          </Button>
+          <Button asChild variant="outline">
+            <Link href="/membership">Need help transcribing?</Link>
           </Button>
           <Button
             onClick={() => fileInputRef.current?.click()}
