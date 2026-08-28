@@ -9,11 +9,116 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import Link from "next/link";
+import { toast } from "sonner";
+import { ChevronDown, ChevronRight } from "lucide-react";
+import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
 import type { WorkRecord } from "@/types";
+
+/** Same rule the record page applies when a payment is typed in. */
+function derivePaymentStatus(amount: number, expected: number | undefined): string {
+  if (amount <= 0) return "unpaid";
+  if (!expected || expected <= 0) return "paid_correctly";
+  if (amount >= expected) {
+    return amount > expected ? "overpaid" : "paid_correctly";
+  }
+  return "underpaid";
+}
+
+const iso = (d: Date) => d.toISOString().split("T")[0];
 
 export default function AnalyticsPage() {
   const [records, setRecords] = useState<WorkRecord[]>([]);
   const [loading, setLoading] = useState(true);
+  const [openShows, setOpenShows] = useState<Set<string>>(new Set());
+  /** Per-day paid entries being edited, keyed by record id. */
+  const [paidEdits, setPaidEdits] = useState<Record<string, string>>({});
+  /** Per-show paycheck amounts waiting to be applied. */
+  const [checks, setChecks] = useState<Record<string, string>>({});
+  const [busyShow, setBusyShow] = useState<string | null>(null);
+
+  /** Write one day's payment and mirror it locally. */
+  const savePaid = async (record: WorkRecord, amount: number) => {
+    const paymentStatus = derivePaymentStatus(amount, record.expectedAmount);
+    const res = await fetch(`/api/work-records/${record._id}`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        paidAmount: amount,
+        paymentStatus,
+        paidDate: amount > 0 ? iso(new Date()) : null,
+      }),
+    });
+    if (!res.ok) throw new Error();
+    setRecords((prev) =>
+      prev.map((r) =>
+        r._id === record._id
+          ? { ...r, paidAmount: amount, paymentStatus: paymentStatus as WorkRecord["paymentStatus"] }
+          : r
+      )
+    );
+  };
+
+  const saveDayEdit = async (record: WorkRecord) => {
+    const raw = paidEdits[record._id];
+    if (raw === undefined) return;
+    const amount = parseFloat(raw) || 0;
+    if (amount === record.paidAmount) return;
+    try {
+      await savePaid(record, amount);
+      toast.success("Payment saved");
+    } catch {
+      toast.error("Couldn't save that payment");
+    }
+  };
+
+  /**
+   * A paycheck rarely names its days, so it is applied the way payroll
+   * applies it: oldest day first, filling what each is owed, spilling to
+   * the next. A check bigger than what the show is owed leaves the excess
+   * on the last day, which reads as overpaid rather than vanishing.
+   */
+  const applyCheck = async (
+    show: string,
+    showRecords: WorkRecord[]
+  ) => {
+    const amount = parseFloat(checks[show] ?? "") || 0;
+    if (amount <= 0) {
+      toast.error("Enter the paycheck amount first");
+      return;
+    }
+    setBusyShow(show);
+    try {
+      let remaining = amount;
+      let touched = 0;
+      const withDue = showRecords.filter(
+        (r) => (r.expectedAmount || 0) - r.paidAmount > 0
+      );
+      for (let i = 0; i < withDue.length && remaining > 0; i++) {
+        const record = withDue[i];
+        const due = (record.expectedAmount || 0) - record.paidAmount;
+        const last = i === withDue.length - 1;
+        // The last short day absorbs any excess instead of losing it.
+        const add = last ? remaining : Math.min(due, remaining);
+        await savePaid(record, Math.round((record.paidAmount + add) * 100) / 100);
+        remaining = Math.round((remaining - add) * 100) / 100;
+        touched += 1;
+      }
+      if (touched === 0) {
+        toast.error("Nothing owed on this show — edit a day directly instead");
+      } else {
+        setChecks((prev) => ({ ...prev, [show]: "" }));
+        toast.success(
+          `Applied ${formatCurrency(amount)} across ${touched} day${touched === 1 ? "" : "s"}`
+        );
+      }
+    } catch {
+      toast.error("Couldn't apply the whole paycheck — check the days");
+    } finally {
+      setBusyShow(null);
+    }
+  };
 
   useEffect(() => {
     fetch("/api/work-records?limit=1000")
@@ -39,18 +144,30 @@ export default function AnalyticsPage() {
     const underpaidCount = records.filter((r) => r.paymentStatus === "underpaid").length;
     const missingGCount = records.filter((r) => r.missingExhibitG).length;
 
-    // By show
-    const showMap = new Map<string, { days: number; expected: number; paid: number }>();
+    // By show — with the days themselves, oldest first, because this is
+    // where payments get resolved and a paycheck lands on actual days.
+    const showMap = new Map<
+      string,
+      { days: number; expected: number; paid: number; records: WorkRecord[] }
+    >();
     for (const r of records) {
       const name = r.showName || "Unknown";
-      const existing = showMap.get(name) || { days: 0, expected: 0, paid: 0 };
+      const existing =
+        showMap.get(name) || { days: 0, expected: 0, paid: 0, records: [] };
       existing.days += 1;
       existing.expected += r.expectedAmount || 0;
       existing.paid += r.paidAmount;
+      existing.records.push(r);
       showMap.set(name, existing);
     }
     const byShow = [...showMap.entries()]
-      .map(([name, data]) => ({ name, ...data }))
+      .map(([name, data]) => ({
+        name,
+        ...data,
+        records: [...data.records].sort((a, b) =>
+          a.workDate.localeCompare(b.workDate)
+        ),
+      }))
       .sort((a, b) => b.expected - a.expected);
 
     // By month — parse from ISO string to avoid timezone shifts
@@ -217,29 +334,144 @@ export default function AnalyticsPage() {
           {stats.byShow.length === 0 ? (
             <p className="text-muted-foreground text-sm">No data</p>
           ) : (
-            <div className="space-y-3">
-              {stats.byShow.map((show) => (
-                <div key={show.name} className="flex items-center justify-between">
-                  <div>
-                    <p className="font-medium">{show.name}</p>
-                    <p className="text-sm text-muted-foreground">{show.days} day{show.days !== 1 ? "s" : ""}</p>
+            <div className="space-y-2">
+              {stats.byShow.map((show) => {
+                const open = openShows.has(show.name);
+                return (
+                  <div key={show.name} className="rounded border border-border/50">
+                    <button
+                      type="button"
+                      aria-expanded={open}
+                      onClick={() =>
+                        setOpenShows((prev) => {
+                          const next = new Set(prev);
+                          if (next.has(show.name)) next.delete(show.name);
+                          else next.add(show.name);
+                          return next;
+                        })
+                      }
+                      className="w-full text-left p-3 flex items-center gap-2 hover:bg-accent/30 transition-colors"
+                    >
+                      {open ? (
+                        <ChevronDown className="h-4 w-4 shrink-0 text-muted-foreground" />
+                      ) : (
+                        <ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground" />
+                      )}
+                      <span className="flex-1 min-w-0">
+                        <span className="block font-medium truncate">{show.name}</span>
+                        <span className="block text-sm text-muted-foreground">
+                          {show.days} day{show.days !== 1 ? "s" : ""}
+                        </span>
+                      </span>
+                      <span className="text-right shrink-0">
+                        <span className="block font-semibold">
+                          {formatCurrency(show.expected)}
+                        </span>
+                        {show.paid > 0 && show.paid < show.expected && (
+                          <span className="block text-xs text-yellow-400">
+                            {formatCurrency(show.expected - show.paid)} owed
+                          </span>
+                        )}
+                        {show.paid === 0 && show.expected > 0 && (
+                          <span className="block text-xs text-red-400">Unpaid</span>
+                        )}
+                        {show.paid >= show.expected && show.expected > 0 && (
+                          <span className="block text-xs text-green-400">Paid</span>
+                        )}
+                      </span>
+                    </button>
+
+                    {open && (
+                      <div className="border-t border-border/50 p-3 space-y-2">
+                        {/* The days, oldest first — each takes its payment
+                            directly, because a check is money on real days. */}
+                        {show.records.map((record) => {
+                          const ymd = record.workDate.split("T")[0];
+                          const edit = paidEdits[record._id];
+                          return (
+                            <div
+                              key={record._id}
+                              className="flex items-center gap-2"
+                            >
+                              <Link
+                                href={`/work/${record._id}`}
+                                className="flex-1 min-w-0 text-sm"
+                              >
+                                <span className="block">{ymd}</span>
+                                <span className="block text-xs text-muted-foreground truncate">
+                                  {formatCurrency(record.expectedAmount || 0)}{" "}
+                                  expected
+                                  {record.paymentStatus === "underpaid" &&
+                                    " · underpaid"}
+                                  {record.paymentStatus === "late" && " · late"}
+                                </span>
+                              </Link>
+                              <div className="relative w-28 shrink-0">
+                                <span className="absolute left-2 top-1/2 -translate-y-1/2 text-muted-foreground text-sm">
+                                  $
+                                </span>
+                                <Input
+                                  type="number"
+                                  inputMode="decimal"
+                                  min="0"
+                                  value={edit ?? (record.paidAmount || "")}
+                                  onChange={(e) =>
+                                    setPaidEdits((prev) => ({
+                                      ...prev,
+                                      [record._id]: e.target.value,
+                                    }))
+                                  }
+                                  onBlur={() => saveDayEdit(record)}
+                                  onKeyDown={(e) => {
+                                    if (e.key === "Enter")
+                                      e.currentTarget.blur();
+                                  }}
+                                  placeholder="0.00"
+                                  className="pl-6 h-9 text-sm"
+                                />
+                              </div>
+                            </div>
+                          );
+                        })}
+
+                        <div className="flex items-center gap-2 pt-2 border-t border-border/40">
+                          <div className="relative flex-1 min-w-0">
+                            <span className="absolute left-2 top-1/2 -translate-y-1/2 text-muted-foreground text-sm">
+                              $
+                            </span>
+                            <Input
+                              type="number"
+                              inputMode="decimal"
+                              min="0"
+                              value={checks[show.name] ?? ""}
+                              onChange={(e) =>
+                                setChecks((prev) => ({
+                                  ...prev,
+                                  [show.name]: e.target.value,
+                                }))
+                              }
+                              placeholder="Paycheck amount"
+                              className="pl-6 h-9 text-sm"
+                            />
+                          </div>
+                          <Button
+                            size="sm"
+                            disabled={busyShow === show.name}
+                            onClick={() => applyCheck(show.name, show.records)}
+                          >
+                            {busyShow === show.name ? "Applying…" : "Add paycheck"}
+                          </Button>
+                        </div>
+                        <p className="text-xs text-muted-foreground">
+                          A paycheck fills the oldest unpaid day first and
+                          spills into the next — enter each check as it
+                          arrives.
+                        </p>
+                      </div>
+                    )}
                   </div>
-                  <div className="text-right">
-                    <p className="font-semibold">{formatCurrency(show.expected)}</p>
-                    {show.paid > 0 && show.paid < show.expected && (
-                      <p className="text-xs text-yellow-400">
-                        {formatCurrency(show.expected - show.paid)} owed
-                      </p>
-                    )}
-                    {show.paid === 0 && show.expected > 0 && (
-                      <p className="text-xs text-red-400">Unpaid</p>
-                    )}
-                    {show.paid >= show.expected && show.expected > 0 && (
-                      <p className="text-xs text-green-400">Paid</p>
-                    )}
-                  </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
           )}
         </CardContent>
