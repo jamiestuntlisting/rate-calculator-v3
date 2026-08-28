@@ -15,7 +15,10 @@ interface NameRow {
   name: string;
   blocked: number;
   replacement: string | null;
+  status: "pending" | "approved" | "ignored";
 }
+
+type Bucket = "pending" | "approved" | "ignored" | "blocked";
 
 export default function AdminNamesPage() {
   const { user, loading: authLoading } = useAuth();
@@ -25,6 +28,7 @@ export default function AdminNamesPage() {
   const [busy, setBusy] = useState<string | null>(null);
   const [replacements, setReplacements] = useState<Record<string, string>>({});
   const [kind, setKind] = useState<"show" | "character">("show");
+  const [bucket, setBucket] = useState<Bucket>("pending");
 
   const load = useCallback(async () => {
     try {
@@ -68,6 +72,32 @@ export default function AdminNamesPage() {
     }
   };
 
+  const setStatus = async (row: NameRow, status: NameRow["status"]) => {
+    const key = `${row.kind}:${row.name}`;
+    setBusy(key);
+    try {
+      const res = await fetch("/api/suggestions", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ kind: row.kind, name: row.name, status }),
+      });
+      if (!res.ok) throw new Error();
+      const data = (await res.json()) as { names: NameRow[] };
+      setNames(data.names);
+      toast.success(
+        status === "approved"
+          ? "Approved"
+          : status === "ignored"
+            ? "Ignored"
+            : "Back to pending"
+      );
+    } catch {
+      toast.error("Couldn't update that name");
+    } finally {
+      setBusy(null);
+    }
+  };
+
   if (authLoading) return null;
 
   if (!user || !isAdminEmail(user.email)) {
@@ -78,7 +108,20 @@ export default function AdminNamesPage() {
     );
   }
 
-  const rows = names.filter((n) => n.kind === kind);
+  const ofKind = names.filter((n) => n.kind === kind);
+  const bucketOf = (n: NameRow): Bucket => (n.blocked ? "blocked" : n.status);
+  const counts = ofKind.reduce<Record<Bucket, number>>(
+    (acc, n) => {
+      acc[bucketOf(n)] += 1;
+      return acc;
+    },
+    { pending: 0, approved: 0, ignored: 0, blocked: 0 }
+  );
+  const buckets: Bucket[] =
+    kind === "character"
+      ? ["pending", "approved", "ignored", "blocked"]
+      : ["pending", "approved", "blocked"];
+  const rows = ofKind.filter((n) => bucketOf(n) === bucket);
 
   return (
     <div className="space-y-6">
@@ -113,10 +156,28 @@ export default function AdminNamesPage() {
         ))}
       </div>
 
+      <div className="flex rounded-md border border-border overflow-hidden w-fit">
+        {buckets.map((b) => (
+          <button
+            key={b}
+            type="button"
+            onClick={() => setBucket(b)}
+            aria-pressed={bucket === b}
+            className={`px-3 py-1.5 text-xs capitalize ${
+              bucket === b
+                ? "bg-accent font-medium"
+                : "text-muted-foreground hover:bg-accent/50"
+            }`}
+          >
+            {b} ({counts[b]})
+          </button>
+        ))}
+      </div>
+
       <Card>
         <CardHeader>
           <CardTitle className="text-lg">
-            {rows.length} {kind === "show" ? "show title" : "character name"}
+            {rows.length} {bucket} {kind === "show" ? "show title" : "character name"}
             {rows.length === 1 ? "" : "s"}
           </CardTitle>
         </CardHeader>
@@ -152,39 +213,83 @@ export default function AdminNamesPage() {
                     )}
                   </div>
 
-                  {!row.blocked && (
-                    <Input
-                      value={replacements[key] ?? ""}
-                      onChange={(e) =>
-                        setReplacements((prev) => ({
-                          ...prev,
-                          [key]: e.target.value,
-                        }))
-                      }
-                      placeholder="Use this spelling instead (optional)"
-                      className="h-9 text-sm w-64"
-                      list={`names-${row.kind}`}
-                    />
+                  {bucket === "pending" && (
+                    <>
+                      <Button
+                        size="sm"
+                        disabled={busy === key}
+                        onClick={() => setStatus(row, "approved")}
+                      >
+                        <Check className="h-4 w-4 mr-1" /> Approve
+                      </Button>
+                      <Input
+                        value={replacements[key] ?? ""}
+                        onChange={(e) =>
+                          setReplacements((prev) => ({
+                            ...prev,
+                            [key]: e.target.value,
+                          }))
+                        }
+                        placeholder="Update with this spelling"
+                        className="h-9 text-sm w-56"
+                        list={`names-${row.kind}`}
+                      />
+                      {row.kind === "character" && (
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          disabled={busy === key}
+                          onClick={() => setStatus(row, "ignored")}
+                        >
+                          Ignore
+                        </Button>
+                      )}
+                      <Button
+                        size="sm"
+                        variant="destructive"
+                        disabled={busy === key}
+                        onClick={() => setBlocked(row, true)}
+                      >
+                        {busy === key ? (
+                          <Loader2 className="h-4 w-4 animate-spin" />
+                        ) : (
+                          <>
+                            <Ban className="h-4 w-4 mr-1" /> Block
+                          </>
+                        )}
+                      </Button>
+                    </>
                   )}
-
-                  <Button
-                    size="sm"
-                    variant={row.blocked ? "outline" : "destructive"}
-                    disabled={busy === key}
-                    onClick={() => setBlocked(row, !row.blocked)}
-                  >
-                    {busy === key ? (
-                      <Loader2 className="h-4 w-4 animate-spin" />
-                    ) : row.blocked ? (
-                      <>
-                        <Check className="h-4 w-4 mr-1" /> Unblock
-                      </>
-                    ) : (
-                      <>
-                        <Ban className="h-4 w-4 mr-1" /> Block
-                      </>
-                    )}
-                  </Button>
+                  {bucket === "approved" && (
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      disabled={busy === key}
+                      onClick={() => setStatus(row, "pending")}
+                    >
+                      Back to pending
+                    </Button>
+                  )}
+                  {bucket === "ignored" && (
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      disabled={busy === key}
+                      onClick={() => setStatus(row, "pending")}
+                    >
+                      Restore
+                    </Button>
+                  )}
+                  {bucket === "blocked" && (
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      disabled={busy === key}
+                      onClick={() => setBlocked(row, false)}
+                    >
+                      <Check className="h-4 w-4 mr-1" /> Unblock
+                    </Button>
+                  )}
                 </div>
               );
             })

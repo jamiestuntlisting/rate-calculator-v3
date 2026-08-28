@@ -152,7 +152,13 @@ state stays in step.
 - **Names** — show titles and character names autocomplete from
   `name_suggestions`. Saving a record records the name and resolves blocked
   spellings to their replacement, so admins can stop a production being
-  spelled three ways (Admin → Names).
+  spelled three ways (Admin → Names). Each name also carries a review
+  status — pending / approved / ignored — with per-kind tabs for
+  monitoring. Autocomplete differs by kind on purpose: shows offer
+  everything not blocked or ignored (approval is monitoring, not a gate),
+  while characters offer only the approved set, seeded with the standard
+  stunt roles (Stunt Performer/Double/Coordinator/Rigger/Driver, Utility
+  Stunts, ND Stunt) — one-off character names get Ignored, not corrected.
 
 ## Gotchas worth knowing
 

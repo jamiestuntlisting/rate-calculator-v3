@@ -3,8 +3,10 @@ import {
   blockName,
   listAllSuggestions,
   listSuggestions,
+  setNameStatus,
   unblockName,
   type SuggestionKind,
+  type SuggestionStatus,
 } from "@/lib/repos/name-suggestions";
 import { requireAuth } from "@/lib/api-auth";
 import { isAdminEmail } from "@/lib/auth";
@@ -65,12 +67,14 @@ export async function POST(request: Request) {
       );
     }
 
-    const { kind, name, blocked, replacement } = (await request.json()) as {
-      kind?: SuggestionKind;
-      name?: string;
-      blocked?: boolean;
-      replacement?: string | null;
-    };
+    const { kind, name, blocked, replacement, status } =
+      (await request.json()) as {
+        kind?: SuggestionKind;
+        name?: string;
+        blocked?: boolean;
+        replacement?: string | null;
+        status?: SuggestionStatus;
+      };
 
     if (!kind || !KINDS.includes(kind) || !name?.trim()) {
       return NextResponse.json(
@@ -79,8 +83,16 @@ export async function POST(request: Request) {
       );
     }
 
-    if (blocked) await blockName(kind, name, replacement ?? null);
-    else await unblockName(kind, name);
+    if (status !== undefined) {
+      if (!["pending", "approved", "ignored"].includes(status)) {
+        return NextResponse.json({ error: "Bad status" }, { status: 400 });
+      }
+      await setNameStatus(kind, name, status);
+    } else if (blocked) {
+      await blockName(kind, name, replacement ?? null);
+    } else {
+      await unblockName(kind, name);
+    }
 
     return NextResponse.json({ names: await listAllSuggestions() });
   } catch (error) {

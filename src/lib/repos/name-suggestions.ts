@@ -2,26 +2,56 @@ import { getDb, nowIso } from "@/lib/db";
 
 export type SuggestionKind = "show" | "character";
 
+export type SuggestionStatus = "pending" | "approved" | "ignored";
+
 export interface NameSuggestion {
   kind: SuggestionKind;
   name: string;
   blocked: number;
   /** When blocked, the spelling people should use instead. */
   replacement: string | null;
+  /** pending → not reviewed; approved → curated; ignored → not our problem. */
+  status: SuggestionStatus;
   createdAt: string;
   updatedAt: string;
 }
 
-/** Names offered for autocomplete: everything not blocked. */
+/**
+ * Names offered for autocomplete. Shows offer everything not blocked or
+ * ignored — approval is monitoring, not a gate, or autocomplete would go
+ * dark until an admin caught up. Character names offer only the approved
+ * set: the standard roles are what typing should land on, and one-off
+ * character names are noise there.
+ */
 export async function listSuggestions(kind: SuggestionKind): Promise<string[]> {
   const db = await getDb();
+  const where =
+    kind === "character"
+      ? "kind = ?1 AND blocked = 0 AND status = 'approved'"
+      : "kind = ?1 AND blocked = 0 AND status != 'ignored'";
   const { results } = await db
-    .prepare(
-      "SELECT name FROM name_suggestions WHERE kind = ?1 AND blocked = 0 ORDER BY name"
-    )
+    .prepare(`SELECT name FROM name_suggestions WHERE ${where} ORDER BY name`)
     .bind(kind)
     .all<{ name: string }>();
   return results.map((r) => r.name);
+}
+
+/** Move a name between pending, approved and ignored. */
+export async function setNameStatus(
+  kind: SuggestionKind,
+  name: string,
+  status: SuggestionStatus
+): Promise<void> {
+  const db = await getDb();
+  const now = nowIso();
+  await db
+    .prepare(
+      `INSERT INTO name_suggestions (kind, name, blocked, replacement, status, createdAt, updatedAt)
+       VALUES (?1, ?2, 0, NULL, ?3, ?4, ?4)
+       ON CONFLICT(kind, name) DO UPDATE SET status = ?3, updatedAt = ?4`
+    )
+    .bind(kind, name.trim(), status, now)
+    .run();
 }
 
 /** Every known name, blocked or not — the admin view. */
