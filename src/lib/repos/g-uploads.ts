@@ -11,6 +11,7 @@ export interface GUploadRow {
   sha256: string;
   rotation: number;
   transcription: string | null;
+  transcriptionRequested: number;
   /** The tracker row this Exhibit G belongs to — one G is one work day. */
   workRecordId: string | null;
   createdAt: string;
@@ -30,6 +31,7 @@ function toDoc(row: GUploadRow): GUpload {
     displayTitle: row.title.trim() || row.originalName,
     path: `/api/uploads/${row.filename}`,
     transcription: row.transcription ? JSON.parse(row.transcription) : null,
+    transcriptionRequested: row.transcriptionRequested ?? 0,
   };
 }
 

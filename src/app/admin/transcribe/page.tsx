@@ -24,6 +24,7 @@ interface GUploadItem {
   contentType: string;
   createdAt: string;
   transcription: unknown | null;
+  transcriptionRequested?: number;
 }
 
 interface UserListItem {
@@ -94,7 +95,15 @@ export default function AdminTranscribePage() {
         return;
       }
       const data = (await res.json()) as { uploads: GUploadItem[] };
-      setRecords((data.uploads || []).filter((u) => !u.transcription));
+      // Asked-for ones first — that is the queue the member is waiting on.
+      setRecords(
+        (data.uploads || [])
+          .filter((u: GUploadItem) => !u.transcription)
+          .sort(
+            (a: GUploadItem, b: GUploadItem) =>
+              (b.transcriptionRequested ?? 0) - (a.transcriptionRequested ?? 0)
+          )
+      );
     } catch {
       toast.error("Failed to load uploads");
     } finally {
@@ -223,6 +232,11 @@ export default function AdminTranscribePage() {
                     <div className="flex-1 min-w-0">
                       <div className="text-sm font-medium truncate">
                         {r.displayTitle}
+                        {Boolean(r.transcriptionRequested) && (
+                          <span className="ml-2 rounded px-1.5 py-0.5 text-[10px] uppercase tracking-wide border border-primary/50 text-primary">
+                            Requested
+                          </span>
+                        )}
                       </div>
                       <div className="text-xs text-muted-foreground">
                         Uploaded {formatDateSafe(r.createdAt)}
