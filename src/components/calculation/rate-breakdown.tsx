@@ -121,56 +121,13 @@ export function RateBreakdown({ breakdown, input, compact = false }: RateBreakdo
         </CardContent>
       </Card>
 
-      {/* Time Segments */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-lg">Time Breakdown</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Segment</TableHead>
-                <TableHead className="text-right">Hours</TableHead>
-                <TableHead className="text-right">Rate</TableHead>
-                <TableHead className="text-right">Multiplier</TableHead>
-                <TableHead className="text-right">Subtotal</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {segments.map((seg, i) => (
-                <TableRow key={i}>
-                  <TableCell className="font-medium">{seg.label}</TableCell>
-                  <TableCell className="text-right">{Number(seg.hours.toFixed(1))}</TableCell>
-                  <TableCell className="text-right">
-                    {formatCurrency(seg.rate)}
-                  </TableCell>
-                  <TableCell className="text-right">{seg.multiplier}x</TableCell>
-                  <TableCell className="text-right font-semibold">
-                    {formatCurrency(seg.subtotal)}
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-            <TableFooter>
-              <TableRow>
-                <TableCell colSpan={4} className="font-semibold">
-                  Time Total
-                </TableCell>
-                <TableCell className="text-right font-bold">
-                  {formatCurrency(
-                    segments.reduce((sum, s) => sum + s.subtotal, 0)
-                  )}
-                </TableCell>
-              </TableRow>
-            </TableFooter>
-          </Table>
-        </CardContent>
-      </Card>
-
-      {/* Penalties */}
-      {hasPenalties && (() => {
-        // Group meal penalties by meal type for simplified display
+      {/* One table, laid out the way a check reads: the hours at the rate
+          they were actually paid at, then the penalties, then the total.
+          The rate column already carries the multiplier — time-and-a-half
+          shows the base hourly times 1.5, because that is the number the
+          hour actually paid, and a separate multiplier column was one more
+          thing to cross-reference. */}
+      {(() => {
         const mealTotals = penalties.mealPenalties.reduce<Record<string, number>>((acc, mp) => {
           acc[mp.meal] = (acc[mp.meal] || 0) + mp.amount;
           return acc;
@@ -179,22 +136,38 @@ export function RateBreakdown({ breakdown, input, compact = false }: RateBreakdo
         return (
           <Card>
             <CardHeader>
-              <CardTitle className="text-lg">Penalties</CardTitle>
+              <CardTitle className="text-lg">Pay Breakdown</CardTitle>
             </CardHeader>
             <CardContent>
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead>Penalty</TableHead>
+                    <TableHead>Line</TableHead>
+                    <TableHead className="text-right">Hours</TableHead>
+                    <TableHead className="text-right">Rate</TableHead>
                     <TableHead className="text-right">Amount</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
+                  {segments.map((seg, i) => (
+                    <TableRow key={i}>
+                      <TableCell className="font-medium">{seg.label}</TableCell>
+                      <TableCell className="text-right">
+                        {Number(seg.hours.toFixed(1))}
+                      </TableCell>
+                      <TableCell className="text-right">
+                        {formatCurrency(seg.rate * seg.multiplier)}
+                      </TableCell>
+                      <TableCell className="text-right font-semibold">
+                        {formatCurrency(seg.subtotal)}
+                      </TableCell>
+                    </TableRow>
+                  ))}
                   {Object.entries(mealTotals).map(([meal, total]) => (
                     <TableRow key={meal}>
-                      <TableCell className="font-medium">
-                        {meal} Penalty
-                      </TableCell>
+                      <TableCell className="font-medium">{meal} Penalty</TableCell>
+                      <TableCell className="text-right text-muted-foreground">—</TableCell>
+                      <TableCell className="text-right text-muted-foreground">—</TableCell>
                       <TableCell className="text-right font-semibold">
                         {formatCurrency(total)}
                       </TableCell>
@@ -202,9 +175,9 @@ export function RateBreakdown({ breakdown, input, compact = false }: RateBreakdo
                   ))}
                   {penalties.forcedCallPenalty > 0 && (
                     <TableRow>
-                      <TableCell className="font-medium">
-                        Forced Call Penalty
-                      </TableCell>
+                      <TableCell className="font-medium">Forced Call Penalty</TableCell>
+                      <TableCell className="text-right text-muted-foreground">—</TableCell>
+                      <TableCell className="text-right text-muted-foreground">—</TableCell>
                       <TableCell className="text-right font-semibold">
                         {formatCurrency(penalties.forcedCallPenalty)}
                       </TableCell>
@@ -213,11 +186,11 @@ export function RateBreakdown({ breakdown, input, compact = false }: RateBreakdo
                 </TableBody>
                 <TableFooter>
                   <TableRow>
-                    <TableCell className="font-semibold">
-                      Penalties Total
+                    <TableCell colSpan={3} className="font-semibold">
+                      Total
                     </TableCell>
                     <TableCell className="text-right font-bold">
-                      {formatCurrency(penalties.totalPenalties)}
+                      {formatCurrency(grandTotal)}
                     </TableCell>
                   </TableRow>
                 </TableFooter>

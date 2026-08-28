@@ -152,13 +152,15 @@ export function ExhibitGForm() {
   const [showFirstMeal, setShowFirstMeal] = useState(true); // 1st meal selected by default
   const [showSecondMeal, setShowSecondMeal] = useState(false);
   /**
-   * On by default: a day being logged as it happens should show what it is
-   * earning without being asked. It only applies while the day is running —
-   * today's date, no end time entered — and there is one mode, 6-minute
-   * intervals, because tenths of an hour are what payroll actually pays in.
-   * The by-the-second counter mode is gone: it looked precise and was not.
+   * Off until asked for. Ticked, the counter runs in real time — the
+   * number climbing is the point of watching it. A second checkbox under
+   * the counter snaps it to 6-minute intervals instead, which is how
+   * payroll actually pays (tenths of an hour), so "more accurate" at the
+   * price of only moving every six minutes. Either way it only applies
+   * while the day is running — today's date, no end time entered.
    */
-  const [showLiveRate, setShowLiveRate] = useState(true);
+  const [showLiveRate, setShowLiveRate] = useState(false);
+  const [sixMinIntervals, setSixMinIntervals] = useState(false);
   // Tick counter to trigger recalc for live rate
   const [liveTick, setLiveTick] = useState(0);
 
@@ -206,9 +208,10 @@ export function ExhibitGForm() {
 
   useEffect(() => {
     if (!liveRate) return;
-    const interval = setInterval(() => setLiveTick((t) => t + 1), 60_000);
+    const ms = sixMinIntervals ? 60_000 : 100;
+    const interval = setInterval(() => setLiveTick((t) => t + 1), ms);
     return () => clearInterval(interval);
-  }, [liveRate]);
+  }, [liveRate, sixMinIntervals]);
 
   // Live calculation — runs whenever input changes (not for stunt coordinator — flat rate)
   // While the day is still running, the current time stands in for the dismissal
@@ -226,7 +229,18 @@ export function ExhibitGForm() {
     if (!input.callTime) return null;
     if (liveRate) {
       try {
-        return calculateRate({ ...input, dismissOnSet: getCurrentTimeSnapped() });
+        if (sixMinIntervals) {
+          return calculateRate({ ...input, dismissOnSet: getCurrentTimeSnapped() });
+        }
+        const now = new Date();
+        const dismissTime = `${String(now.getHours()).padStart(2, "0")}:${String(now.getMinutes()).padStart(2, "0")}`;
+        return calculateRate(
+          { ...input, dismissOnSet: dismissTime },
+          {
+            skipRounding: true,
+            additionalSeconds: now.getSeconds() + now.getMilliseconds() / 1000,
+          }
+        );
       } catch {
         return null;
       }
@@ -239,7 +253,7 @@ export function ExhibitGForm() {
       return null;
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [input, isStuntCoordinator, liveRate, liveTick]);
+  }, [input, isStuntCoordinator, liveRate, sixMinIntervals, liveTick]);
 
   // Live meal penalty summary from the breakdown
   const liveMealPenaltySummary = useMemo(() => {
@@ -848,10 +862,22 @@ export function ExhibitGForm() {
                         <span>+ {formatCurrency(liveBreakdown.penalties.totalPenalties)} penalties</span>
                       )}
                     </div>
-                    <p className="text-xs text-muted-foreground mt-1">
-                      In 6-minute intervals — pay moves in tenths of an hour
-                    </p>
                   </div>
+                </div>
+              )}
+              {liveRate && (
+                <div className="flex items-center space-x-2">
+                  <Checkbox
+                    id="sixMinIntervals"
+                    checked={sixMinIntervals}
+                    onCheckedChange={(v) => setSixMinIntervals(!!v)}
+                  />
+                  <Label
+                    htmlFor="sixMinIntervals"
+                    className="text-sm font-normal text-muted-foreground"
+                  >
+                    6-minute intervals (more accurate)
+                  </Label>
                 </div>
               )}
             </div>
