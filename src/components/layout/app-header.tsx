@@ -361,49 +361,53 @@ export function AppHeader() {
                       </span>
                     </div>
 
-                    <nav className="flex flex-col gap-5">
+                    <nav className="flex flex-col gap-6">
                       {sections.map((section) => (
-                        <div key={section.id} className="flex flex-col gap-2">
-                          <p className="text-xs text-muted-foreground font-medium uppercase tracking-wider">
+                        <div key={section.id} className="flex flex-col">
+                          <p className="text-[11px] text-muted-foreground/60 font-semibold uppercase tracking-[0.14em] border-b border-border/60 pb-1.5 mb-2">
                             {section.label}
                           </p>
-                          {section.children.map((child) => (
-                            <Link
-                              key={child.href}
-                              href={child.href}
-                              onClick={() => setMobileOpen(false)}
-                              className={cn(
-                                "text-lg font-medium transition-colors hover:text-primary",
-                                matchesChild(pathname, child.href)
-                                  ? "text-primary"
-                                  : "text-muted-foreground"
-                              )}
-                            >
-                              {child.label}
-                            </Link>
-                          ))}
+                          <div className="flex flex-col gap-1 pl-3 border-l border-border/40">
+                            {section.children.map((child) => (
+                              <Link
+                                key={child.href}
+                                href={child.href}
+                                onClick={() => setMobileOpen(false)}
+                                className={cn(
+                                  "text-lg font-medium py-0.5 transition-colors hover:text-primary",
+                                  matchesChild(pathname, child.href)
+                                    ? "text-primary"
+                                    : "text-foreground/90"
+                                )}
+                              >
+                                {child.label}
+                              </Link>
+                            ))}
+                          </div>
                         </div>
                       ))}
 
-                      <div className="flex flex-col gap-2 pt-2 border-t border-border/50">
-                        <p className="text-xs text-muted-foreground font-medium uppercase tracking-wider">
+                      <div className="flex flex-col">
+                        <p className="text-[11px] text-muted-foreground/60 font-semibold uppercase tracking-[0.14em] border-b border-border/60 pb-1.5 mb-2">
                           Account
                         </p>
+                        <div className="flex flex-col gap-1 pl-3 border-l border-border/40">
                         {ACCOUNT_LINKS.map((link) => (
                           <Link
                             key={link.href}
                             href={link.href}
                             onClick={() => setMobileOpen(false)}
                             className={cn(
-                              "text-lg font-medium transition-colors hover:text-primary",
+                              "text-lg font-medium py-0.5 transition-colors hover:text-primary",
                               matchesChild(pathname, link.href)
                                 ? "text-primary"
-                                : "text-muted-foreground"
+                                : "text-foreground/90"
                             )}
                           >
                             {link.label}
                           </Link>
                         ))}
+                        </div>
                       </div>
                     </nav>
 
