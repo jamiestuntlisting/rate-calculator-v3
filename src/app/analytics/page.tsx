@@ -11,7 +11,6 @@ import {
 import { Badge } from "@/components/ui/badge";
 import Link from "next/link";
 import { toast } from "sonner";
-import { ChevronDown, ChevronRight } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import type { WorkRecord } from "@/types";
@@ -28,10 +27,33 @@ function derivePaymentStatus(amount: number, expected: number | undefined): stri
 
 const iso = (d: Date) => d.toISOString().split("T")[0];
 
+/** The one-word verdict a day wears: what happened against what we make it. */
+const VERDICTS: Record<string, { label: string; tone: string }> = {
+  paid_correctly: {
+    label: "Right",
+    tone: "bg-green-900/40 text-green-300 border-green-700/50",
+  },
+  underpaid: {
+    label: "Under",
+    tone: "bg-yellow-900/40 text-yellow-300 border-yellow-700/50",
+  },
+  overpaid: {
+    label: "Over",
+    tone: "bg-blue-900/40 text-blue-300 border-blue-700/50",
+  },
+  unpaid: {
+    label: "Unpaid",
+    tone: "bg-red-900/40 text-red-300 border-red-700/50",
+  },
+  late: {
+    label: "Late",
+    tone: "bg-purple-900/40 text-purple-300 border-purple-700/50",
+  },
+};
+
 export default function AnalyticsPage() {
   const [records, setRecords] = useState<WorkRecord[]>([]);
   const [loading, setLoading] = useState(true);
-  const [openShows, setOpenShows] = useState<Set<string>>(new Set());
   /** Per-day paid entries being edited, keyed by record id. */
   const [paidEdits, setPaidEdits] = useState<Record<string, string>>({});
   /** Per-show paycheck amounts waiting to be applied. */
@@ -334,144 +356,105 @@ export default function AnalyticsPage() {
           {stats.byShow.length === 0 ? (
             <p className="text-muted-foreground text-sm">No data</p>
           ) : (
-            <div className="space-y-2">
-              {stats.byShow.map((show) => {
-                const open = openShows.has(show.name);
-                return (
-                  <div key={show.name} className="rounded border border-border/50">
-                    <button
-                      type="button"
-                      aria-expanded={open}
-                      onClick={() =>
-                        setOpenShows((prev) => {
-                          const next = new Set(prev);
-                          if (next.has(show.name)) next.delete(show.name);
-                          else next.add(show.name);
-                          return next;
-                        })
-                      }
-                      className="w-full text-left p-3 flex items-center gap-2 hover:bg-accent/30 transition-colors"
-                    >
-                      {open ? (
-                        <ChevronDown className="h-4 w-4 shrink-0 text-muted-foreground" />
-                      ) : (
-                        <ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground" />
-                      )}
-                      <span className="flex-1 min-w-0">
-                        <span className="block font-medium truncate">{show.name}</span>
-                        <span className="block text-sm text-muted-foreground">
-                          {show.days} day{show.days !== 1 ? "s" : ""}
-                        </span>
-                      </span>
-                      <span className="text-right shrink-0">
-                        <span className="block font-semibold">
-                          {formatCurrency(show.expected)}
-                        </span>
-                        {show.paid > 0 && show.paid < show.expected && (
-                          <span className="block text-xs text-yellow-400">
-                            {formatCurrency(show.expected - show.paid)} owed
+            <div className="space-y-1">
+              {/* One row per day: show, date, what we calculated, what they
+                  were paid (typed straight in), and the verdict — the same
+                  ledger shape as a pay stub, nothing to open. */}
+              {stats.byShow.map((show) => (
+                <div key={show.name} className="pb-2">
+                  {show.records.map((record) => {
+                    const ymd = record.workDate.split("T")[0];
+                    const edit = paidEdits[record._id];
+                    return (
+                      <div
+                        key={record._id}
+                        className="flex items-center gap-2 py-1.5 border-b border-border/30"
+                      >
+                        <Link
+                          href={`/work/${record._id}`}
+                          className="flex-1 min-w-0"
+                        >
+                          <span className="block text-sm font-medium truncate">
+                            {show.name}
                           </span>
-                        )}
-                        {show.paid === 0 && show.expected > 0 && (
-                          <span className="block text-xs text-red-400">Unpaid</span>
-                        )}
-                        {show.paid >= show.expected && show.expected > 0 && (
-                          <span className="block text-xs text-green-400">Paid</span>
-                        )}
-                      </span>
-                    </button>
-
-                    {open && (
-                      <div className="border-t border-border/50 p-3 space-y-2">
-                        {/* The days, oldest first — each takes its payment
-                            directly, because a check is money on real days. */}
-                        {show.records.map((record) => {
-                          const ymd = record.workDate.split("T")[0];
-                          const edit = paidEdits[record._id];
-                          return (
-                            <div
-                              key={record._id}
-                              className="flex items-center gap-2"
-                            >
-                              <Link
-                                href={`/work/${record._id}`}
-                                className="flex-1 min-w-0 text-sm"
-                              >
-                                <span className="block">{ymd}</span>
-                                <span className="block text-xs text-muted-foreground truncate">
-                                  {formatCurrency(record.expectedAmount || 0)}{" "}
-                                  expected
-                                  {record.paymentStatus === "underpaid" &&
-                                    " · underpaid"}
-                                  {record.paymentStatus === "late" && " · late"}
-                                </span>
-                              </Link>
-                              <div className="relative w-28 shrink-0">
-                                <span className="absolute left-2 top-1/2 -translate-y-1/2 text-muted-foreground text-sm">
-                                  $
-                                </span>
-                                <Input
-                                  type="number"
-                                  inputMode="decimal"
-                                  min="0"
-                                  value={edit ?? (record.paidAmount || "")}
-                                  onChange={(e) =>
-                                    setPaidEdits((prev) => ({
-                                      ...prev,
-                                      [record._id]: e.target.value,
-                                    }))
-                                  }
-                                  onBlur={() => saveDayEdit(record)}
-                                  onKeyDown={(e) => {
-                                    if (e.key === "Enter")
-                                      e.currentTarget.blur();
-                                  }}
-                                  placeholder="0.00"
-                                  className="pl-6 h-9 text-sm"
-                                />
-                              </div>
-                            </div>
-                          );
-                        })}
-
-                        <div className="flex items-center gap-2 pt-2 border-t border-border/40">
-                          <div className="relative flex-1 min-w-0">
-                            <span className="absolute left-2 top-1/2 -translate-y-1/2 text-muted-foreground text-sm">
-                              $
-                            </span>
-                            <Input
-                              type="number"
-                              inputMode="decimal"
-                              min="0"
-                              value={checks[show.name] ?? ""}
-                              onChange={(e) =>
-                                setChecks((prev) => ({
-                                  ...prev,
-                                  [show.name]: e.target.value,
-                                }))
-                              }
-                              placeholder="Paycheck amount"
-                              className="pl-6 h-9 text-sm"
-                            />
-                          </div>
-                          <Button
-                            size="sm"
-                            disabled={busyShow === show.name}
-                            onClick={() => applyCheck(show.name, show.records)}
-                          >
-                            {busyShow === show.name ? "Applying…" : "Add paycheck"}
-                          </Button>
+                          <span className="block text-xs text-muted-foreground">
+                            {ymd}
+                          </span>
+                        </Link>
+                        <span className="text-sm tabular-nums shrink-0 w-20 text-right">
+                          {formatCurrency(record.expectedAmount || 0)}
+                        </span>
+                        <div className="relative w-24 shrink-0">
+                          <span className="absolute left-2 top-1/2 -translate-y-1/2 text-muted-foreground text-sm">
+                            $
+                          </span>
+                          <Input
+                            type="number"
+                            inputMode="decimal"
+                            min="0"
+                            value={edit ?? (record.paidAmount || "")}
+                            onChange={(e) =>
+                              setPaidEdits((prev) => ({
+                                ...prev,
+                                [record._id]: e.target.value,
+                              }))
+                            }
+                            onBlur={() => saveDayEdit(record)}
+                            onKeyDown={(e) => {
+                              if (e.key === "Enter") e.currentTarget.blur();
+                            }}
+                            placeholder="0.00"
+                            className="pl-6 h-9 text-sm"
+                          />
                         </div>
-                        <p className="text-xs text-muted-foreground">
-                          A paycheck fills the oldest unpaid day first and
-                          spills into the next — enter each check as it
-                          arrives.
-                        </p>
+                        <span
+                          className={`shrink-0 w-14 text-center rounded px-1 py-0.5 text-[10px] font-semibold uppercase tracking-wide border ${
+                            VERDICTS[record.paymentStatus]?.tone ??
+                            VERDICTS.unpaid.tone
+                          }`}
+                        >
+                          {VERDICTS[record.paymentStatus]?.label ?? "Unpaid"}
+                        </span>
                       </div>
-                    )}
+                    );
+                  })}
+
+                  <div className="flex items-center gap-2 py-1.5">
+                    <span className="flex-1 min-w-0 text-xs text-muted-foreground truncate">
+                      Add a paycheck for {show.name} — fills the oldest unpaid
+                      day first
+                    </span>
+                    <div className="relative w-24 shrink-0">
+                      <span className="absolute left-2 top-1/2 -translate-y-1/2 text-muted-foreground text-sm">
+                        $
+                      </span>
+                      <Input
+                        type="number"
+                        inputMode="decimal"
+                        min="0"
+                        value={checks[show.name] ?? ""}
+                        onChange={(e) =>
+                          setChecks((prev) => ({
+                            ...prev,
+                            [show.name]: e.target.value,
+                          }))
+                        }
+                        placeholder="0.00"
+                        className="pl-6 h-9 text-sm"
+                      />
+                    </div>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="w-14 px-0"
+                      disabled={busyShow === show.name}
+                      onClick={() => applyCheck(show.name, show.records)}
+                    >
+                      {busyShow === show.name ? "…" : "Apply"}
+                    </Button>
                   </div>
-                );
-              })}
+                </div>
+              ))}
             </div>
           )}
         </CardContent>
