@@ -385,15 +385,6 @@ export default function TranscribePage({
         </div>
 
         <div className="flex items-center gap-2 shrink-0">
-          <button
-            type="button"
-            onClick={rotate}
-            aria-label="Rotate"
-            title="Rotate"
-            className="h-12 w-12 flex items-center justify-center rounded-lg border border-border hover:bg-accent active:scale-95 transition"
-          >
-            <RotateCw className="h-6 w-6" />
-          </button>
           <Button onClick={save} disabled={saving}>
             {saving ? (
               <Loader2 className="h-4 w-4 mr-2 animate-spin" />
@@ -463,8 +454,20 @@ export default function TranscribePage({
           <div className="rounded-lg border border-border overflow-hidden">
             <div className="flex items-center justify-between px-2 py-1 text-[11px] uppercase tracking-wide text-muted-foreground bg-muted/40">
               <span>Column headings</span>
-              <span className="tabular-nums normal-case">
-                {Math.round(zoom * 100)}%
+              <span className="flex items-center gap-2">
+                <span className="tabular-nums normal-case">
+                  {Math.round(zoom * 100)}%
+                </span>
+                {/* Rotation belongs beside what it rotates. */}
+                <button
+                  type="button"
+                  onClick={rotate}
+                  aria-label="Rotate the card"
+                  title="Rotate"
+                  className="rounded p-1 -my-1 hover:bg-accent hover:text-foreground"
+                >
+                  <RotateCw className="h-4 w-4" />
+                </button>
               </span>
             </div>
             {pane("header", headerRef, "h-[11vh] min-h-[55px]")}
