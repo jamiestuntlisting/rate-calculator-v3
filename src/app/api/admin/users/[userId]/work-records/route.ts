@@ -7,6 +7,7 @@ import { findUserById } from "@/lib/repos/users";
 import { getSession, isAdminEmail } from "@/lib/auth";
 import { calculatePaymentDueDate } from "@/lib/time-utils";
 import { calculateRate } from "@/lib/rate-engine";
+import { weeklyEquivalentDayRate } from "@/lib/agreements";
 import type { ExhibitGInput } from "@/types";
 
 async function requireAdmin() {
@@ -171,6 +172,14 @@ export async function POST(
           isSeventhDay: !!data.isSeventhDay,
           isHoliday: !!data.isHoliday,
           workStatus: data.workStatus,
+          // Without these a flat deal is priced back at scale with
+          // overtime, and a weekly's day at the daily rate — both money
+          // nobody is owed.
+          flatDayRate: Number(data.flatDayRate) > 0 ? Number(data.flatDayRate) : null,
+          dayRateOverride:
+            data.contractLength === "weekly" || data.weeklyContract
+              ? weeklyEquivalentDayRate(data.workStatus)
+              : null,
           characterName: data.characterName ?? "",
           notes: data.notes ?? "",
         };

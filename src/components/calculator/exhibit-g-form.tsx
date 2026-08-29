@@ -32,6 +32,7 @@ import {
   dayRate,
   dayRateFor,
   weeklyAgreementLabel,
+  weeklyEquivalentDayRate,
 } from "@/lib/agreements";
 import { toast } from "sonner";
 import type { ExhibitGInput, WorkDocument, CalculationBreakdown } from "@/types";
@@ -229,18 +230,33 @@ export function ExhibitGForm() {
     [input.callTime, input.ndMealIn, input.ndMealOut]
   );
 
+  /**
+   * What the engine is asked to price. A day inside a weekly contract
+   * carries the weekly scale spread over five days as its rate — an
+   * approximation, marked with an asterisk wherever the result shows.
+   * A flat deal still wins: the flat number is the whole deal.
+   */
+  const calcInput: ExhibitGInput = useMemo(
+    () =>
+      weeklyContract
+        ? { ...input, dayRateOverride: weeklyEquivalentDayRate(input.workStatus) }
+        : input,
+    [input, weeklyContract]
+  );
+  const weeklyApprox = weeklyContract && !input.flatDayRate;
+
   const liveBreakdown: CalculationBreakdown | null = useMemo(() => {
     if (isStuntCoordinator) return null;
-    if (!input.callTime) return null;
+    if (!calcInput.callTime) return null;
     if (liveRate) {
       try {
         if (sixMinIntervals) {
-          return calculateRate({ ...input, dismissOnSet: getCurrentTimeSnapped() });
+          return calculateRate({ ...calcInput, dismissOnSet: getCurrentTimeSnapped() });
         }
         const now = new Date();
         const dismissTime = `${String(now.getHours()).padStart(2, "0")}:${String(now.getMinutes()).padStart(2, "0")}`;
         return calculateRate(
-          { ...input, dismissOnSet: dismissTime },
+          { ...calcInput, dismissOnSet: dismissTime },
           {
             skipRounding: true,
             additionalSeconds: now.getSeconds() + now.getMilliseconds() / 1000,
@@ -251,14 +267,14 @@ export function ExhibitGForm() {
       }
     }
     // Not live — use entered dismiss time
-    if (!input.dismissOnSet) return null;
+    if (!calcInput.dismissOnSet) return null;
     try {
-      return calculateRate(input);
+      return calculateRate(calcInput);
     } catch {
       return null;
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [input, isStuntCoordinator, liveRate, sixMinIntervals, liveTick]);
+  }, [calcInput, isStuntCoordinator, liveRate, sixMinIntervals, liveTick]);
 
   // Live meal penalty summary from the breakdown
   const liveMealPenaltySummary = useMemo(() => {
@@ -352,7 +368,7 @@ export function ExhibitGForm() {
       let expectedAmount: number | undefined;
       if (input.callTime && input.dismissOnSet) {
         try {
-          calculation = calculateRate(input);
+          calculation = calculateRate(calcInput);
           // The engine works out one contract; the rest are day rates on top.
           expectedAmount = calculation.grandTotal + extraContracts.pay;
         } catch {
@@ -879,7 +895,14 @@ export function ExhibitGForm() {
                         key={sixMinIntervals ? "6min" : "counter"}
                         value={liveBreakdown.grandTotal + extraContracts.pay}
                       />
+                      {weeklyApprox && "*"}
                     </p>
+                    {weeklyApprox && (
+                      <p className="text-xs text-muted-foreground mt-1">
+                        * Approximated at the weekly rate over five days — the
+                        week is paid as one check.
+                      </p>
+                    )}
                     <div className="flex justify-center gap-4 mt-2 text-xs text-muted-foreground">
                       <span>{Number(liveBreakdown.netWorkHours.toFixed(1))}h worked</span>
                       {liveBreakdown.penalties.totalPenalties > 0 && (
@@ -986,7 +1009,15 @@ export function ExhibitGForm() {
                   <AnimatedCurrency
                     value={liveBreakdown.grandTotal + extraContracts.pay}
                   />
+                  {weeklyApprox && "*"}
                 </p>
+                {weeklyApprox && (
+                  <p className="text-xs text-muted-foreground mt-1">
+                    * Approximated at the weekly rate over five days. The week
+                    is paid as one check and worked out exactly on the Weekly
+                    page.
+                  </p>
+                )}
                 {extraContracts.pay > 0 && (
                   <p className="text-xs text-muted-foreground mt-1">
                     {formatCurrency(liveBreakdown.grandTotal)} for the

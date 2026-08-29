@@ -19,12 +19,19 @@ export interface ExhibitGInput {
   isHoliday: boolean;
   workStatus: RateSchedule;
   /**
-   * A negotiated day rate that is not one of the published schedules — a
-   * flat deal. Given one, it replaces the schedule's daily rate and
-   * everything else (overtime tiers, stunt adjustment, penalties) is worked
-   * out from it exactly as normal.
+   * A negotiated number that buys the day outright — a flat deal. Given
+   * one, the day comes back as a single segment however long it ran and
+   * earns no overtime; meal penalties are not wages and still land on top.
    */
   flatDayRate?: number | null;
+  /**
+   * Replaces the schedule's daily rate while leaving it a scale day:
+   * overtime tiers, the stunt adjustment and penalties all work off it as
+   * normal. This is how a day inside a weekly contract is approximated —
+   * the weekly scale spread over its days. A flat deal wins over this,
+   * because a flat deal is the whole deal.
+   */
+  dayRateOverride?: number | null;
   characterName: string;
   notes: string;
 }

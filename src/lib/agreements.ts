@@ -88,6 +88,19 @@ export function weeklyAgreementLabel(id: string): string {
   return `${agreementName(id)} (${weekRate(rates.weekly)})`;
 }
 
+/**
+ * The day a weekly contract buys, approximately: the weekly scale spread
+ * over five days, so five straight days sum back to the weekly exactly.
+ * It is an approximation and is always shown with an asterisk — the week
+ * itself is worked out for real on /weekly, where the 44/48-hour guarantee
+ * and weekly overtime live. Kept here rather than in the vendored engine
+ * because "divide by five" is this app's convention, not contract text.
+ */
+export function weeklyEquivalentDayRate(id: string | null | undefined): number {
+  const weekly = (RATES[id as RateSchedule] ?? RATES.theatrical_basic).weekly;
+  return Math.round((weekly / 5) * 100) / 100;
+}
+
 /** The day rate a record is calculated on, flat deal or schedule. */
 export function dayRateFor(
   id: string | null | undefined,

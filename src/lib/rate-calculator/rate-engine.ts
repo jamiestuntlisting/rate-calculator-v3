@@ -27,11 +27,19 @@ import type {
  */
 export function calculateRate(input: ExhibitGInput, options?: { skipRounding?: boolean; additionalSeconds?: number }): CalculationBreakdown {
   const rates = RATES[input.workStatus as RateSchedule] ?? RATES.theatrical_basic;
-  // A flat deal names its own day rate; otherwise the schedule's applies.
+  // A flat deal names its own day rate; otherwise an override (a scale-like
+  // rate that is not the schedule's, e.g. a weekly's day equivalent) or the
+  // schedule's daily applies.
   const flat = input.flatDayRate;
   const isFlatDeal = flat != null && flat > 0;
-  const baseRate = isFlatDeal ? flat : rates.daily;
-  const hourlyRate = isFlatDeal ? flat / 8 : rates.hourly;
+  const override = input.dayRateOverride;
+  const hasOverride = !isFlatDeal && override != null && override > 0;
+  const baseRate = isFlatDeal ? flat : hasOverride ? override : rates.daily;
+  const hourlyRate = isFlatDeal
+    ? flat / 8
+    : hasOverride
+      ? override / 8
+      : rates.hourly;
 
   // Step 1: Apply stunt adjustment to base rate BEFORE OT calculation
   const adjustedBaseRate = baseRate + input.stuntAdjustment;

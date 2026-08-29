@@ -24,9 +24,20 @@ interface RateBreakdownProps {
   breakdown: CalculationBreakdown;
   input?: ExhibitGInput;
   compact?: boolean;
+  /**
+   * The day belongs to a weekly contract, so its rate is the weekly scale
+   * spread over five days — an approximation, marked with an asterisk.
+   * The week itself is worked out for real on /weekly.
+   */
+  weeklyApproximation?: boolean;
 }
 
-export function RateBreakdown({ breakdown, input, compact = false }: RateBreakdownProps) {
+export function RateBreakdown({
+  breakdown,
+  input,
+  compact = false,
+  weeklyApproximation = false,
+}: RateBreakdownProps) {
   const {
     baseRate,
     adjustedBaseRate,
@@ -52,10 +63,17 @@ export function RateBreakdown({ breakdown, input, compact = false }: RateBreakdo
             <p className="text-sm text-muted-foreground">Calculated Total</p>
             <p className="text-4xl font-bold tracking-tight">
               {formatCurrency(grandTotal)}
+              {weeklyApproximation && "*"}
             </p>
             {input && (
               <p className="text-sm text-muted-foreground mt-1">
                 {input.showName} &middot; {input.workDate}
+              </p>
+            )}
+            {weeklyApproximation && (
+              <p className="text-xs text-muted-foreground mt-2">
+                * Approximated at the weekly rate over five days. The week is
+                paid as one check and worked out exactly on the Weekly page.
               </p>
             )}
           </div>
@@ -70,8 +88,13 @@ export function RateBreakdown({ breakdown, input, compact = false }: RateBreakdo
         <CardContent>
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
             <div>
-              <p className="text-muted-foreground">Base Daily Rate</p>
-              <p className="font-semibold">{formatCurrency(baseRate)}</p>
+              <p className="text-muted-foreground">
+                {weeklyApproximation ? "Weekly Day Rate" : "Base Daily Rate"}
+              </p>
+              <p className="font-semibold">
+                {formatCurrency(baseRate)}
+                {weeklyApproximation && "*"}
+              </p>
             </div>
             {hasStuntAdj && (
               <div>

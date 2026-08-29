@@ -8,6 +8,7 @@ import {
   agreementName,
   dayRate,
   dayRateFor,
+  weeklyEquivalentDayRate,
 } from "./agreements";
 
 const day = (over: Partial<ExhibitGInput> = {}): ExhibitGInput => ({
@@ -172,5 +173,50 @@ describe("a flat deal", () => {
     const ulb = calculateRate(day({ workStatus: "ultra_low_budget" }));
     expect(ulb.baseRate).toBeCloseTo(256.6, 2);
     expect(ulb.grandTotal).toBeLessThan(calculateRate(day()).grandTotal);
+  });
+});
+
+describe("a day inside a weekly contract", () => {
+  const wages = (b: ReturnType<typeof calculateRate>) =>
+    b.grandTotal - b.penalties.totalPenalties;
+
+  it("spreads the weekly scale over five days, so five straight days sum back to it", () => {
+    expect(weeklyEquivalentDayRate("theatrical_basic")).toBeCloseTo(957.0, 2);
+    expect(weeklyEquivalentDayRate("theatrical_basic") * 5).toBeCloseTo(
+      RATES.theatrical_basic.weekly,
+      2
+    );
+    // The tiers follow their own weeklies, coordinators Schedule K's.
+    expect(weeklyEquivalentDayRate("low_budget")).toBeCloseTo(622.05, 2);
+    expect(weeklyEquivalentDayRate("stunt_coordinator")).toBeCloseTo(1487.8, 2);
+    expect(weeklyEquivalentDayRate("nonsense")).toBeCloseTo(957.0, 2);
+  });
+
+  it("takes the override as the base rate and still earns overtime, unlike a flat deal", () => {
+    const rate = weeklyEquivalentDayRate("theatrical_basic");
+    const eight = calculateRate(
+      day({ dismissOnSet: "15:30", dayRateOverride: rate })
+    );
+    expect(eight.baseRate).toBeCloseTo(957.0, 2);
+    expect(wages(eight)).toBeCloseTo(957.0, 2);
+
+    // Ten hours: two of them at time-and-a-half of the equivalent hourly.
+    const ten = calculateRate(day({ dayRateOverride: rate }));
+    expect(ten.segments.length).toBeGreaterThan(1);
+    expect(wages(ten)).toBeCloseTo(957 + 2 * 1.5 * (957 / 8), 1);
+  });
+
+  it("loses to a flat deal, which is the whole deal", () => {
+    const both = calculateRate(
+      day({ dayRateOverride: 957, flatDayRate: 2000, dismissOnSet: "23:00" })
+    );
+    expect(both.segments).toHaveLength(1);
+    expect(wages(both)).toBe(2000);
+  });
+
+  it("changes nothing when absent, zero or null", () => {
+    for (const dayRateOverride of [null, undefined, 0]) {
+      expect(calculateRate(day({ dayRateOverride })).baseRate).toBe(1283);
+    }
   });
 });

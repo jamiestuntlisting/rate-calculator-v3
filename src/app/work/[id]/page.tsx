@@ -6,7 +6,13 @@ import { useParams, useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { TimeSelect, toDisplay } from "@/components/calculator/time-select";
-import { AGREEMENTS, agreementLabel, dayRate } from "@/lib/agreements";
+import {
+  AGREEMENTS,
+  agreementLabel,
+  dayRate,
+  weeklyAgreementLabel,
+  weeklyEquivalentDayRate,
+} from "@/lib/agreements";
 import { GapLine } from "@/components/calculator/gap-line";
 import { ShowCombobox } from "@/components/shared/show-combobox";
 import { effectiveHourlyRate, workHoursFor } from "@/lib/work-hours";
@@ -414,6 +420,14 @@ export default function WorkDetailPage() {
         // back on scale and pays it overtime a flat deal never earns. The
         // flat rate is set on Log Work; here it just survives the edit.
         flatDayRate: record?.flatDayRate ?? null,
+        // A weekly's day is approximated at the weekly scale over five
+        // days — a scale day at that rate, shown everywhere with an
+        // asterisk. Recalculating without it would price the day at the
+        // daily scale, which is not the contract that was signed.
+        dayRateOverride:
+          editData.contractLength === "weekly"
+            ? weeklyEquivalentDayRate(editData.workStatus)
+            : null,
         contractLength: editData.contractLength,
         weeklyContract: editData.contractLength === "weekly",
         characterName: editData.characterName,
@@ -923,7 +937,9 @@ export default function WorkDetailPage() {
                       <SelectContent>
                         {AGREEMENTS.map((agreement) => (
                           <SelectItem key={agreement.id} value={agreement.id}>
-                            {agreementLabel(agreement.id)}
+                            {editData.contractLength === "weekly"
+                              ? weeklyAgreementLabel(agreement.id)
+                              : agreementLabel(agreement.id)}
                           </SelectItem>
                         ))}
                       </SelectContent>
@@ -1180,7 +1196,9 @@ export default function WorkDetailPage() {
                       <p className="font-semibold">
                         {record.flatDayRate
                           ? `Flat ${dayRate(record.flatDayRate)}`
-                          : agreementLabel(record.workStatus || "")}
+                          : record.weeklyContract
+                            ? weeklyAgreementLabel(record.workStatus || "")
+                            : agreementLabel(record.workStatus || "")}
                       </p>
                     </div>
                   )}
@@ -1211,7 +1229,11 @@ export default function WorkDetailPage() {
 
         {/* Rate Breakdown (only for SAG-AFTRA complete records with calculation) */}
         {!isOtherWorkType && record.calculation && (
-          <RateBreakdown breakdown={record.calculation} compact />
+          <RateBreakdown
+            breakdown={record.calculation}
+            compact
+            weeklyApproximation={Boolean(record.weeklyContract) && !record.flatDayRate}
+          />
         )}
 
         <Separator />

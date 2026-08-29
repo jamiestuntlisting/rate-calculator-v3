@@ -169,7 +169,15 @@ export default function CalculationDetailPage() {
         )}
       </div>
 
-      <RateBreakdown breakdown={data.breakdown} input={data.input} />
+      <RateBreakdown
+        breakdown={data.breakdown}
+        input={data.input}
+        weeklyApproximation={
+          data.input.dayRateOverride != null &&
+          data.input.dayRateOverride > 0 &&
+          !data.input.flatDayRate
+        }
+      />
 
       {/* Attached Documents */}
       {data.documents && data.documents.length > 0 && (

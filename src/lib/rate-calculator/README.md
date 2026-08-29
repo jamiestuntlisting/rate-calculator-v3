@@ -30,6 +30,12 @@ Two further changes are local and also need carrying upstream:
   the day as a single segment however long it ran, because nobody reaches a
   tier on a flat deal. Meal penalties are not wages and still land on top.
   Given nothing, the engine behaves exactly as before.
+- `types.ts` and `rate-engine.ts` also accept an optional `dayRateOverride`
+  — a rate that replaces the schedule's daily while staying a scale day:
+  overtime tiers, the stunt adjustment and penalties all work off it as
+  normal, unlike `flatDayRate`. The app uses it to approximate a day inside
+  a weekly contract at the weekly scale over five days. A flat deal wins if
+  both are set; given neither, the engine behaves exactly as before.
 - `rate-constants.ts` splits the stunt coordinator in two.
   `stunt_coordinator` is the flat-deal figure it always was ($1,996); the
   new `stunt_coordinator_daily` is a coordinator employed at *less than*
