@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { Maximize2, RotateCw, ZoomIn, ZoomOut } from "lucide-react";
 
 const MIN_ZOOM = 0.1;
@@ -43,38 +43,58 @@ export function ExhibitGViewer({
   onRotate,
 }: ExhibitGViewerProps) {
   const paneRef = useRef<HTMLDivElement>(null);
+  const imgRef = useRef<HTMLImageElement | null>(null);
   const pinch = useRef<{ distance: number; zoom: number } | null>(null);
   const [natural, setNatural] = useState({ w: 0, h: 0 });
   const [zoom, setZoom] = useState(1);
   const [rotation, setRotation] = useState(initialRotation);
 
   /**
-   * Learn the image's size and fit it to the pane width — once, from
-   * whichever of onLoad or the ref callback sees the image first. A cached
-   * image can finish loading before React attaches onLoad, and missing the
-   * measurement leaves the pane at full height over a fitted image; the
-   * guard also keeps a later rerun from stomping a zoom the reader chose.
+   * The pane's height cap in pixels, read while the pane still stands at
+   * the cap — once measured it hugs the image, and hugged height would
+   * make each later fit tighter than the one before.
+   */
+  const capPx = useRef(0);
+
+  /** Whole card in view: the largest zoom that fits width AND height. */
+  const containZoom = (pane: HTMLDivElement, w: number, h: number, rot: number) => {
+    const contentW = rot % 180 === 0 ? w : h;
+    const contentH = rot % 180 === 0 ? h : w;
+    const cap = capPx.current || pane.clientHeight;
+    return clampZoom(Math.min(pane.clientWidth / contentW, cap / contentH));
+  };
+
+  /**
+   * Learn the image's size and fit the whole card in view — once, from
+   * whichever of onLoad, the ref callback or the mount effect sees a
+   * complete image first. A cached image can finish loading before React
+   * attaches onLoad, and missing the measurement leaves the image at
+   * natural size showing one corner of the card. The measurement is only
+   * consumed once the pane is actually laid out, so an early call
+   * retries instead of wedging at 100%; the once-guard keeps later
+   * reruns from stomping a zoom the reader chose.
    */
   const measured = useRef(false);
   const adoptImage = (img: HTMLImageElement) => {
     if (measured.current) return;
     const { naturalWidth, naturalHeight } = img;
-    if (!naturalWidth || !naturalHeight) return;
-    measured.current = true;
-    setNatural({ w: naturalWidth, h: naturalHeight });
     const pane = paneRef.current;
-    const contentWidth = rotation % 180 === 0 ? naturalWidth : naturalHeight;
-    if (pane && contentWidth) {
-      setZoom(clampZoom(pane.clientWidth / contentWidth));
-    }
+    if (!naturalWidth || !naturalHeight || !pane || !pane.clientWidth) return;
+    measured.current = true;
+    capPx.current = pane.clientHeight;
+    setNatural({ w: naturalWidth, h: naturalHeight });
+    setZoom(containZoom(pane, naturalWidth, naturalHeight, rotation));
   };
+  useEffect(() => {
+    if (imgRef.current?.complete) adoptImage(imgRef.current);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
-  /** Scale so the whole width is visible — the useful starting point. */
-  const fitToWidth = useCallback(() => {
+  /** The Fit button: back to the whole card, however deep the zoom went. */
+  const fitToView = useCallback(() => {
     const pane = paneRef.current;
     if (!pane || !natural.w || !natural.h) return;
-    const contentWidth = rotation % 180 === 0 ? natural.w : natural.h;
-    if (contentWidth) setZoom(clampZoom(pane.clientWidth / contentWidth));
+    setZoom(containZoom(pane, natural.w, natural.h, rotation));
   }, [natural, rotation]);
 
   const baseW = natural.w * zoom;
@@ -154,7 +174,7 @@ export function ExhibitGViewer({
           >
             <ZoomIn className="h-4 w-4" />
           </ToolButton>
-          <ToolButton label="Fit to width" onClick={fitToWidth}>
+          <ToolButton label="Fit the whole card" onClick={fitToView}>
             <Maximize2 className="h-4 w-4" />
           </ToolButton>
           <ToolButton label="Rotate" onClick={rotate}>
@@ -181,13 +201,22 @@ export function ExhibitGViewer({
           pinch.current = null;
         }}
       >
-        <div style={{ width: displayW || "100%", height: displayH || "100%" }}>
+        {/* Centered: when the fit is bound by height, the leftover width
+            splits evenly instead of hanging off one side. */}
+        <div
+          style={{
+            width: displayW || "100%",
+            height: displayH || "100%",
+            marginInline: "auto",
+          }}
+        >
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
             src={src}
             alt={alt}
             draggable={false}
             ref={(el) => {
+              imgRef.current = el;
               if (el && el.complete) adoptImage(el);
             }}
             // Read synchronously: React clears currentTarget before any
