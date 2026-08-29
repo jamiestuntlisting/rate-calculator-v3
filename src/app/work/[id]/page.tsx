@@ -1517,118 +1517,105 @@ export default function WorkDetailPage() {
           </Card>
         )}
 
-        {/* Documents — displayed inline */}
-        {record.documents && record.documents.length > 0 && (
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-lg">Attached Documents</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-4">
-                {record.documents.map((doc, i) => {
-                  const ext = doc.filename.split(".").pop()?.toLowerCase() || "";
-                  const isImage = ["jpg", "jpeg", "png", "gif", "webp"].includes(ext);
-                  const isPdf = ext === "pdf";
-                  const docTypeLabel =
-                    doc.documentType === "exhibit_g" ? "Exhibit G"
-                    : doc.documentType === "call_sheet" ? "Call Sheet"
-                    : doc.documentType === "contract" ? "Contract"
-                    : doc.documentType === "wardrobe_photo" ? "Wardrobe Photo"
-                    : doc.documentType === "paystub" ? "Paystub"
-                    : "Other";
-
-                  return (
-                    <div key={`${doc.filename}-${i}`} className="rounded-lg border overflow-hidden">
-                      <div className="flex items-center justify-between p-2 bg-muted/30">
-                        <span className="text-sm font-medium truncate min-w-0">
-                          {doc.originalName}
-                        </span>
-                        <Badge variant="secondary" className="text-xs shrink-0">
-                          {docTypeLabel}
-                        </Badge>
-                      </div>
-                      {isImage && (
-                        <div className="p-2">
-                          <RotatableThumb
-                            src={`/api/uploads/${doc.filename}`}
-                            alt={doc.originalName}
-                            rotation={doc.rotation ?? 0}
-                            onRotate={(r) => rotateDocument(i, r)}
-                            className="w-full max-w-md mx-auto"
-                          />
-                        </div>
-                      )}
-                      {isPdf && (
-                        <iframe
-                          src={`/api/uploads/${doc.filename}`}
-                          title={doc.originalName}
-                          className="w-full h-[600px] border-0"
-                        />
-                      )}
-                      {!isImage && !isPdf && (
-                        <div className="p-4 text-center">
-                          <a
-                            href={`/api/uploads/${doc.filename}`}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="text-sm text-primary hover:underline"
-                          >
-                            Download {doc.originalName}
-                          </a>
-                        </div>
-                      )}
-                    </div>
-                  );
-                })}
-              </div>
-            </CardContent>
-          </Card>
-        )}
-      </div>{/* end contentRef */}
-
-      {/* Photos */}
-      <Card>
-        <CardHeader>
-          <div className="flex items-center justify-between">
-            <CardTitle className="text-lg">Photos & Documents</CardTitle>
-            <Button asChild variant="outline" size="sm">
-              <label className="cursor-pointer">
-                <Upload className="mr-2 h-4 w-4" />
-                Upload
-                <input
-                  type="file"
-                  accept="image/*"
-                  className="hidden"
-                  onChange={handleUploadPhoto}
-                />
-              </label>
-            </Button>
-          </div>
-        </CardHeader>
-        <CardContent>
-          {record.photos && record.photos.length > 0 ? (
-            <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-              {record.photos.map((photo, i) => (
-                <div
-                  key={i}
-                  className="aspect-square rounded-lg border overflow-hidden"
-                >
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img
-                    src={photo}
-                    alt={`Document ${i + 1}`}
-                    className="w-full h-full object-cover"
+        {/* Photos & Documents — one place for everything attached.
+            The type of thing is the headline (an Exhibit G matters more
+            than what the camera named the file); the filename rides
+            underneath in small print. */}
+        <Card>
+          <CardHeader>
+            <div className="flex items-center justify-between">
+              <CardTitle className="text-lg">Photos &amp; Documents</CardTitle>
+              <Button asChild variant="outline" size="sm">
+                <label className="cursor-pointer">
+                  <Upload className="mr-2 h-4 w-4" />
+                  Upload
+                  <input
+                    type="file"
+                    accept="image/*"
+                    className="hidden"
+                    onChange={handleUploadPhoto}
                   />
-                </div>
-              ))}
+                </label>
+              </Button>
             </div>
-          ) : (
-            <p className="text-center text-muted-foreground py-4">
-              No photos uploaded yet
-            </p>
-          )}
-        </CardContent>
-      </Card>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-4">
+              {(record.documents ?? []).map((doc, i) => {
+                const ext = doc.filename.split(".").pop()?.toLowerCase() || "";
+                const isImage = ["jpg", "jpeg", "png", "gif", "webp"].includes(ext);
+                const isPdf = ext === "pdf";
+
+                return (
+                  <div key={`${doc.filename}-${i}`} className="rounded-lg border overflow-hidden">
+                    <div className="p-2 bg-muted/30 min-w-0">
+                      <p className="text-sm font-semibold">
+                        {DOCUMENT_TYPE_LABELS[doc.documentType] ?? "Other"}
+                      </p>
+                      <p className="text-xs text-muted-foreground truncate">
+                        {doc.originalName}
+                      </p>
+                    </div>
+                    {isImage && (
+                      <div className="p-2">
+                        <RotatableThumb
+                          src={`/api/uploads/${doc.filename}`}
+                          alt={doc.originalName}
+                          rotation={doc.rotation ?? 0}
+                          onRotate={(r) => rotateDocument(i, r)}
+                          className="w-full max-w-md mx-auto"
+                        />
+                      </div>
+                    )}
+                    {isPdf && (
+                      <iframe
+                        src={`/api/uploads/${doc.filename}`}
+                        title={doc.originalName}
+                        className="w-full h-[600px] border-0"
+                      />
+                    )}
+                    {!isImage && !isPdf && (
+                      <div className="p-4 text-center">
+                        <a
+                          href={`/api/uploads/${doc.filename}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-sm text-primary hover:underline"
+                        >
+                          Download {doc.originalName}
+                        </a>
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+              {record.photos && record.photos.length > 0 && (
+                <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+                  {record.photos.map((photo, i) => (
+                    <div
+                      key={i}
+                      className="aspect-square rounded-lg border overflow-hidden"
+                    >
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img
+                        src={photo}
+                        alt={`Document ${i + 1}`}
+                        className="w-full h-full object-cover"
+                      />
+                    </div>
+                  ))}
+                </div>
+              )}
+              {(record.documents ?? []).length === 0 &&
+                (record.photos ?? []).length === 0 && (
+                  <p className="text-center text-muted-foreground py-4">
+                    Nothing attached yet
+                  </p>
+                )}
+            </div>
+          </CardContent>
+        </Card>
+      </div>{/* end contentRef */}
 
       {/* Deleting sits past everything else and names what it removes, so
           it takes a deliberate scroll rather than a mis-tap next to Back. */}
