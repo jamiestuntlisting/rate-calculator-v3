@@ -43,6 +43,13 @@ import { WEEKLY_GUARANTEES, weekRules } from "@/lib/weekly/rules";
 import type { WorkRecord } from "@/types";
 import { CollapsibleSection } from "@/components/calculator/collapsible-section";
 import { ShowCombobox } from "@/components/shared/show-combobox";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { ExhibitGViewer } from "@/components/shared/exhibit-g-viewer";
 import { PayStubSection } from "@/components/shared/pay-stub-section";
 import type { PayStubLine } from "@/lib/pay-stub";
 import { useAuth } from "@/context/auth-context";
@@ -85,6 +92,15 @@ const isUnnamed = (record: WorkRecord, title: string) =>
 /** A day with no times on it cannot contribute hours to the week. */
 const needsInfo = (record: WorkRecord) => !record.callTime;
 
+/** The Exhibit G attached to a day, if one is. */
+function gDocOf(record: WorkRecord) {
+  return (record.documents ?? []).find(
+    (doc) =>
+      doc.documentType === "exhibit_g" &&
+      /\.(jpe?g|png|gif|webp|pdf)$/i.test(doc.filename)
+  );
+}
+
 export function WeeklyForm() {
   const { user } = useAuth();
 
@@ -115,6 +131,8 @@ export function WeeklyForm() {
   const [openWeek, setOpenWeek] = useState<string | null>(null);
   const [savingWeek, setSavingWeek] = useState<string | null>(null);
   const [savedWeeks, setSavedWeeks] = useState<Set<string>>(new Set());
+  /** The day whose Exhibit G is open in the popup viewer, if any. */
+  const [viewing, setViewing] = useState<WorkRecord | null>(null);
 
   // An "other" deal has no published scale, so its own rate stands in —
   // premiums then follow the deal rather than a schedule it is not on.
@@ -288,8 +306,40 @@ export function WeeklyForm() {
     }
   };
 
+  const viewingDoc = viewing ? gDocOf(viewing) : null;
+
   return (
     <div className="max-w-3xl mx-auto space-y-4">
+      {/* The G, in place: look at the card without leaving the week
+          being built. Filling the day in still means the record page —
+          the link at the bottom goes there. */}
+      <Dialog open={viewing !== null} onOpenChange={(open) => !open && setViewing(null)}>
+        <DialogContent className="max-w-3xl w-[calc(100vw-2rem)] p-4">
+          <DialogHeader>
+            <DialogTitle className="text-base">
+              {viewing ? `${shortDate(viewing.workDate)} · ${viewing.showName || "Untranscribed"}` : ""}
+            </DialogTitle>
+          </DialogHeader>
+          {viewing && viewingDoc && (
+            <>
+              <ExhibitGViewer
+                src={`/api/uploads/${viewingDoc.filename}`}
+                alt={viewingDoc.originalName}
+                isPdf={/\.pdf$/i.test(viewingDoc.filename)}
+                height="55vh"
+                initialRotation={viewingDoc.rotation ?? 0}
+              />
+              <Link
+                href={`/work/${viewing._id}`}
+                className="text-sm underline underline-offset-4 text-center"
+              >
+                Open the full record to fill it in
+              </Link>
+            </>
+          )}
+        </DialogContent>
+      </Dialog>
+
       <CollapsibleSection
         title="Job Details"
         defaultOpen
@@ -455,7 +505,24 @@ export function WeeklyForm() {
                   {/* A day that needs info opens its Exhibit G on tap — the
                       row's job is to show you the card so the info can be
                       filled in. A complete day just toggles its checkbox. */}
-                  {needsInfo(record) ? (
+                  {needsInfo(record) && gDocOf(record) ? (
+                    <span
+                      role="button"
+                      tabIndex={0}
+                      onClick={() => setViewing(record)}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter" || e.key === " ") setViewing(record);
+                      }}
+                      className="flex-1 min-w-0 cursor-pointer"
+                    >
+                      <span className="block text-sm">
+                        {shortDate(record.workDate)}
+                      </span>
+                      <span className="block text-xs text-muted-foreground truncate">
+                        {record.showName || "—"}
+                      </span>
+                    </span>
+                  ) : needsInfo(record) ? (
                     <Link
                       href={`/work/${record._id}`}
                       className="flex-1 min-w-0 cursor-pointer"
