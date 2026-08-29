@@ -16,6 +16,7 @@ import {
 import { GapLine } from "@/components/calculator/gap-line";
 import { CollapsibleSection } from "@/components/calculator/collapsible-section";
 import { checkNdMeal, ND_MEAL_WINDOW_HOURS } from "@/lib/nd-meal";
+import { mealLengthWarning } from "@/lib/meal-length";
 import { ShowCombobox } from "@/components/shared/show-combobox";
 import { effectiveHourlyRate, workHoursFor } from "@/lib/work-hours";
 import { addMinutes, MEAL_MINUTES } from "@/components/calculator/time-select";
@@ -1127,6 +1128,12 @@ export default function WorkDetailPage() {
                                   </div>
                                 </div>
                               )}
+                              {editMeals.first &&
+                                mealLengthWarning(editData.firstMealStart, editData.firstMealFinish) && (
+                                  <p className="px-2 pb-2 text-xs text-amber-400">
+                                    {mealLengthWarning(editData.firstMealStart, editData.firstMealFinish)}
+                                  </p>
+                                )}
                             </div>
                             {/* 2nd Meal — only visible when 1st Meal is on */}
                             {editMeals.first && (
@@ -1174,6 +1181,12 @@ export default function WorkDetailPage() {
                                     </div>
                                   </div>
                                 )}
+                                {editMeals.second &&
+                                  mealLengthWarning(editData.secondMealStart, editData.secondMealFinish) && (
+                                    <p className="px-2 pb-2 text-xs text-amber-400">
+                                      {mealLengthWarning(editData.secondMealStart, editData.secondMealFinish)}
+                                    </p>
+                                  )}
                               </div>
                             )}
                           </div>

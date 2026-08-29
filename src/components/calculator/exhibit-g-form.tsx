@@ -43,6 +43,7 @@ import { snapToSixMinutes, formatCurrency } from "@/lib/time-utils";
 import { addMinutes, MEAL_MINUTES } from "@/components/calculator/time-select";
 import { calculateRate } from "@/lib/rate-engine";
 import { checkNdMeal, ND_MEAL_WINDOW_HOURS } from "@/lib/nd-meal";
+import { mealLengthWarning } from "@/lib/meal-length";
 import {
   additionalContractPay,
   MAX_CONTRACTS,
@@ -817,6 +818,12 @@ export function ExhibitGForm() {
                       </div>
                     </div>
                   )}
+                  {showFirstMeal &&
+                    mealLengthWarning(input.firstMealStart, input.firstMealFinish) && (
+                      <p className="px-2 pb-2 text-xs text-amber-400">
+                        {mealLengthWarning(input.firstMealStart, input.firstMealFinish)}
+                      </p>
+                    )}
                 </div>
                 {/* 2nd Meal — only visible when 1st Meal is checked */}
                 {showFirstMeal && (
@@ -837,6 +844,12 @@ export function ExhibitGForm() {
                       </div>
                     </div>
                   )}
+                  {showSecondMeal &&
+                    mealLengthWarning(input.secondMealStart, input.secondMealFinish) && (
+                      <p className="px-2 pb-2 text-xs text-amber-400">
+                        {mealLengthWarning(input.secondMealStart, input.secondMealFinish)}
+                      </p>
+                    )}
                 </div>
                 )}
               </div>
