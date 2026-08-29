@@ -44,6 +44,7 @@ import { addMinutes, MEAL_MINUTES } from "@/components/calculator/time-select";
 import { calculateRate } from "@/lib/rate-engine";
 import { checkNdMeal, ND_MEAL_WINDOW_HOURS } from "@/lib/nd-meal";
 import { mealLengthWarning } from "@/lib/meal-length";
+import { WRAP_MINUTES, wrapOrderWarning } from "@/lib/wrap-check";
 import {
   additionalContractPay,
   MAX_CONTRACTS,
@@ -200,6 +201,23 @@ export function ExhibitGForm() {
     },
     []
   );
+
+  /**
+   * Same idea for the end of the day: dismissal offers the usual wrap a
+   * quarter hour on, so the wrap picker opens after the dismissal
+   * instead of at whatever time it is now. Never overwrites a wrap
+   * already entered.
+   */
+  const setDismissOnSet = useCallback((value: string) => {
+    setInput((prev) => ({
+      ...prev,
+      dismissOnSet: value,
+      dismissMakeupWardrobe:
+        value && !prev.dismissMakeupWardrobe
+          ? addMinutes(value, WRAP_MINUTES)
+          : prev.dismissMakeupWardrobe,
+    }));
+  }, []);
 
   /**
    * The live rate is a running total for a day still going. Once a
@@ -856,12 +874,17 @@ export function ExhibitGForm() {
 
               <div className="flex items-center justify-between gap-4 p-2">
                 <Label htmlFor="dismissOnSet" className="text-base shrink-0">Dismiss On Set</Label>
-                <div className="flex-1 min-w-0 max-w-[15rem]"><TimeSelect id="dismissOnSet" value={input.dismissOnSet} onChange={(v) => update("dismissOnSet", v)} /></div>
+                <div className="flex-1 min-w-0 max-w-[15rem]"><TimeSelect id="dismissOnSet" value={input.dismissOnSet} onChange={setDismissOnSet} /></div>
               </div>
               <div className="flex items-center justify-between gap-4 p-2 rounded bg-muted/50">
                 <Label htmlFor="dismissMakeupWardrobe" className="text-base shrink-0">Wrapped</Label>
                 <div className="flex-1 min-w-0 max-w-[15rem]"><TimeSelect id="dismissMakeupWardrobe" value={input.dismissMakeupWardrobe || ""} onChange={(v) => update("dismissMakeupWardrobe", v || null)} /></div>
               </div>
+              {wrapOrderWarning(input.dismissOnSet, input.dismissMakeupWardrobe) && (
+                <p className="px-2 pb-1 text-xs text-amber-400">
+                  {wrapOrderWarning(input.dismissOnSet, input.dismissMakeupWardrobe)}
+                </p>
+              )}
 
               {/* Stunt Adjustment */}
               <div className="border-t pt-3 mt-3">

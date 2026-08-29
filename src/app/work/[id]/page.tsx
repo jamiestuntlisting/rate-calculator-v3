@@ -17,6 +17,7 @@ import { GapLine } from "@/components/calculator/gap-line";
 import { CollapsibleSection } from "@/components/calculator/collapsible-section";
 import { checkNdMeal, ND_MEAL_WINDOW_HOURS } from "@/lib/nd-meal";
 import { mealLengthWarning } from "@/lib/meal-length";
+import { WRAP_MINUTES, wrapOrderWarning } from "@/lib/wrap-check";
 import { ShowCombobox } from "@/components/shared/show-combobox";
 import { effectiveHourlyRate, workHoursFor } from "@/lib/work-hours";
 import { addMinutes, MEAL_MINUTES } from "@/components/calculator/time-select";
@@ -1210,7 +1211,17 @@ export default function WorkDetailPage() {
                               <TimeSelect
                                 id="edit-dismissOnSet"
                                 value={editData.dismissOnSet}
-                                onChange={(v) => setEditData(d => ({ ...d, dismissOnSet: v }))}
+                                onChange={(v) =>
+                                  setEditData((d) => ({
+                                    ...d,
+                                    dismissOnSet: v,
+                                    // Offer the usual wrap, never overwrite one.
+                                    dismissMakeupWardrobe:
+                                      v && !d.dismissMakeupWardrobe
+                                        ? addMinutes(v, WRAP_MINUTES)
+                                        : d.dismissMakeupWardrobe,
+                                  }))
+                                }
                               />
                             </div>
                           </div>
@@ -1225,6 +1236,11 @@ export default function WorkDetailPage() {
                               />
                             </div>
                           </div>
+                          {wrapOrderWarning(editData.dismissOnSet, editData.dismissMakeupWardrobe) && (
+                            <p className="px-2 pb-1 text-xs text-amber-400">
+                              {wrapOrderWarning(editData.dismissOnSet, editData.dismissMakeupWardrobe)}
+                            </p>
+                          )}
                           <div className="border-t pt-3 mt-3">
                             <div className="flex items-center justify-between gap-4 p-2">
                               <Label htmlFor="edit-stuntAdjustment" className="text-base shrink-0">Stunt Adjustment</Label>
