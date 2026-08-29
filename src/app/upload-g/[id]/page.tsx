@@ -182,7 +182,11 @@ export default function TranscribePage({
         }
       });
     } else if (paneWidth && contentWidth) {
-      setZoom(paneWidth / contentWidth);
+      // 35% is where a phone photo of a card becomes readable row by
+      // row — the zoom James lands on by hand every time. Fit-to-width
+      // showed the whole card at a size where nothing on it could be
+      // read, which is a worse place to start.
+      setZoom(0.35);
     }
   }, [natural, rotation]);
 
@@ -463,7 +467,7 @@ export default function TranscribePage({
                 {Math.round(zoom * 100)}%
               </span>
             </div>
-            {pane("header", headerRef, "h-[22vh] min-h-[110px]")}
+            {pane("header", headerRef, "h-[11vh] min-h-[55px]")}
 
             <div className="flex items-center justify-between px-2 py-1 text-[11px] uppercase tracking-wide text-muted-foreground bg-muted/40 border-t border-border">
               <span>Your row — scroll up/down to find your line</span>
