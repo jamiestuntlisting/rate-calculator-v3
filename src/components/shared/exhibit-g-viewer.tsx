@@ -48,6 +48,27 @@ export function ExhibitGViewer({
   const [zoom, setZoom] = useState(1);
   const [rotation, setRotation] = useState(initialRotation);
 
+  /**
+   * Learn the image's size and fit it to the pane width — once, from
+   * whichever of onLoad or the ref callback sees the image first. A cached
+   * image can finish loading before React attaches onLoad, and missing the
+   * measurement leaves the pane at full height over a fitted image; the
+   * guard also keeps a later rerun from stomping a zoom the reader chose.
+   */
+  const measured = useRef(false);
+  const adoptImage = (img: HTMLImageElement) => {
+    if (measured.current) return;
+    const { naturalWidth, naturalHeight } = img;
+    if (!naturalWidth || !naturalHeight) return;
+    measured.current = true;
+    setNatural({ w: naturalWidth, h: naturalHeight });
+    const pane = paneRef.current;
+    const contentWidth = rotation % 180 === 0 ? naturalWidth : naturalHeight;
+    if (pane && contentWidth) {
+      setZoom(clampZoom(pane.clientWidth / contentWidth));
+    }
+  };
+
   /** Scale so the whole width is visible — the useful starting point. */
   const fitToWidth = useCallback(() => {
     const pane = paneRef.current;
@@ -166,22 +187,12 @@ export function ExhibitGViewer({
             src={src}
             alt={alt}
             draggable={false}
-            onLoad={(e) => {
-              // Read synchronously: React clears currentTarget before the
-              // state updater runs.
-              const { naturalWidth, naturalHeight } = e.currentTarget;
-              setNatural({ w: naturalWidth, h: naturalHeight });
-
-              // Fit to width here rather than in an effect: the size is
-              // already in hand, and a later rotate then leaves whatever
-              // zoom the reader had chosen alone.
-              const pane = paneRef.current;
-              const contentWidth =
-                rotation % 180 === 0 ? naturalWidth : naturalHeight;
-              if (pane && contentWidth) {
-                setZoom(clampZoom(pane.clientWidth / contentWidth));
-              }
+            ref={(el) => {
+              if (el && el.complete) adoptImage(el);
             }}
+            // Read synchronously: React clears currentTarget before any
+            // state updater inside would run.
+            onLoad={(e) => adoptImage(e.currentTarget)}
             style={{
               width: baseW || undefined,
               height: baseH || undefined,
