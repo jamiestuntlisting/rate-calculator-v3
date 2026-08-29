@@ -1103,7 +1103,7 @@ export default function WorkDetailPage() {
                               {editMeals.first && (
                                 <div className="grid grid-cols-2 gap-2 px-2 pb-2">
                                   <div>
-                                    <Label htmlFor="edit-firstMealStart" className="text-sm text-muted-foreground">Out</Label>
+                                    <Label htmlFor="edit-firstMealStart" className="text-sm text-muted-foreground">In</Label>
                                     <TimeSelect
                                       id="edit-firstMealStart"
                                       value={editData.firstMealStart || ""}
@@ -1122,7 +1122,7 @@ export default function WorkDetailPage() {
                                     />
                                   </div>
                                   <div>
-                                    <Label htmlFor="edit-firstMealFinish" className="text-sm text-muted-foreground">In</Label>
+                                    <Label htmlFor="edit-firstMealFinish" className="text-sm text-muted-foreground">Out</Label>
                                     <TimeSelect id="edit-firstMealFinish" value={editData.firstMealFinish || ""} onChange={(v) => setEditData(d => ({ ...d, firstMealFinish: v || null }))} compact />
                                   </div>
                                 </div>
@@ -1151,7 +1151,7 @@ export default function WorkDetailPage() {
                                 {editMeals.second && (
                                   <div className="grid grid-cols-2 gap-2 px-2 pb-2">
                                     <div>
-                                      <Label htmlFor="edit-secondMealStart" className="text-sm text-muted-foreground">Out</Label>
+                                      <Label htmlFor="edit-secondMealStart" className="text-sm text-muted-foreground">In</Label>
                                       <TimeSelect
                                         id="edit-secondMealStart"
                                         value={editData.secondMealStart || ""}
@@ -1169,7 +1169,7 @@ export default function WorkDetailPage() {
                                       />
                                     </div>
                                     <div>
-                                      <Label htmlFor="edit-secondMealFinish" className="text-sm text-muted-foreground">In</Label>
+                                      <Label htmlFor="edit-secondMealFinish" className="text-sm text-muted-foreground">Out</Label>
                                       <TimeSelect id="edit-secondMealFinish" value={editData.secondMealFinish || ""} onChange={(v) => setEditData(d => ({ ...d, secondMealFinish: v || null }))} compact />
                                     </div>
                                   </div>

@@ -808,11 +808,11 @@ export function ExhibitGForm() {
                   {showFirstMeal && (
                     <div className="grid grid-cols-2 gap-2 px-2 pb-2">
                       <div>
-                        <Label htmlFor="firstMealStart" className="text-sm text-muted-foreground">Out</Label>
+                        <Label htmlFor="firstMealStart" className="text-sm text-muted-foreground">In</Label>
                         <TimeSelect id="firstMealStart" value={input.firstMealStart || ""} onChange={(v) => setMealStart("firstMealStart", "firstMealFinish", v)} compact />
                       </div>
                       <div>
-                        <Label htmlFor="firstMealFinish" className="text-sm text-muted-foreground">In</Label>
+                        <Label htmlFor="firstMealFinish" className="text-sm text-muted-foreground">Out</Label>
                         <TimeSelect id="firstMealFinish" value={input.firstMealFinish || ""} onChange={(v) => update("firstMealFinish", v || null)} compact />
                       </div>
                     </div>
@@ -828,11 +828,11 @@ export function ExhibitGForm() {
                   {showSecondMeal && (
                     <div className="grid grid-cols-2 gap-2 px-2 pb-2">
                       <div>
-                        <Label htmlFor="secondMealStart" className="text-sm text-muted-foreground">Out</Label>
+                        <Label htmlFor="secondMealStart" className="text-sm text-muted-foreground">In</Label>
                         <TimeSelect id="secondMealStart" value={input.secondMealStart || ""} onChange={(v) => setMealStart("secondMealStart", "secondMealFinish", v)} compact />
                       </div>
                       <div>
-                        <Label htmlFor="secondMealFinish" className="text-sm text-muted-foreground">In</Label>
+                        <Label htmlFor="secondMealFinish" className="text-sm text-muted-foreground">Out</Label>
                         <TimeSelect id="secondMealFinish" value={input.secondMealFinish || ""} onChange={(v) => update("secondMealFinish", v || null)} compact />
                       </div>
                     </div>
