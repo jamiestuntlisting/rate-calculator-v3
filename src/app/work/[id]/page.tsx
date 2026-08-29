@@ -1222,6 +1222,25 @@ export default function WorkDetailPage() {
             <CardTitle className="text-lg">Payment Status</CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
+            {record.weeklyContract ? (
+              /* A weekly is paid as one check for the whole week — asking
+                 for a per-day expected and paid here invites entering the
+                 week's money against a single day. The week's payment is
+                 tracked on its weekly group. */
+              <p className="text-sm text-muted-foreground">
+                This day is part of a weekly contract, and the week is paid
+                in one check. Track that payment on the weekly in your{" "}
+                <Link href="/tracker" className="underline underline-offset-2">
+                  Tracker
+                </Link>{" "}
+                or on the{" "}
+                <Link href="/weekly" className="underline underline-offset-2">
+                  Weekly page
+                </Link>
+                .
+              </p>
+            ) : (
+              <>
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm text-muted-foreground">
@@ -1262,6 +1281,8 @@ export default function WorkDetailPage() {
                 Status is automatically determined from the paid amount
               </p>
             </div>
+              </>
+            )}
 
             {/* Notes */}
             <div className="space-y-1">
@@ -1287,7 +1308,7 @@ export default function WorkDetailPage() {
 
         {/* The stub for this day. A weekly contract's stub covers the week,
             so it lives on /weekly instead and not here. */}
-        {!isOtherWorkType && !record.multipleEpisodeWeekly && (
+        {!isOtherWorkType && !record.multipleEpisodeWeekly && !record.weeklyContract && (
           <Card>
             <CardHeader>
               <CardTitle className="text-lg">Pay stub</CardTitle>
