@@ -448,22 +448,47 @@ export function WeeklyForm() {
           ) : (
             <div className="max-h-72 overflow-y-auto -mx-1 px-1 space-y-1">
               {offered.map((record) => (
-                <label
+                <div
                   key={record._id}
-                  className="flex items-center gap-3 p-2 rounded hover:bg-accent/40 cursor-pointer"
+                  className="flex items-center gap-3 p-2 rounded hover:bg-accent/40"
                 >
                   <Checkbox
                     checked={picked.has(record._id)}
                     onCheckedChange={() => toggle(record._id)}
                   />
-                  <span className="flex-1 min-w-0">
-                    <span className="block text-sm">
-                      {shortDate(record.workDate)}
+                  {/* A day that needs info opens its Exhibit G on tap — the
+                      row's job is to show you the card so the info can be
+                      filled in. A complete day just toggles its checkbox. */}
+                  {needsInfo(record) ? (
+                    <Link
+                      href={`/work/${record._id}`}
+                      className="flex-1 min-w-0 cursor-pointer"
+                    >
+                      <span className="block text-sm">
+                        {shortDate(record.workDate)}
+                      </span>
+                      <span className="block text-xs text-muted-foreground truncate">
+                        {record.showName || "—"}
+                      </span>
+                    </Link>
+                  ) : (
+                    <span
+                      role="button"
+                      tabIndex={0}
+                      onClick={() => toggle(record._id)}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter" || e.key === " ") toggle(record._id);
+                      }}
+                      className="flex-1 min-w-0 cursor-pointer"
+                    >
+                      <span className="block text-sm">
+                        {shortDate(record.workDate)}
+                      </span>
+                      <span className="block text-xs text-muted-foreground truncate">
+                        {record.showName || "—"}
+                      </span>
                     </span>
-                    <span className="block text-xs text-muted-foreground truncate">
-                      {record.showName || "—"}
-                    </span>
-                  </span>
+                  )}
                   {needsInfo(record) && (
                     <Link
                       href={`/work/${record._id}`}
@@ -478,7 +503,7 @@ export function WeeklyForm() {
                       Weekly
                     </span>
                   )}
-                </label>
+                </div>
               ))}
             </div>
           )}
