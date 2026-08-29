@@ -27,6 +27,14 @@ function derivePaymentStatus(amount: number, expected: number | undefined): stri
 
 const iso = (d: Date) => d.toISOString().split("T")[0];
 
+/** "2,174.03" — in the ledger rows the $ stays on the totals, so the
+ * columns read as numbers instead of a wall of dollar signs. */
+const fmtAmount = (n: number) =>
+  n.toLocaleString("en-US", {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  });
+
 /** The one-word verdict a day wears: what happened against what we make it. */
 const VERDICTS: Record<string, { label: string; tone: string }> = {
   paid_correctly: {
@@ -344,7 +352,7 @@ export default function AnalyticsPage() {
                     return (
                       <div
                         key={record._id}
-                        className="flex items-center gap-2 py-1.5 border-b border-border/30"
+                        className="flex items-center gap-2 py-2 border-b border-border/30"
                       >
                         <Link
                           href={`/work/${record._id}`}
@@ -357,13 +365,16 @@ export default function AnalyticsPage() {
                             {ymd}
                           </span>
                         </Link>
-                        <span className="text-sm tabular-nums shrink-0 w-20 text-right">
-                          {formatCurrency(record.expectedAmount || 0)}
-                        </span>
-                        <div className="relative w-24 shrink-0 border-l border-border/40 pl-2">
-                          <span className="absolute left-2 top-1/2 -translate-y-1/2 text-muted-foreground text-sm">
-                            $
+                        {record.expectedAmount ? (
+                          <span className="text-sm tabular-nums shrink-0 w-20 text-right">
+                            {fmtAmount(record.expectedAmount)}
                           </span>
+                        ) : (
+                          <span className="text-sm shrink-0 w-20 text-right text-muted-foreground">
+                            —
+                          </span>
+                        )}
+                        <div className="w-24 shrink-0 border-l border-border/40 pl-2">
                           <Input
                             type="number"
                             inputMode="decimal"
@@ -380,17 +391,26 @@ export default function AnalyticsPage() {
                               if (e.key === "Enter") e.currentTarget.blur();
                             }}
                             placeholder="0.00"
-                            className="pl-6 h-9 text-sm"
+                            className="h-9 text-sm text-right tabular-nums"
                           />
                         </div>
-                        <span
-                          className={`shrink-0 w-14 text-center rounded px-1 py-0.5 text-[10px] font-semibold uppercase tracking-wide border ${
-                            VERDICTS[record.paymentStatus]?.tone ??
-                            VERDICTS.unpaid.tone
-                          }`}
-                        >
-                          {VERDICTS[record.paymentStatus]?.label ?? "Unpaid"}
-                        </span>
+                        {(record.expectedAmount || 0) > 0 ||
+                        (record.paidAmount || 0) > 0 ? (
+                          <span
+                            className={`shrink-0 w-14 text-center rounded px-1 py-0.5 text-[10px] font-semibold border ${
+                              VERDICTS[record.paymentStatus]?.tone ??
+                              VERDICTS.unpaid.tone
+                            }`}
+                          >
+                            {VERDICTS[record.paymentStatus]?.label ?? "Unpaid"}
+                          </span>
+                        ) : (
+                          /* Nothing calculated and nothing paid: an Unpaid
+                             chip on a day with no figure is just noise. */
+                          <span className="shrink-0 w-14 text-center text-xs text-muted-foreground">
+                            —
+                          </span>
+                        )}
                       </div>
                     );
                   })}
@@ -425,10 +445,7 @@ export default function AnalyticsPage() {
                       <span className="flex-1 min-w-0 text-xs text-muted-foreground">
                         Paycheck — fills the oldest unpaid day first
                       </span>
-                      <div className="relative w-24 shrink-0">
-                        <span className="absolute left-2 top-1/2 -translate-y-1/2 text-muted-foreground text-sm">
-                          $
-                        </span>
+                      <div className="w-24 shrink-0">
                         <Input
                           type="number"
                           inputMode="decimal"
@@ -441,7 +458,7 @@ export default function AnalyticsPage() {
                             }))
                           }
                           placeholder="0.00"
-                          className="pl-6 h-9 text-sm"
+                          className="h-9 text-sm text-right tabular-nums"
                         />
                       </div>
                       <Button
