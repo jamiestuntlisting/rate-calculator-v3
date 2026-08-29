@@ -227,7 +227,17 @@ export function WeeklyForm() {
    * whichever show is chosen.
    */
   const offered = useMemo(() => {
-    const all = records ?? [];
+    // A day whose contract was set to daily (or 3-day) was already decided
+    // not to be part of a week — offering it here just invites mixing
+    // contracts. What belongs: days marked weekly (or already in a
+    // weekly), and unnamed Exhibit Gs, which could be anything until
+    // transcribed. Marking a day Weekly on its record brings it in.
+    const all = (records ?? []).filter(
+      (r) =>
+        isUnnamed(r, title) ||
+        r.weeklyId != null ||
+        r.contractLength === "weekly"
+    );
     if (!title.trim()) return all;
     return all.filter(
       (r) => r.showName?.trim() === title.trim() || isUnnamed(r, title)
@@ -451,7 +461,9 @@ export function WeeklyForm() {
             />
             <p className="text-xs text-muted-foreground">
               Filters the days below to this show — plus any Exhibit Gs with
-              no name yet, since those could be its days.
+              no name yet, since those could be its days. Days set to a
+              daily contract stay out; mark a day Weekly on its record to
+              offer it here.
             </p>
           </div>
 
