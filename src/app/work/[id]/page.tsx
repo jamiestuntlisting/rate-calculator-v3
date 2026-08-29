@@ -587,11 +587,22 @@ export default function WorkDetailPage() {
     }
   };
 
-  const handleUploadPhoto = async (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleUploadPhoto = (e: React.ChangeEvent<HTMLInputElement>) => {
     // Read synchronously — React clears the input before the awaits run.
     const file = e.target.files?.[0];
-    if (!file) return;
+    if (file) attachDocument(file, "other");
+  };
 
+  /** The stub photo lands with the payment it proves. */
+  const handleUploadStub = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) attachDocument(file, "paystub");
+  };
+
+  const attachDocument = async (
+    file: File,
+    documentType: WorkDocument["documentType"]
+  ) => {
     const formData = new FormData();
     formData.append("file", file);
 
@@ -616,7 +627,7 @@ export default function WorkDetailPage() {
             {
               filename,
               originalName: file.name,
-              documentType: "other",
+              documentType,
               uploadedAt: new Date().toISOString(),
             },
           ],
@@ -627,9 +638,9 @@ export default function WorkDetailPage() {
 
       const updated = await res.json();
       setRecord(updated);
-      toast.success("Photo uploaded!");
+      toast.success("Attached!");
     } catch {
-      toast.error("Failed to upload photo");
+      toast.error("Failed to attach the file");
     }
   };
 
@@ -1398,10 +1409,25 @@ export default function WorkDetailPage() {
 
         <Separator />
 
-        {/* Payment Section */}
+        {/* Payment — what the day should pay, what it did pay, the stub
+            that proves it, and the line-by-line comparison, in one place. */}
         <Card>
           <CardHeader>
-            <CardTitle className="text-lg">Payment Status</CardTitle>
+            <div className="flex items-center justify-between">
+              <CardTitle className="text-lg">Payment</CardTitle>
+              <Button asChild variant="outline" size="sm">
+                <label className="cursor-pointer">
+                  <Upload className="mr-2 h-4 w-4" />
+                  Attach stub
+                  <input
+                    type="file"
+                    accept="image/*,application/pdf"
+                    className="hidden"
+                    onChange={handleUploadStub}
+                  />
+                </label>
+              </Button>
+            </div>
           </CardHeader>
           <CardContent className="space-y-4">
             {record.weeklyContract ? (
@@ -1485,37 +1511,70 @@ export default function WorkDetailPage() {
               <Save className="mr-2 h-4 w-4" />
               {saving ? "Saving..." : "Save Changes"}
             </Button>
+
+            {/* The stubs attached to this day, kept beside the payment
+                they prove. They also appear in Photos & Documents, which
+                stays the full inventory. */}
+            {(record.documents ?? []).some((d) => d.documentType === "paystub") && (
+              <div className="space-y-2 pt-2">
+                <p className="text-sm font-semibold">Attached stubs</p>
+                <div className="grid grid-cols-2 gap-3">
+                  {(record.documents ?? []).map((doc, i) =>
+                    doc.documentType === "paystub" ? (
+                      /\.pdf$/i.test(doc.filename) ? (
+                        <a
+                          key={`${doc.filename}-${i}`}
+                          href={`/api/uploads/${doc.filename}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-sm text-primary hover:underline self-center"
+                        >
+                          {doc.originalName}
+                        </a>
+                      ) : (
+                        <RotatableThumb
+                          key={`${doc.filename}-${i}`}
+                          src={`/api/uploads/${doc.filename}`}
+                          alt={doc.originalName}
+                          rotation={doc.rotation ?? 0}
+                          onRotate={(r) => rotateDocument(i, r)}
+                          className="w-full"
+                        />
+                      )
+                    ) : null
+                  )}
+                </div>
+              </div>
+            )}
+
+            {/* The stub for this day, line by line. A weekly contract's
+                stub covers the week, so it lives on /weekly instead. */}
+            {!isOtherWorkType &&
+              !record.multipleEpisodeWeekly &&
+              !record.weeklyContract && (
+                <div className="pt-2 border-t border-border/50">
+                  <p className="font-semibold mt-2">Pay stub</p>
+                  <p className="text-sm text-muted-foreground mb-3">
+                    What the stub says, line by line, against what we make it.
+                  </p>
+                  <PayStubSection
+                    scope="day"
+                    workRecordId={record._id}
+                    showName={record.showName || "this production"}
+                    owed={record.expectedAmount || 0}
+                    performerName={
+                      user
+                        ? `${user.firstName ?? ""} ${user.lastName ?? ""}`.trim() ||
+                          user.email
+                        : "This performer"
+                    }
+                    period={`the work day of ${formatDateSafe(record.workDate)}`}
+                    owedLines={owedLines}
+                  />
+                </div>
+              )}
           </CardContent>
         </Card>
-
-        {/* The stub for this day. A weekly contract's stub covers the week,
-            so it lives on /weekly instead and not here. */}
-        {!isOtherWorkType && !record.multipleEpisodeWeekly && !record.weeklyContract && (
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-lg">Pay stub</CardTitle>
-              <p className="text-sm text-muted-foreground">
-                What the stub says, line by line, against what we make it.
-              </p>
-            </CardHeader>
-            <CardContent>
-              <PayStubSection
-                scope="day"
-                workRecordId={record._id}
-                showName={record.showName || "this production"}
-                owed={record.expectedAmount || 0}
-                performerName={
-                  user
-                    ? `${user.firstName ?? ""} ${user.lastName ?? ""}`.trim() ||
-                      user.email
-                    : "This performer"
-                }
-                period={`the work day of ${formatDateSafe(record.workDate)}`}
-                owedLines={owedLines}
-              />
-            </CardContent>
-          </Card>
-        )}
 
         {/* Photos & Documents — one place for everything attached.
             The type of thing is the headline (an Exhibit G matters more
