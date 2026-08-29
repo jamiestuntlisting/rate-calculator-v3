@@ -29,7 +29,6 @@ import {
 } from "@/components/ui/select";
 import type { WorkRecord } from "@/types";
 import { weekLabel } from "@/lib/weekly/weeks";
-import { toast } from "sonner";
 import { ChevronDown, ChevronRight } from "lucide-react";
 
 const STATUS_COLORS: Record<string, string> = {
@@ -107,56 +106,6 @@ export default function TrackerPage() {
   const [collapsedWeeklies, setCollapsedWeeklies] = useState<Set<string>>(
     new Set()
   );
-  /** The record a new weekly is being created for, if any. */
-  const [newWeeklyFor, setNewWeeklyFor] = useState<string | null>(null);
-  const [newWeeklyTitle, setNewWeeklyTitle] = useState("");
-  const [newWeeklyStart, setNewWeeklyStart] = useState("");
-
-  const assignToWeekly = async (recordId: string, weeklyId: string | null) => {
-    try {
-      const res = await fetch("/api/weeklies/assign", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ recordId, weeklyId }),
-      });
-      if (!res.ok) throw new Error();
-      fetchRecords();
-    } catch {
-      toast.error("Couldn't update the weekly");
-    }
-  };
-
-  const createWeeklyAndAssign = async (recordId: string) => {
-    if (!newWeeklyTitle.trim() || !/^\d{4}-\d{2}-\d{2}$/.test(newWeeklyStart)) {
-      toast.error("A show name and a start date make the weekly");
-      return;
-    }
-    try {
-      const res = await fetch("/api/weeklies", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          title: newWeeklyTitle.trim(),
-          weekStart: newWeeklyStart,
-          weekStartsOn: 1,
-          agreement: "theatrical_basic",
-          weeklyRate: 0,
-          distantLocation: false,
-          expectedAmount: 0,
-          recordIds: [],
-        }),
-      });
-      if (!res.ok) throw new Error();
-      const weekly = await res.json();
-      await assignToWeekly(recordId, weekly._id);
-      setNewWeeklyFor(null);
-      setNewWeeklyTitle("");
-      setNewWeeklyStart("");
-      toast.success(`${weekly.title} created — day added`);
-    } catch {
-      toast.error("Couldn't create the weekly");
-    }
-  };
   const [loading, setLoading] = useState(true);
   const [searchShow, setSearchShow] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
@@ -414,68 +363,6 @@ export default function TrackerPage() {
                       </TableCell>
                       <TableCell>
                         <div className="flex flex-col gap-1">
-                          {record.workType !== "other" && (
-                            <select
-                              value={record.weeklyId ?? ""}
-                              onClick={(e) => e.stopPropagation()}
-                              onChange={(e) => {
-                                e.stopPropagation();
-                                const v = e.target.value;
-                                if (v === "__new__") {
-                                  setNewWeeklyFor(record._id);
-                                  setNewWeeklyTitle(record.showName?.trim() || "");
-                                  setNewWeeklyStart(record.workDate.split("T")[0]);
-                                } else {
-                                  assignToWeekly(record._id, v || null);
-                                }
-                              }}
-                              className="h-7 max-w-[9rem] rounded border border-border/60 bg-transparent px-1 text-[11px] text-muted-foreground"
-                            >
-                              <option value="">No weekly</option>
-                              {weeklies.map((w) => (
-                                <option key={w._id} value={w._id}>
-                                  {w.title} · {weekLabel(w.weekStart).replace("Week of ", "")}
-                                </option>
-                              ))}
-                              <option value="__new__">＋ New weekly…</option>
-                            </select>
-                          )}
-                          {newWeeklyFor === record._id && (
-                            <span
-                              onClick={(e) => e.stopPropagation()}
-                              className="flex flex-col gap-1"
-                            >
-                              <Input
-                                value={newWeeklyTitle}
-                                onChange={(e) => setNewWeeklyTitle(e.target.value)}
-                                placeholder="Show name"
-                                className="h-7 text-xs"
-                              />
-                              <Input
-                                type="date"
-                                value={newWeeklyStart}
-                                onChange={(e) => setNewWeeklyStart(e.target.value)}
-                                className="h-7 text-xs"
-                              />
-                              <span className="flex gap-1">
-                                <Button
-                                  size="sm"
-                                  className="h-6 px-2 text-[11px]"
-                                  onClick={() => createWeeklyAndAssign(record._id)}
-                                >
-                                  Create
-                                </Button>
-                                <Button
-                                  size="sm"
-                                  variant="ghost"
-                                  className="h-6 px-2 text-[11px]"
-                                  onClick={() => setNewWeeklyFor(null)}
-                                >
-                                  Cancel
-                                </Button>
-                              </span>
-                            </span>
-                          )}
                           <Badge
                             variant="secondary"
                             className={STATUS_COLORS[record.paymentStatus] || ""}
