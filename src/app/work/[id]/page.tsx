@@ -14,6 +14,8 @@ import {
   weeklyEquivalentDayRate,
 } from "@/lib/agreements";
 import { GapLine } from "@/components/calculator/gap-line";
+import { CollapsibleSection } from "@/components/calculator/collapsible-section";
+import { checkNdMeal, ND_MEAL_WINDOW_HOURS } from "@/lib/nd-meal";
 import { ShowCombobox } from "@/components/shared/show-combobox";
 import { effectiveHourlyRate, workHoursFor } from "@/lib/work-hours";
 import { addMinutes, MEAL_MINUTES } from "@/components/calculator/time-select";
@@ -123,6 +125,21 @@ export default function WorkDetailPage() {
     secondMealFinish: "" as string | null,
   });
   const [savingEdit, setSavingEdit] = useState(false);
+  /**
+   * The meal blocks toggle open like they do on Log Work, so the two
+   * forms read as the same form. Unchecking one clears its times.
+   */
+  const [editMeals, setEditMeals] = useState({
+    nd: false,
+    first: true,
+    second: false,
+  });
+  /** The whole ND rule, said in the form the way Log Work says it. */
+  const editNdMeal = checkNdMeal(
+    editData.callTime,
+    editData.ndMealIn,
+    editData.ndMealOut
+  );
 
   // Other work type edit state
   const [otherEditData, setOtherEditData] = useState({
@@ -268,6 +285,15 @@ export default function WorkDetailPage() {
         firstMealFinish: record.firstMealFinish || "",
         secondMealStart: record.secondMealStart || "",
         secondMealFinish: record.secondMealFinish || "",
+      });
+      setEditMeals({
+        nd: Boolean(record.ndMealIn || record.ndMealOut),
+        // A record with no times yet is being transcribed; offer the 1st
+        // meal open the way Log Work does for a fresh day.
+        first:
+          Boolean(record.firstMealStart || record.firstMealFinish) ||
+          !record.callTime,
+        second: Boolean(record.secondMealStart || record.secondMealFinish),
       });
     }
     setEditing(true);
@@ -885,263 +911,375 @@ export default function WorkDetailPage() {
               /* ── SAG-AFTRA Work Type ── */
               editing ? (
                 <div className="space-y-4">
-                  <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-                    <div className="space-y-1">
-                      <Label className="text-sm text-muted-foreground">Show</Label>
-                      <ShowCombobox
-                        value={editData.showName}
-                        onChange={(v) => setEditData(d => ({ ...d, showName: v }))}
-                        options={knownShows}
-                      />
+                  <CollapsibleSection
+                    title="Job Details"
+                    defaultOpen
+                    summary={
+                      [
+                        editData.showName,
+                        editData.workDate,
+                        editData.characterName,
+                        editData.contractLength === "weekly"
+                          ? weeklyAgreementLabel(editData.workStatus)
+                          : agreementLabel(editData.workStatus),
+                      ]
+                        .filter(Boolean)
+                        .join(" · ") || "Show title, date, character, agreement"
+                    }
+                  >
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div className="space-y-1 min-w-0">
+                        <Label htmlFor="edit-showName" className="text-base">Show Title</Label>
+                        <ShowCombobox
+                          id="edit-showName"
+                          value={editData.showName}
+                          onChange={(v) => setEditData(d => ({ ...d, showName: v }))}
+                          options={knownShows}
+                          className="text-lg h-12"
+                        />
+                      </div>
+                      <div className="space-y-1 min-w-0">
+                        <Label htmlFor="edit-workDate" className="text-base">Work Date</Label>
+                        <Input
+                          id="edit-workDate"
+                          type="date"
+                          value={editData.workDate}
+                          onChange={(e) => setEditData(d => ({ ...d, workDate: e.target.value }))}
+                          className="text-lg h-12 w-full max-w-full"
+                        />
+                      </div>
                     </div>
-                    <div className="space-y-1">
-                      <Label className="text-sm text-muted-foreground">Date</Label>
-                      <Input
-                        type="date"
-                        value={editData.workDate}
-                        onChange={(e) => setEditData(d => ({ ...d, workDate: e.target.value }))}
-                      />
-                    </div>
-                    <div className="space-y-1 min-w-0">
-                      <Label className="text-sm text-muted-foreground">Contract Length</Label>
-                      <Select
-                        value={editData.contractLength}
-                        onValueChange={(v) =>
-                          setEditData((d) => ({
-                            ...d,
-                            contractLength: v as "daily" | "three_day" | "weekly",
-                          }))
-                        }
-                      >
-                        <SelectTrigger className="w-full min-w-0">
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="daily">Daily</SelectItem>
-                          <SelectItem value="three_day">3 Day (TV)</SelectItem>
-                          <SelectItem value="weekly">Weekly</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </div>
-                  </div>
 
-                  <div className="space-y-1 max-w-xs min-w-0">
-                    <Label className="text-sm text-muted-foreground">Agreement Type</Label>
-                    <Select
-                      value={editData.workStatus}
-                      onValueChange={(v) => setEditData(d => ({ ...d, workStatus: v }))}
-                    >
-                      <SelectTrigger className="w-full min-w-0">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {AGREEMENTS.map((agreement) => (
-                          <SelectItem key={agreement.id} value={agreement.id}>
-                            {editData.contractLength === "weekly"
-                              ? weeklyAgreementLabel(agreement.id)
-                              : agreementLabel(agreement.id)}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-
-                  {/* Non-stunt-coordinator fields, in the same order the
-                      Log Work page asks: call, the meals in the middle,
-                      then the two ends of the day. The engine reads the
-                      meals for penalties, so they belong where they
-                      happened, not at the bottom. */}
-                  {editData.workStatus !== "stunt_coordinator" && (
-                    <>
-                      <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-                        <div className="space-y-1">
-                          <Label className="text-sm text-muted-foreground">Character</Label>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      {editData.workStatus !== "stunt_coordinator" && (
+                        <div className="space-y-1 min-w-0">
+                          <Label htmlFor="edit-characterName" className="text-base">Character Name</Label>
                           <Input
+                            id="edit-characterName"
                             value={editData.characterName}
                             onChange={(e) => setEditData(d => ({ ...d, characterName: e.target.value }))}
+                            placeholder="e.g., Stunt Double - Lead"
+                            className="text-lg h-12"
                           />
                         </div>
-                        <div className="space-y-1">
-                          <Label className="text-sm text-muted-foreground">Call Time</Label>
-                          <TimeSelect
-                            id="edit-callTime"
-                            value={editData.callTime}
-                            onChange={(v) => setEditData(d => ({ ...d, callTime: v }))}
-                          />
-                        </div>
-                        <div className="space-y-1">
-                          <Label className="text-sm text-muted-foreground">Stunt Adj ($)</Label>
-                          <Input
-                            type="number"
-                            min="0"
-                            step="50"
-                            value={editData.stuntAdjustment || ""}
-                            onChange={(e) => setEditData(d => ({ ...d, stuntAdjustment: parseFloat(e.target.value) || 0 }))}
-                          />
-                        </div>
+                      )}
+                      <div className="space-y-1 min-w-0">
+                        <Label htmlFor="edit-contractLength" className="text-base">Contract Length</Label>
+                        <Select
+                          value={editData.contractLength}
+                          onValueChange={(v) =>
+                            setEditData((d) => ({
+                              ...d,
+                              contractLength: v as "daily" | "three_day" | "weekly",
+                            }))
+                          }
+                        >
+                          <SelectTrigger id="edit-contractLength" className="text-lg h-12 w-full min-w-0">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="daily" className="text-base">Daily</SelectItem>
+                            <SelectItem value="three_day" className="text-base">3 Day (TV)</SelectItem>
+                            <SelectItem value="weekly" className="text-base">Weekly</SelectItem>
+                          </SelectContent>
+                        </Select>
                       </div>
-
-                      <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-                        <div className="space-y-1">
-                          <Label className="text-sm text-muted-foreground">ND Meal In</Label>
-                          <TimeSelect
-                            id="edit-ndMealIn"
-                            value={editData.ndMealIn || ""}
-                            onChange={(v) => setEditData(d => ({ ...d, ndMealIn: v || null }))}
-                            clearable
-                          />
-                        </div>
-                        <div className="space-y-1">
-                          <Label className="text-sm text-muted-foreground">ND Meal Out</Label>
-                          <TimeSelect
-                            id="edit-ndMealOut"
-                            value={editData.ndMealOut || ""}
-                            onChange={(v) => setEditData(d => ({ ...d, ndMealOut: v || null }))}
-                            clearable
-                          />
-                        </div>
+                      {editData.contractLength === "weekly" && (
+                        <p className="text-xs text-muted-foreground -mt-1">
+                          This day folds into a week — the days are added
+                          together on the Weekly page. Rates shown are weekly
+                          scale.
+                        </p>
+                      )}
+                      {editData.contractLength === "three_day" && (
+                        <p className="text-xs text-muted-foreground -mt-1">
+                          A television 3-day player. The day still logs
+                          normally; the 3-day schedule rates are coming.
+                        </p>
+                      )}
+                      <div className="space-y-1 min-w-0">
+                        <Label htmlFor="edit-workStatus" className="text-base">Agreement Type</Label>
+                        <Select
+                          value={editData.workStatus}
+                          onValueChange={(v) => setEditData(d => ({ ...d, workStatus: v }))}
+                        >
+                          <SelectTrigger id="edit-workStatus" className="text-lg h-12 w-full min-w-0">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {AGREEMENTS.map((agreement) => (
+                              <SelectItem
+                                key={agreement.id}
+                                value={agreement.id}
+                                className="text-base"
+                              >
+                                {editData.contractLength === "weekly"
+                                  ? weeklyAgreementLabel(agreement.id)
+                                  : agreementLabel(agreement.id)}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
                       </div>
+                    </div>
+                  </CollapsibleSection>
 
-                      <GapLine
-                        from={editData.callTime}
-                        to={editData.firstMealStart}
-                        label="from call to 1st meal"
-                        warnAfterHours={6}
-                      />
-                      <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-                        <div className="space-y-1">
-                          <Label className="text-sm text-muted-foreground">1st Meal Start</Label>
-                          <TimeSelect
-                            id="edit-firstMealStart"
-                            value={editData.firstMealStart || ""}
-                            onChange={(v) =>
-                              setEditData((d) => ({
-                                ...d,
-                                firstMealStart: v || null,
-                                // Offer the half hour back, never overwrite it.
-                                firstMealFinish:
-                                  v && !d.firstMealFinish
-                                    ? addMinutes(v, MEAL_MINUTES)
-                                    : d.firstMealFinish,
-                              }))
-                            }
-                            clearable
-                          />
-                        </div>
-                        <div className="space-y-1">
-                          <Label className="text-sm text-muted-foreground">1st Meal Finish</Label>
-                          <TimeSelect
-                            id="edit-firstMealFinish"
-                            value={editData.firstMealFinish || ""}
-                            onChange={(v) => setEditData(d => ({ ...d, firstMealFinish: v || null }))}
-                            clearable
-                          />
-                        </div>
-                      </div>
-
-                      <GapLine
-                        from={editData.firstMealFinish}
-                        to={editData.secondMealStart}
-                        label="from 1st meal to 2nd"
-                        warnAfterHours={6}
-                      />
-                      <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-                        <div className="space-y-1">
-                          <Label className="text-sm text-muted-foreground">2nd Meal Start</Label>
-                          <TimeSelect
-                            id="edit-secondMealStart"
-                            value={editData.secondMealStart || ""}
-                            onChange={(v) =>
-                              setEditData((d) => ({
-                                ...d,
-                                secondMealStart: v || null,
-                                secondMealFinish:
-                                  v && !d.secondMealFinish
-                                    ? addMinutes(v, MEAL_MINUTES)
-                                    : d.secondMealFinish,
-                              }))
-                            }
-                            clearable
-                          />
-                        </div>
-                        <div className="space-y-1">
-                          <Label className="text-sm text-muted-foreground">2nd Meal Finish</Label>
-                          <TimeSelect
-                            id="edit-secondMealFinish"
-                            value={editData.secondMealFinish || ""}
-                            onChange={(v) => setEditData(d => ({ ...d, secondMealFinish: v || null }))}
-                            clearable
-                          />
-                        </div>
-                      </div>
-
-                      <GapLine
-                        from={
-                          editData.secondMealFinish ||
-                          editData.firstMealFinish ||
-                          editData.callTime
+                  {/* The same rows in the same order as Log Work: call, the
+                      meals in the middle, then the two ends of the day. The
+                      engine reads the meals for penalties, so they belong
+                      where they happened, not at the bottom. */}
+                  {editData.workStatus !== "stunt_coordinator" && (
+                    <>
+                      <CollapsibleSection
+                        title="Work Times"
+                        defaultOpen
+                        summary={
+                          [toDisplay(editData.callTime), toDisplay(editData.dismissOnSet)]
+                            .filter(Boolean)
+                            .join(" → ") || "Call, meals and wrap"
                         }
-                        to={editData.dismissOnSet}
-                        label={
-                          editData.secondMealFinish || editData.firstMealFinish
-                            ? "from the last meal to dismissal"
-                            : "from call to dismissal"
-                        }
-                        warnAfterHours={6}
-                      />
-                      <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-                        <div className="space-y-1">
-                          <Label className="text-sm text-muted-foreground">Dismiss On Set</Label>
-                          <TimeSelect
-                            id="edit-dismissOnSet"
-                            value={editData.dismissOnSet}
-                            onChange={(v) => setEditData(d => ({ ...d, dismissOnSet: v }))}
+                      >
+                        <div className="space-y-0">
+                          <div className="flex items-center justify-between gap-4 p-2 rounded bg-muted/50">
+                            <Label htmlFor="edit-callTime" className="text-base shrink-0">Call Time</Label>
+                            <div className="flex-1 min-w-0 max-w-[15rem]">
+                              <TimeSelect
+                                id="edit-callTime"
+                                value={editData.callTime}
+                                onChange={(v) => setEditData(d => ({ ...d, callTime: v }))}
+                              />
+                            </div>
+                          </div>
+                          <GapLine
+                            from={editData.callTime}
+                            to={editData.firstMealStart}
+                            label="from call to 1st meal"
+                            warnAfterHours={6}
                           />
-                        </div>
-                        <div className="space-y-1">
-                          <Label className="text-sm text-muted-foreground">Wrapped</Label>
-                          <TimeSelect
-                            id="edit-dismissMakeupWardrobe"
-                            value={editData.dismissMakeupWardrobe || ""}
-                            onChange={(v) => setEditData(d => ({ ...d, dismissMakeupWardrobe: v || null }))}
-                            clearable
+                          <div className="border-t border-b py-3 my-1 space-y-3">
+                            {/* ND Meal */}
+                            <div className="space-y-0">
+                              <div className="flex items-center space-x-2 p-2">
+                                <Checkbox
+                                  id="edit-showNdMeal"
+                                  checked={editMeals.nd}
+                                  onCheckedChange={(v) => {
+                                    setEditMeals(m => ({ ...m, nd: !!v }));
+                                    if (!v) setEditData(d => ({ ...d, ndMealIn: null, ndMealOut: null }));
+                                  }}
+                                />
+                                <Label htmlFor="edit-showNdMeal" className="text-base font-normal">ND (Non-Deductible) Meal</Label>
+                              </div>
+                              {editMeals.nd && (
+                                <div className="grid grid-cols-2 gap-2 px-2 pb-2">
+                                  <div>
+                                    <Label htmlFor="edit-ndMealIn" className="text-sm text-muted-foreground">In</Label>
+                                    <TimeSelect id="edit-ndMealIn" value={editData.ndMealIn || ""} onChange={(v) => setEditData(d => ({ ...d, ndMealIn: v || null }))} compact />
+                                  </div>
+                                  <div>
+                                    <Label htmlFor="edit-ndMealOut" className="text-sm text-muted-foreground">Out</Label>
+                                    <TimeSelect id="edit-ndMealOut" value={editData.ndMealOut || ""} onChange={(v) => setEditData(d => ({ ...d, ndMealOut: v || null }))} compact />
+                                  </div>
+                                </div>
+                              )}
+                              {editMeals.nd && !editNdMeal.ok && (
+                                <p className="px-2 pb-2 text-xs text-amber-400">
+                                  {editNdMeal.problem === "ends_before_it_starts"
+                                    ? "An ND meal has to end after it starts."
+                                    : `An ND meal has to fall in the ${ND_MEAL_WINDOW_HOURS} hours after your call — from ${toDisplay(
+                                        editData.callTime
+                                      )} to ${toDisplay(
+                                        editNdMeal.windowEnd
+                                      )}. Outside that it is a deductible meal, which pays differently.`}
+                                </p>
+                              )}
+                            </div>
+                            {/* 1st Meal */}
+                            <div className="space-y-0">
+                              <div className="flex items-center space-x-2 p-2">
+                                <Checkbox
+                                  id="edit-showFirstMeal"
+                                  checked={editMeals.first}
+                                  onCheckedChange={(v) => {
+                                    setEditMeals(m => ({ ...m, first: !!v, second: v ? m.second : false }));
+                                    if (!v) setEditData(d => ({ ...d, firstMealStart: null, firstMealFinish: null, secondMealStart: null, secondMealFinish: null }));
+                                  }}
+                                />
+                                <Label htmlFor="edit-showFirstMeal" className="text-base font-normal">1st Meal</Label>
+                              </div>
+                              {editMeals.first && (
+                                <div className="grid grid-cols-2 gap-2 px-2 pb-2">
+                                  <div>
+                                    <Label htmlFor="edit-firstMealStart" className="text-sm text-muted-foreground">Out</Label>
+                                    <TimeSelect
+                                      id="edit-firstMealStart"
+                                      value={editData.firstMealStart || ""}
+                                      onChange={(v) =>
+                                        setEditData((d) => ({
+                                          ...d,
+                                          firstMealStart: v || null,
+                                          // Offer the half hour back, never overwrite it.
+                                          firstMealFinish:
+                                            v && !d.firstMealFinish
+                                              ? addMinutes(v, MEAL_MINUTES)
+                                              : d.firstMealFinish,
+                                        }))
+                                      }
+                                      compact
+                                    />
+                                  </div>
+                                  <div>
+                                    <Label htmlFor="edit-firstMealFinish" className="text-sm text-muted-foreground">In</Label>
+                                    <TimeSelect id="edit-firstMealFinish" value={editData.firstMealFinish || ""} onChange={(v) => setEditData(d => ({ ...d, firstMealFinish: v || null }))} compact />
+                                  </div>
+                                </div>
+                              )}
+                            </div>
+                            {/* 2nd Meal — only visible when 1st Meal is on */}
+                            {editMeals.first && (
+                              <div className="space-y-0">
+                                <GapLine
+                                  from={editData.firstMealFinish}
+                                  to={editData.secondMealStart}
+                                  label="from 1st meal to 2nd"
+                                  warnAfterHours={6}
+                                />
+                                <div className="flex items-center space-x-2 p-2">
+                                  <Checkbox
+                                    id="edit-showSecondMeal"
+                                    checked={editMeals.second}
+                                    onCheckedChange={(v) => {
+                                      setEditMeals(m => ({ ...m, second: !!v }));
+                                      if (!v) setEditData(d => ({ ...d, secondMealStart: null, secondMealFinish: null }));
+                                    }}
+                                  />
+                                  <Label htmlFor="edit-showSecondMeal" className="text-base font-normal">2nd Meal</Label>
+                                </div>
+                                {editMeals.second && (
+                                  <div className="grid grid-cols-2 gap-2 px-2 pb-2">
+                                    <div>
+                                      <Label htmlFor="edit-secondMealStart" className="text-sm text-muted-foreground">Out</Label>
+                                      <TimeSelect
+                                        id="edit-secondMealStart"
+                                        value={editData.secondMealStart || ""}
+                                        onChange={(v) =>
+                                          setEditData((d) => ({
+                                            ...d,
+                                            secondMealStart: v || null,
+                                            secondMealFinish:
+                                              v && !d.secondMealFinish
+                                                ? addMinutes(v, MEAL_MINUTES)
+                                                : d.secondMealFinish,
+                                          }))
+                                        }
+                                        compact
+                                      />
+                                    </div>
+                                    <div>
+                                      <Label htmlFor="edit-secondMealFinish" className="text-sm text-muted-foreground">In</Label>
+                                      <TimeSelect id="edit-secondMealFinish" value={editData.secondMealFinish || ""} onChange={(v) => setEditData(d => ({ ...d, secondMealFinish: v || null }))} compact />
+                                    </div>
+                                  </div>
+                                )}
+                              </div>
+                            )}
+                          </div>
+                          <GapLine
+                            from={
+                              editData.secondMealFinish ||
+                              editData.firstMealFinish ||
+                              editData.callTime
+                            }
+                            to={editData.dismissOnSet}
+                            label={
+                              editData.secondMealFinish || editData.firstMealFinish
+                                ? "from the last meal to dismissal"
+                                : "from call to dismissal"
+                            }
+                            warnAfterHours={6}
                           />
+                          <div className="flex items-center justify-between gap-4 p-2">
+                            <Label htmlFor="edit-dismissOnSet" className="text-base shrink-0">Dismiss On Set</Label>
+                            <div className="flex-1 min-w-0 max-w-[15rem]">
+                              <TimeSelect
+                                id="edit-dismissOnSet"
+                                value={editData.dismissOnSet}
+                                onChange={(v) => setEditData(d => ({ ...d, dismissOnSet: v }))}
+                              />
+                            </div>
+                          </div>
+                          <div className="flex items-center justify-between gap-4 p-2 rounded bg-muted/50">
+                            <Label htmlFor="edit-dismissMakeupWardrobe" className="text-base shrink-0">Wrapped</Label>
+                            <div className="flex-1 min-w-0 max-w-[15rem]">
+                              <TimeSelect
+                                id="edit-dismissMakeupWardrobe"
+                                value={editData.dismissMakeupWardrobe || ""}
+                                onChange={(v) => setEditData(d => ({ ...d, dismissMakeupWardrobe: v || null }))}
+                                clearable
+                              />
+                            </div>
+                          </div>
+                          <div className="border-t pt-3 mt-3">
+                            <div className="flex items-center justify-between gap-4 p-2">
+                              <Label htmlFor="edit-stuntAdjustment" className="text-base shrink-0">Stunt Adjustment</Label>
+                              <div className="relative flex-1 min-w-0 max-w-[15rem]">
+                                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground">$</span>
+                                <Input
+                                  id="edit-stuntAdjustment"
+                                  type="number"
+                                  min="0"
+                                  step="50"
+                                  value={editData.stuntAdjustment || ""}
+                                  onChange={(e) => setEditData(d => ({ ...d, stuntAdjustment: parseFloat(e.target.value) || 0 }))}
+                                  className="pl-7 w-full"
+                                  placeholder="0.00"
+                                />
+                              </div>
+                            </div>
+                            <p className="text-xs text-muted-foreground px-2">Meal penalties calculated from times above</p>
+                          </div>
                         </div>
-                      </div>
+                      </CollapsibleSection>
 
-                      {/* Day Type & Penalties checkboxes */}
-                      <div className="flex flex-wrap gap-4 pt-2">
-                        <div className="flex items-center space-x-2">
-                          <Checkbox
-                            id="edit-forcedCall"
-                            checked={editData.forcedCall}
-                            onCheckedChange={(v) => setEditData(d => ({ ...d, forcedCall: !!v }))}
-                          />
-                          <Label htmlFor="edit-forcedCall" className="text-sm font-normal">Forced Call</Label>
-                        </div>
-                        <div className="flex items-center space-x-2">
-                          <Checkbox
-                            id="edit-isSixthDay"
-                            checked={editData.isSixthDay}
-                            onCheckedChange={(v) => setEditData(d => ({ ...d, isSixthDay: !!v }))}
-                          />
-                          <Label htmlFor="edit-isSixthDay" className="text-sm font-normal">6th Consecutive Day</Label>
-                        </div>
-                        <div className="flex items-center space-x-2">
-                          <Checkbox
-                            id="edit-isSeventhDay"
-                            checked={editData.isSeventhDay}
-                            onCheckedChange={(v) => setEditData(d => ({ ...d, isSeventhDay: !!v }))}
-                          />
-                          <Label htmlFor="edit-isSeventhDay" className="text-sm font-normal">7th Consecutive Day</Label>
-                        </div>
-                        <div className="flex items-center space-x-2">
-                          <Checkbox
-                            id="edit-isHoliday"
-                            checked={editData.isHoliday}
-                            onCheckedChange={(v) => setEditData(d => ({ ...d, isHoliday: !!v }))}
-                          />
-                          <Label htmlFor="edit-isHoliday" className="text-sm font-normal">Holiday</Label>
+                      <Separator />
+
+                      {/* Penalties — same block as Log Work, and a day can
+                          only be one of 6th, 7th or a holiday. */}
+                      <div>
+                        <h3 className="font-semibold mb-3">Penalties</h3>
+                        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                          <div className="flex items-center space-x-2">
+                            <Checkbox
+                              id="edit-forcedCall"
+                              checked={editData.forcedCall}
+                              onCheckedChange={(v) => setEditData(d => ({ ...d, forcedCall: !!v }))}
+                            />
+                            <Label htmlFor="edit-forcedCall" className="text-base font-normal">Forced Call</Label>
+                          </div>
+                          <div className="flex items-center space-x-2">
+                            <Checkbox
+                              id="edit-isSixthDay"
+                              checked={editData.isSixthDay}
+                              onCheckedChange={(v) => setEditData(d => ({ ...d, isSixthDay: !!v, isSeventhDay: v ? false : d.isSeventhDay, isHoliday: v ? false : d.isHoliday }))}
+                            />
+                            <Label htmlFor="edit-isSixthDay" className="text-base font-normal">6th Consecutive Day</Label>
+                          </div>
+                          <div className="flex items-center space-x-2">
+                            <Checkbox
+                              id="edit-isSeventhDay"
+                              checked={editData.isSeventhDay}
+                              onCheckedChange={(v) => setEditData(d => ({ ...d, isSeventhDay: !!v, isSixthDay: v ? false : d.isSixthDay, isHoliday: v ? false : d.isHoliday }))}
+                            />
+                            <Label htmlFor="edit-isSeventhDay" className="text-base font-normal">7th Consecutive Day</Label>
+                          </div>
+                          <div className="flex items-center space-x-2">
+                            <Checkbox
+                              id="edit-isHoliday"
+                              checked={editData.isHoliday}
+                              onCheckedChange={(v) => setEditData(d => ({ ...d, isHoliday: !!v, isSixthDay: v ? false : d.isSixthDay, isSeventhDay: v ? false : d.isSeventhDay }))}
+                            />
+                            <Label htmlFor="edit-isHoliday" className="text-base font-normal">Holiday</Label>
+                          </div>
                         </div>
                       </div>
                     </>
