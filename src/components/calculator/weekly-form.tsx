@@ -9,7 +9,22 @@ import { toast } from "sonner";
 import { ChevronDown, ChevronRight, Info, Loader2 } from "lucide-react";
 import { formatCurrency } from "@/lib/time-utils";
 import { RATES, type RateSchedule } from "@/lib/rate-constants";
-import { AGREEMENTS, weeklyAgreementLabel } from "@/lib/agreements";
+import { AGREEMENTS, weekRate, weeklyAgreementLabel } from "@/lib/agreements";
+
+/**
+ * The picker's own short names — the full agreement names clip on a phone,
+ * and inside this page's context "Theatrical/TV" says everything the long
+ * form says. "Other" is a deal that is none of the schedules: it is the
+ * one case where the weekly rate is typed rather than known.
+ */
+const SHORT_NAMES: Record<string, string> = {
+  theatrical_basic: "Theatrical/TV",
+  low_budget: "Low Budget",
+  modified_low_budget: "Mod. Low Budget",
+  ultra_low_budget: "Ultra Low Budget",
+  stunt_coordinator: "Coordinator — flat",
+  stunt_coordinator_daily: "Coordinator — daily",
+};
 import {
   calculateWeekly,
   type WeeklyBreakdown,
@@ -82,7 +97,9 @@ export function WeeklyForm() {
    * the guarantee are derived from the days.
    */
   const [title, setTitle] = useState("");
-  const [agreement, setAgreement] = useState<RateSchedule>("theatrical_basic");
+  const [agreement, setAgreement] = useState<RateSchedule | "other">(
+    "theatrical_basic"
+  );
   const [weeklyRate, setWeeklyRate] = useState<number>(
     RATES.theatrical_basic.weekly
   );
@@ -98,7 +115,10 @@ export function WeeklyForm() {
   const [savingWeek, setSavingWeek] = useState<string | null>(null);
   const [savedWeeks, setSavedWeeks] = useState<Set<string>>(new Set());
 
-  const scaleWeeklyRate = RATES[agreement].weekly;
+  // An "other" deal has no published scale, so its own rate stands in —
+  // premiums then follow the deal rather than a schedule it is not on.
+  const scaleWeeklyRate =
+    agreement === "other" ? weeklyRate : RATES[agreement].weekly;
   const guarantee = distantLocation ? ("distant" as const) : ("studio" as const);
   const guaranteeHours =
     WEEKLY_GUARANTEES.find((g) => g.id === guarantee)?.hours ?? 44;
@@ -273,7 +293,13 @@ export function WeeklyForm() {
         title="Job Details"
         defaultOpen
         summary={
-          [title, weeklyAgreementLabel(agreement), distantLocation ? "Overnight location" : null]
+          [
+            title,
+            agreement === "other"
+              ? `Other · ${weekRate(weeklyRate)}`
+              : weeklyAgreementLabel(agreement),
+            distantLocation ? "Overnight location" : null,
+          ]
             .filter(Boolean)
             .join(" · ") || "Show, contract and rate"
         }
@@ -310,24 +336,35 @@ export function WeeklyForm() {
               id="weeklyAgreement"
               value={agreement}
               onChange={(v) => {
+                if (v === "other") {
+                  setAgreement("other");
+                  return;
+                }
                 const next = v as RateSchedule;
                 setAgreement(next);
-                // Picking the contract fills the rate in; it stays editable.
+                // The contract knows its rate; nothing to type.
                 setWeeklyRate(RATES[next].weekly);
               }}
-              options={AGREEMENTS.map((a) => ({
-                value: a.id,
-                label: weeklyAgreementLabel(a.id),
-              }))}
+              options={[
+                ...AGREEMENTS.map((a) => ({
+                  value: a.id,
+                  label: `${SHORT_NAMES[a.id] ?? a.name} · ${weekRate(
+                    RATES[a.id as RateSchedule].weekly
+                  )}`,
+                })),
+                { value: "other", label: "Other · type the rate" },
+              ]}
             />
           </div>
 
-          <div className="flex items-center justify-between gap-4">
-            <Label htmlFor="weeklyRate" className="text-base shrink-0">
-              Weekly rate
-            </Label>
-            <MoneyInput id="weeklyRate" value={weeklyRate} onChange={setWeeklyRate} />
-          </div>
+          {agreement === "other" && (
+            <div className="flex items-center justify-between gap-4">
+              <Label htmlFor="weeklyRate" className="text-base shrink-0">
+                Weekly rate
+              </Label>
+              <MoneyInput id="weeklyRate" value={weeklyRate} onChange={setWeeklyRate} />
+            </div>
+          )}
 
           <div className="space-y-2">
             <div className="flex items-center gap-2">

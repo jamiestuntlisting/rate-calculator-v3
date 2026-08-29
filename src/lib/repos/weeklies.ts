@@ -1,4 +1,5 @@
 import { getDb, newId, nowIso } from "@/lib/db";
+import { RATES } from "@/lib/rate-constants";
 
 export interface WeeklyRow {
   _id: string;
@@ -101,6 +102,11 @@ export async function saveWeekly(
       .run();
   }
 
+  // "other" is a negotiated deal, not a schedule — days keep the
+  // workStatus they already have rather than taking a name the daily
+  // engine has never heard of.
+  const stampStatus = input.agreement in RATES ? input.agreement : null;
+
   let day = 0;
   for (const recordId of input.recordIds) {
     day += 1;
@@ -118,16 +124,16 @@ export async function saveWeekly(
     if (unnamed && input.title.trim()) {
       await db
         .prepare(
-          "UPDATE work_records SET weeklyId = ?2, weeklyContract = 1, workStatus = ?3, showName = ?4, updatedAt = ?5 WHERE _id = ?1 AND userId = ?6"
+          "UPDATE work_records SET weeklyId = ?2, weeklyContract = 1, workStatus = COALESCE(?3, workStatus), showName = ?4, updatedAt = ?5 WHERE _id = ?1 AND userId = ?6"
         )
-        .bind(recordId, id, input.agreement, `${input.title} — Day ${day}`, now, userId)
+        .bind(recordId, id, stampStatus, `${input.title} — Day ${day}`, now, userId)
         .run();
     } else {
       await db
         .prepare(
-          "UPDATE work_records SET weeklyId = ?2, weeklyContract = 1, workStatus = ?3, updatedAt = ?4 WHERE _id = ?1 AND userId = ?5"
+          "UPDATE work_records SET weeklyId = ?2, weeklyContract = 1, workStatus = COALESCE(?3, workStatus), updatedAt = ?4 WHERE _id = ?1 AND userId = ?5"
         )
-        .bind(recordId, id, input.agreement, now, userId)
+        .bind(recordId, id, stampStatus, now, userId)
         .run();
     }
   }
@@ -183,6 +189,8 @@ export async function assignRecordToWeekly(
     /^Untranscribed Exhibit G \d+$/.test(row.showName) ||
     row.showName.startsWith(`${weekly.title} — Day `);
 
+  const stampStatus = weekly.agreement in RATES ? weekly.agreement : null;
+
   if (unnamed) {
     const { results } = await db
       .prepare(
@@ -197,12 +205,12 @@ export async function assignRecordToWeekly(
     }
     await db
       .prepare(
-        "UPDATE work_records SET weeklyId = ?2, weeklyContract = 1, workStatus = ?3, showName = ?4, updatedAt = ?5 WHERE _id = ?1 AND userId = ?6"
+        "UPDATE work_records SET weeklyId = ?2, weeklyContract = 1, workStatus = COALESCE(?3, workStatus), showName = ?4, updatedAt = ?5 WHERE _id = ?1 AND userId = ?6"
       )
       .bind(
         recordId,
         weeklyId,
-        weekly.agreement,
+        stampStatus,
         `${weekly.title} — Day ${max + 1}`,
         now,
         userId
@@ -211,9 +219,9 @@ export async function assignRecordToWeekly(
   } else {
     await db
       .prepare(
-        "UPDATE work_records SET weeklyId = ?2, weeklyContract = 1, workStatus = ?3, updatedAt = ?4 WHERE _id = ?1 AND userId = ?5"
+        "UPDATE work_records SET weeklyId = ?2, weeklyContract = 1, workStatus = COALESCE(?3, workStatus), updatedAt = ?4 WHERE _id = ?1 AND userId = ?5"
       )
-      .bind(recordId, weeklyId, weekly.agreement, now, userId)
+      .bind(recordId, weeklyId, stampStatus, now, userId)
       .run();
   }
 }
