@@ -472,6 +472,21 @@ export default function TranscribePage({
           <div
             ref={fieldsRef}
             className="mt-3 overflow-x-auto rounded-lg border border-border"
+            onFocus={(e) => {
+              // The platform's time wheel anchors to its field and flips
+              // above it when the field sits at the bottom of the page —
+              // straight over the card being read. Park the tapped field a
+              // third of the way down the screen instead: your row stays
+              // visible above it, and the spacer below gives the wheel a
+              // home under the field.
+              const el = e.target as HTMLElement;
+              if (el.tagName !== "INPUT") return;
+              const top =
+                window.scrollY +
+                el.getBoundingClientRect().top -
+                window.innerHeight * 0.32;
+              window.scrollTo({ top: Math.max(0, top) });
+            }}
           >
             <div className="min-w-max p-2">
               {/* Bottom-aligned: the card's headings stack onto two or three
@@ -530,6 +545,11 @@ export default function TranscribePage({
             Pinch to zoom (or ⌘/Ctrl + scroll). Drag either pane sideways —
             both follow. Zoom {Math.round(zoom * 100)}%.
           </p>
+
+          {/* Scroll room so a field can sit high on the screen while its
+              picker opens below it — without this the page ends right
+              under the fields and the wheel has nowhere to go but up. */}
+          <div aria-hidden className="h-[45vh]" />
         </>
       )}
     </div>
