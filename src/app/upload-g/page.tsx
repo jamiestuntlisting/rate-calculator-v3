@@ -364,10 +364,10 @@ export default function UploadGPage() {
       ) : (
         <Card className="divide-y divide-border p-0">
           {uploads.map((u) => (
-            <div key={u._id} className="flex items-center gap-4 p-3">
+            <div key={u._id} className="flex items-center gap-3 p-3">
               <Link
                 href={`/upload-g/${u._id}`}
-                className="h-40 w-40 shrink-0 rounded bg-muted/40 overflow-hidden relative"
+                className="h-24 w-24 sm:h-40 sm:w-40 shrink-0 rounded bg-muted/40 overflow-hidden relative"
               >
                 {isPdf(u) ? (
                   <span className="absolute inset-0 flex items-center justify-center">
@@ -416,24 +416,28 @@ export default function UploadGPage() {
                 </p>
               </div>
 
+              {/* Stacked controls take 36px of width instead of 100 —
+                  on a phone that width is the title's. */}
+              <div className="flex shrink-0 flex-col gap-1.5">
               <button
                 type="button"
                 onClick={() => rotate(u)}
                 aria-label="Rotate"
                 title="Rotate"
-                className="h-12 w-12 shrink-0 flex items-center justify-center rounded-lg border border-border hover:bg-accent active:scale-95 transition"
+                className="h-9 w-9 shrink-0 flex items-center justify-center rounded-lg border border-border hover:bg-accent active:scale-95 transition"
               >
-                <RotateCw className="h-6 w-6" />
+                <RotateCw className="h-4 w-4" />
               </button>
               <button
                 type="button"
                 onClick={() => remove(u)}
                 aria-label="Delete"
                 title="Delete"
-                className="h-9 w-9 ml-4 shrink-0 flex items-center justify-center rounded-lg text-destructive hover:bg-destructive/10"
+                className="h-9 w-9 shrink-0 flex items-center justify-center rounded-lg text-destructive hover:bg-destructive/10"
               >
                 <Trash2 className="h-4 w-4" />
               </button>
+              </div>
             </div>
           ))}
         </Card>
