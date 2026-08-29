@@ -179,17 +179,23 @@ export default function MembershipPage() {
         </div>
       )}
 
-      <div className="rounded-xl border border-border overflow-hidden">
+      {/* No overflow-hidden on the wrapper: it would quietly disable the
+          sticky header. The corner rounding moves onto the header cells.
+          top-14 tucks the row under the app header, and the background is
+          opaque so feature rows do not ghost through as they pass. */}
+      <div className="rounded-xl border border-border">
         <table className="w-full text-sm">
           <thead>
-            <tr className="bg-muted/40">
-              <th className="text-left font-medium p-3">What you get</th>
-              {PLANS.map((plan) => (
+            <tr>
+              <th className="sticky top-14 z-10 rounded-tl-xl bg-[#202023] text-left font-medium p-2 sm:p-3 text-xs sm:text-sm">
+                What you get
+              </th>
+              {PLANS.map((plan, index) => (
                 <th
                   key={plan.id}
-                  className={`p-3 font-medium text-center ${
-                    membership?.planId === plan.id ? "text-primary" : ""
-                  }`}
+                  className={`sticky top-14 z-10 bg-[#202023] p-2 sm:p-3 font-medium text-center text-xs sm:text-sm break-words ${
+                    index === PLANS.length - 1 ? "rounded-tr-xl" : ""
+                  } ${membership?.planId === plan.id ? "text-primary" : ""}`}
                 >
                   {plan.name}
                 </th>
