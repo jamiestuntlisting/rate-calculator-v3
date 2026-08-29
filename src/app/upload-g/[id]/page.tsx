@@ -457,13 +457,19 @@ export default function TranscribePage({
       ) : (
         <>
           <div className="rounded-lg border border-border overflow-hidden">
-            <div className="px-2 py-1 text-[11px] uppercase tracking-wide text-muted-foreground bg-muted/40">
-              Column headings
+            <div className="flex items-center justify-between px-2 py-1 text-[11px] uppercase tracking-wide text-muted-foreground bg-muted/40">
+              <span>Column headings</span>
+              <span className="tabular-nums normal-case">
+                {Math.round(zoom * 100)}%
+              </span>
             </div>
             {pane("header", headerRef, "h-[22vh] min-h-[110px]")}
 
-            <div className="px-2 py-1 text-[11px] uppercase tracking-wide text-muted-foreground bg-muted/40 border-t border-border">
-              Your row — scroll up/down to find your line
+            <div className="flex items-center justify-between px-2 py-1 text-[11px] uppercase tracking-wide text-muted-foreground bg-muted/40 border-t border-border">
+              <span>Your row — scroll up/down to find your line</span>
+              <span className="tabular-nums normal-case">
+                {Math.round(zoom * 100)}%
+              </span>
             </div>
             {pane("row", rowRef, "h-[13vh] min-h-[65px]")}
           </div>
@@ -543,7 +549,7 @@ export default function TranscribePage({
 
           <p className="text-xs text-muted-foreground mt-2">
             Pinch to zoom (or ⌘/Ctrl + scroll). Drag either pane sideways —
-            both follow. Zoom {Math.round(zoom * 100)}%.
+            both follow.
           </p>
 
           {/* Scroll room so a field can sit high on the screen while its
