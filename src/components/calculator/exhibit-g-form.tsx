@@ -861,8 +861,8 @@ export function ExhibitGForm() {
                 <div className="flex items-center justify-between gap-4 p-2">
                   <Label htmlFor="stuntAdjustment" className="text-base shrink-0">Stunt Adjustment</Label>
                   <div className="relative flex-1 min-w-0 max-w-[15rem]">
-                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground">$</span>
-                    <Input id="stuntAdjustment" type="number" min="0" step="50" value={input.stuntAdjustment || ""} onChange={(e) => update("stuntAdjustment", parseFloat(e.target.value) || 0)} className="pl-7 w-full" placeholder="0.00" />
+                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-lg text-muted-foreground">$</span>
+                    <Input id="stuntAdjustment" type="number" min="0" step="50" value={input.stuntAdjustment || ""} onChange={(e) => update("stuntAdjustment", parseFloat(e.target.value) || 0)} className="pl-7 w-full h-12 text-lg" placeholder="0.00" />
                   </div>
                 </div>
                 <p className="text-xs text-muted-foreground px-2">Meal penalties calculated from times above</p>

@@ -1223,7 +1223,7 @@ export default function WorkDetailPage() {
                             <div className="flex items-center justify-between gap-4 p-2">
                               <Label htmlFor="edit-stuntAdjustment" className="text-base shrink-0">Stunt Adjustment</Label>
                               <div className="relative flex-1 min-w-0 max-w-[15rem]">
-                                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground">$</span>
+                                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-lg text-muted-foreground">$</span>
                                 <Input
                                   id="edit-stuntAdjustment"
                                   type="number"
@@ -1231,7 +1231,7 @@ export default function WorkDetailPage() {
                                   step="50"
                                   value={editData.stuntAdjustment || ""}
                                   onChange={(e) => setEditData(d => ({ ...d, stuntAdjustment: parseFloat(e.target.value) || 0 }))}
-                                  className="pl-7 w-full"
+                                  className="pl-7 w-full h-12 text-lg"
                                   placeholder="0.00"
                                 />
                               </div>
