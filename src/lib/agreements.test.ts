@@ -176,6 +176,87 @@ describe("a flat deal", () => {
   });
 });
 
+describe("the daily guarantee in the breakdown", () => {
+  const wages = (b: ReturnType<typeof calculateRate>) =>
+    b.grandTotal - b.penalties.totalPenalties;
+
+  it("always shows straight time, even when the clock says nothing was worked", () => {
+    // Crossed meal times can eat the whole day: the meal reads as almost
+    // 24 hours, net hours hit zero, and before this the total held the
+    // guarantee while no line said where the money came from.
+    const zero = calculateRate(
+      day({
+        callTime: "06:12",
+        dismissOnSet: "14:05",
+        firstMealStart: "14:30",
+        firstMealFinish: "14:05",
+      })
+    );
+    expect(zero.netWorkHours).toBe(0);
+    expect(zero.segments[0].label).toBe("Straight Time (Hrs 1-8)");
+    expect(zero.segments[0].hours).toBe(8);
+    expect(zero.segments[0].subtotal).toBe(1283);
+    const lineSum =
+      zero.segments.reduce((s, seg) => s + seg.subtotal, 0) +
+      zero.penalties.totalPenalties;
+    expect(lineSum).toBeCloseTo(zero.grandTotal, 2);
+  });
+
+  it("pays a two-hour day as eight straight hours on the line", () => {
+    const short = calculateRate(
+      day({
+        callTime: "07:00",
+        dismissOnSet: "09:00",
+        firstMealStart: null,
+        firstMealFinish: null,
+      })
+    );
+    expect(short.segments).toHaveLength(1);
+    expect(short.segments[0].hours).toBe(8);
+    expect(short.segments[0].subtotal).toBe(1283);
+    expect(wages(short)).toBe(1283);
+  });
+
+  it("tops a short sixth day up at the day multiplier", () => {
+    const sixth = calculateRate(
+      day({
+        callTime: "07:00",
+        dismissOnSet: "09:00",
+        firstMealStart: null,
+        firstMealFinish: null,
+        isSixthDay: true,
+      })
+    );
+    expect(sixth.segments[0].label).toBe("Base Time (Hrs 1-8)");
+    expect(sixth.segments[0].subtotal).toBeCloseTo(1924.5, 2);
+    expect(wages(sixth)).toBeCloseTo(1924.5, 2);
+  });
+
+  it("leaves a full day's lines alone and they still sum to the total", () => {
+    const full = calculateRate(day());
+    expect(full.segments[0].hours).toBe(8);
+    const lineSum =
+      full.segments.reduce((s, seg) => s + seg.subtotal, 0) +
+      full.penalties.totalPenalties;
+    expect(lineSum).toBeCloseTo(full.grandTotal, 2);
+  });
+
+  it("stays out of a flat deal, which is one segment however short the day", () => {
+    const flat = calculateRate(
+      day({
+        flatDayRate: 2000,
+        callTime: "07:00",
+        dismissOnSet: "09:00",
+        firstMealStart: null,
+        firstMealFinish: null,
+      })
+    );
+    expect(flat.segments).toHaveLength(1);
+    expect(flat.segments[0].label).toContain("Flat deal");
+    expect(wages(flat)).toBe(2000);
+  });
+});
+
 describe("a day inside a weekly contract", () => {
   const wages = (b: ReturnType<typeof calculateRate>) =>
     b.grandTotal - b.penalties.totalPenalties;

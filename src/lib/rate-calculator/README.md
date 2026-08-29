@@ -36,6 +36,12 @@ Two further changes are local and also need carrying upstream:
   normal, unlike `flatDayRate`. The app uses it to approximate a day inside
   a weekly contract at the weekly scale over five days. A flat deal wins if
   both are set; given neither, the engine behaves exactly as before.
+- `rate-engine.ts` puts the eight-hour daily minimum into the segment
+  lines (Step 8b): the straight-time segment never pays fewer than eight
+  hours, and is created outright on a zero-hour day. The grand total
+  already honored the guarantee via the Step 11 `max()`; before this the
+  difference sat in no line and a short day's breakdown did not sum to
+  its total. Flat deals keep their single segment.
 - `rate-constants.ts` splits the stunt coordinator in two.
   `stunt_coordinator` is the flat-deal figure it always was ($1,996); the
   new `stunt_coordinator_daily` is a coordinator employed at *less than*

@@ -114,6 +114,48 @@ export function calculateRate(input: ExhibitGInput, options?: { skipRounding?: b
         !!options?.skipRounding
       );
 
+  // Step 8b: The daily guarantee belongs in the lines, not only in the
+  // total. A day pays at least eight straight hours whatever the clock
+  // says — payroll prints a short day as 8.0 hours of straight time — so
+  // the straight segment is raised to the guarantee, and created when
+  // nothing was worked at all. Step 11's minimum already made the total
+  // right; without this the difference sat in no line and the breakdown
+  // did not sum. Flat deals are untouched: the flat segment is already
+  // the whole day.
+  if (!isFlatDeal) {
+    const guaranteeHours = OVERTIME.straightTimeEnd;
+    const straightMultiplier = Math.max(
+      MULTIPLIERS.straight,
+      dayMultiplierInfo.multiplier
+    );
+    const guaranteeLabel =
+      dayMultiplierInfo.multiplier > 1
+        ? `Base Time (Hrs 1-${guaranteeHours})`
+        : `Straight Time (Hrs 1-${guaranteeHours})`;
+    const straight = segments[0];
+    const straightIsFirst =
+      straight &&
+      (straight.label.startsWith("Straight Time") ||
+        straight.label.startsWith("Base Time"));
+    if (!straightIsFirst) {
+      segments.unshift({
+        label: guaranteeLabel,
+        hours: guaranteeHours,
+        rate: adjustedHourlyRate,
+        multiplier: straightMultiplier,
+        subtotal: round2(
+          guaranteeHours * adjustedHourlyRate * straightMultiplier
+        ),
+      });
+    } else if (straight.hours < guaranteeHours) {
+      straight.label = guaranteeLabel;
+      straight.hours = guaranteeHours;
+      straight.subtotal = round2(
+        guaranteeHours * adjustedHourlyRate * straightMultiplier
+      );
+    }
+  }
+
   // Step 9: Calculate meal penalties
   const mealPenalties = calculateMealPenalties(input);
 
