@@ -8,6 +8,7 @@ import { Input } from "@/components/ui/input";
 import { TimeSelect, toDisplay } from "@/components/calculator/time-select";
 import { AGREEMENTS, agreementLabel, dayRate } from "@/lib/agreements";
 import { GapLine } from "@/components/calculator/gap-line";
+import { ShowCombobox } from "@/components/shared/show-combobox";
 import { effectiveHourlyRate, workHoursFor } from "@/lib/work-hours";
 import { addMinutes, MEAL_MINUTES } from "@/components/calculator/time-select";
 import { Label } from "@/components/ui/label";
@@ -870,16 +871,11 @@ export default function WorkDetailPage() {
                   <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
                     <div className="space-y-1">
                       <Label className="text-sm text-muted-foreground">Show</Label>
-                      <Input
-                        list="known-shows-edit"
+                      <ShowCombobox
                         value={editData.showName}
-                        onChange={(e) => setEditData(d => ({ ...d, showName: e.target.value }))}
+                        onChange={(v) => setEditData(d => ({ ...d, showName: v }))}
+                        options={knownShows}
                       />
-                      <datalist id="known-shows-edit">
-                        {knownShows.map((name) => (
-                          <option key={name} value={name} />
-                        ))}
-                      </datalist>
                     </div>
                     <div className="space-y-1">
                       <Label className="text-sm text-muted-foreground">Date</Label>

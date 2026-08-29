@@ -42,6 +42,7 @@ import { turnaroundsFor } from "@/lib/weekly/turnaround";
 import { WEEKLY_GUARANTEES, weekRules } from "@/lib/weekly/rules";
 import type { WorkRecord } from "@/types";
 import { CollapsibleSection } from "@/components/calculator/collapsible-section";
+import { ShowCombobox } from "@/components/shared/show-combobox";
 import { PayStubSection } from "@/components/shared/pay-stub-section";
 import type { PayStubLine } from "@/lib/pay-stub";
 import { useAuth } from "@/context/auth-context";
@@ -309,19 +310,14 @@ export function WeeklyForm() {
             <Label htmlFor="weeklyTitle" className="text-base">
               Show Title
             </Label>
-            <Input
+            <ShowCombobox
               id="weeklyTitle"
-              list="weekly-known-shows"
               value={title}
-              onChange={(e) => setTitle(e.target.value)}
+              onChange={setTitle}
+              options={knownShows}
               placeholder="Pick a show or type a new one"
               className="text-lg h-12"
             />
-            <datalist id="weekly-known-shows">
-              {knownShows.map((name) => (
-                <option key={name} value={name} />
-              ))}
-            </datalist>
             <p className="text-xs text-muted-foreground">
               Filters the days below to this show — plus any Exhibit Gs with
               no name yet, since those could be its days.
