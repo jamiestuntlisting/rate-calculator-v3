@@ -123,9 +123,9 @@ export async function POST(request: Request) {
       userId
     );
 
-    // A day logged as weekly belongs to a weekly object from the moment
-    // it exists — that is what makes it show up as a saved weekly.
-    if (record.contractLength === "weekly") {
+    // A day logged as weekly (or 3-day) belongs to a contract group from
+    // the moment it exists — that is what makes it show up as saved.
+    if (record.contractLength === "weekly" || record.contractLength === "three_day") {
       const weekly = await ensureWeeklyForRecord(userId, record._id);
       if (weekly) record.weeklyId = weekly._id;
     }

@@ -31,6 +31,7 @@ import {
   type WeeklyExtra,
 } from "@/lib/weekly/weekly-engine";
 import { workRecordsToWeeklyInput } from "@/lib/weekly/from-work-records";
+import { calculateThreeDay } from "@/lib/three-day";
 import {
   DEFAULT_WEEK_STARTS_ON,
   WEEK_DAY_NAMES,
@@ -125,11 +126,19 @@ export function WeeklyForm() {
   const [weekStartsOn, setWeekStartsOn] =
     useState<WeekStartDay>(DEFAULT_WEEK_STARTS_ON);
 
+  /**
+   * Which contract this page is building. A 3-day (TV) contract groups
+   * days exactly like a weekly and is paid as one check the same way —
+   * three days guaranteed, a fourth or fifth prorated on top.
+   */
+  const [mode, setMode] = useState<"weekly" | "three_day">("weekly");
+  const [threeDayRate, setThreeDayRate] = useState(0);
   const [records, setRecords] = useState<WorkRecord[] | null>(null);
   /** The weeklies already saved — proof they persist, and a way back in. */
   const [weeklies, setWeeklies] = useState<
     Array<{
       _id: string;
+      kind: string;
       title: string;
       weekStart: string;
       weekStartsOn: number;
@@ -179,6 +188,8 @@ export function WeeklyForm() {
 
   /** Reopen a saved weekly: its deal in the questionnaire, its days picked. */
   const openWeekly = (w: (typeof weeklies)[number]) => {
+    setMode(w.kind === "three_day" ? "three_day" : "weekly");
+    if (w.kind === "three_day") setThreeDayRate(w.weeklyRate || 0);
     setTitle(w.title);
     setWeekStartsOn(
       (Math.min(6, Math.max(0, w.weekStartsOn)) as WeekStartDay) ??
@@ -227,22 +238,24 @@ export function WeeklyForm() {
    * whichever show is chosen.
    */
   const offered = useMemo(() => {
-    // A day whose contract was set to daily (or 3-day) was already decided
-    // not to be part of a week — offering it here just invites mixing
-    // contracts. What belongs: days marked weekly (or already in a
-    // weekly), and unnamed Exhibit Gs, which could be anything until
-    // transcribed. Marking a day Weekly on its record brings it in.
+    // A day whose contract was set to something else was already decided
+    // — offering it here just invites mixing contracts. What belongs to
+    // the current mode: days marked with its contract length (or already
+    // in a group of its kind), and unnamed Exhibit Gs, which could be
+    // anything until transcribed.
+    const kindById = new Map(weeklies.map((w) => [w._id, w.kind]));
+    const wanted = mode === "three_day" ? "three_day" : "weekly";
     const all = (records ?? []).filter(
       (r) =>
         isUnnamed(r, title) ||
-        r.weeklyId != null ||
-        r.contractLength === "weekly"
+        r.contractLength === wanted ||
+        (r.weeklyId != null && kindById.get(r.weeklyId) === wanted)
     );
     if (!title.trim()) return all;
     return all.filter(
       (r) => r.showName?.trim() === title.trim() || isUnnamed(r, title)
     );
-  }, [records, title]);
+  }, [records, title, mode, weeklies]);
 
   const toggle = (id: string) =>
     setPicked((prev) => {
@@ -253,11 +266,50 @@ export function WeeklyForm() {
     });
 
   const weeks = useMemo(() => {
+    if (mode !== "weekly") return [];
     const chosen = (records ?? []).filter((r) => picked.has(r._id));
     return groupIntoWeeks(chosen, weekStartsOn);
-  }, [records, picked, weekStartsOn]);
+  }, [records, picked, weekStartsOn, mode]);
 
-  const ready = weeklyRate > 0;
+  const ready = mode === "three_day" ? threeDayRate > 0 : weeklyRate > 0;
+
+  /**
+   * The 3-day contract: one group of every picked day, whatever the
+   * calendar says — a Thursday-to-Monday 3-day is still one contract.
+   * The contract and the prorated extra days come from the rate; meal
+   * penalties and stunt adjustments come off the days themselves; the
+   * 3-day schedule's own overtime is counted but deliberately not
+   * priced, because its rules are not in the app yet and a guessed
+   * figure would state money nobody is owed.
+   */
+  const threeDay = useMemo(() => {
+    if (mode !== "three_day") return null;
+    const chosen = (records ?? [])
+      .filter((r) => picked.has(r._id))
+      .sort((a, b) => (a.workDate || "").localeCompare(b.workDate || ""));
+    if (chosen.length === 0) return null;
+    const { derivation } = workRecordsToWeeklyInput(chosen, {
+      scaleWeeklyRate: threeDayRate,
+      contractWeeklyRate: threeDayRate,
+    });
+    const breakdown = ready
+      ? calculateThreeDay({
+          contractRate: threeDayRate,
+          dayCount: chosen.length,
+          mealPenalties: derivation.mealPenalties,
+          stuntAdjustments: derivation.adjustments,
+          overtimeHours:
+            derivation.dailyOvertimeHours + derivation.doubleTimeHours,
+        })
+      : null;
+    const firstDay = (chosen[0].workDate ?? "").slice(0, 10);
+    return {
+      records: chosen,
+      breakdown,
+      firstDay,
+      needsInfo: derivation.daysWithoutCalculation,
+    };
+  }, [mode, records, picked, threeDayRate, ready]);
 
   /** One calculation per week — a run across three weeks is three contracts. */
   const calculated = useMemo(
@@ -332,12 +384,13 @@ export function WeeklyForm() {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
+          kind: mode,
           title: title.trim(),
           weekStart: start,
           weekStartsOn,
-          agreement,
-          weeklyRate,
-          distantLocation,
+          agreement: mode === "three_day" ? "three_day" : agreement,
+          weeklyRate: mode === "three_day" ? threeDayRate : weeklyRate,
+          distantLocation: mode === "weekly" && distantLocation,
           expectedAmount,
           recordIds: ids,
         }),
@@ -347,7 +400,11 @@ export function WeeklyForm() {
         throw new Error(err.error || "Couldn't save the weekly");
       }
       setSavedWeeks((prev) => new Set(prev).add(start));
-      toast.success(`Saved — ${weekLabel(start)} is grouped in your tracker`);
+      toast.success(
+        mode === "three_day"
+          ? "Saved — the 3-day contract is grouped in your tracker"
+          : `Saved — ${weekLabel(start)} is grouped in your tracker`
+      );
       load();
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Couldn't save the weekly");
@@ -360,6 +417,35 @@ export function WeeklyForm() {
 
   return (
     <div className="max-w-3xl mx-auto space-y-4">
+      <div className="flex items-start justify-between gap-3">
+        <div>
+          <h1 className="text-3xl font-bold tracking-tight">
+            {mode === "weekly" ? "Weekly" : "3 Day"}
+          </h1>
+          <p className="text-sm text-muted-foreground mt-1">
+            {mode === "weekly"
+              ? "Pick the days a weekly covers. Each week is worked out on its own."
+              : "Pick the days the contract covers — three or more. It is one contract however many days it ran."}
+          </p>
+        </div>
+        <div className="flex shrink-0 rounded-lg border border-border p-0.5">
+          {(["weekly", "three_day"] as const).map((m) => (
+            <button
+              key={m}
+              type="button"
+              aria-pressed={mode === m}
+              onClick={() => setMode(m)}
+              className={`rounded-md px-3 py-1.5 text-sm font-medium ${
+                mode === m
+                  ? "bg-primary text-primary-foreground"
+                  : "text-muted-foreground hover:text-foreground"
+              }`}
+            >
+              {m === "weekly" ? "Weekly" : "3 Day"}
+            </button>
+          ))}
+        </div>
+      </div>
       {/* The G, in place: look at the card without leaving the week
           being built. Filling the day in still means the record page —
           the link at the bottom goes there. */}
@@ -396,7 +482,7 @@ export function WeeklyForm() {
           the questionnaire and its days are picked below. */}
       {weeklies.length > 0 && (
         <CollapsibleSection
-          title="Saved weeklies"
+          title="Saved contracts"
           defaultOpen
           summary={`${weeklies.length} saved`}
         >
@@ -417,6 +503,7 @@ export function WeeklyForm() {
                       {w.title}
                     </span>
                     <span className="block text-xs text-muted-foreground">
+                      {w.kind === "three_day" ? "3-day · " : ""}
                       {weekLabel(w.weekStart)}
                     </span>
                   </span>
@@ -437,10 +524,12 @@ export function WeeklyForm() {
         summary={
           [
             title,
-            agreement === "other"
-              ? `Other · ${weekRate(weeklyRate)}`
-              : weeklyAgreementLabel(agreement),
-            distantLocation ? "Overnight location" : null,
+            mode === "three_day"
+              ? `3-day contract · ${formatCurrency(threeDayRate)}`
+              : agreement === "other"
+                ? `Other · ${weekRate(weeklyRate)}`
+                : weeklyAgreementLabel(agreement),
+            mode === "weekly" && distantLocation ? "Overnight location" : null,
           ]
             .filter(Boolean)
             .join(" · ") || "Show, contract and rate"
@@ -467,6 +556,26 @@ export function WeeklyForm() {
             </p>
           </div>
 
+          {mode === "three_day" && (
+            <div className="flex items-center justify-between gap-4">
+              <Label htmlFor="threeDayRate" className="text-base shrink-0">
+                3-day contract rate
+              </Label>
+              <MoneyInput
+                id="threeDayRate"
+                value={threeDayRate}
+                onChange={setThreeDayRate}
+              />
+            </div>
+          )}
+          {mode === "three_day" && (
+            <p className="text-xs text-muted-foreground">
+              The number on the 3-day deal you signed. It buys three days;
+              days past three are prorated at a third each.
+            </p>
+          )}
+
+          {mode === "weekly" && (<>
           <div className="flex items-center justify-between gap-4">
             <Label htmlFor="weeklyAgreement" className="text-base shrink-0">
               Contract
@@ -552,6 +661,7 @@ export function WeeklyForm() {
               }))}
             />
           </div>
+          </>)}
         </div>
       </CollapsibleSection>
 
@@ -665,6 +775,106 @@ export function WeeklyForm() {
           )}
         </div>
       </CollapsibleSection>
+
+      {mode === "three_day" && threeDay && (
+        <div className="rounded-lg border border-border p-4 space-y-3">
+          <div className="flex items-baseline justify-between gap-3">
+            <div>
+              <p className="font-semibold">
+                3-day contract from {shortDate(threeDay.firstDay)}
+              </p>
+              <p className="text-xs text-muted-foreground">
+                {threeDay.records.length}{" "}
+                {threeDay.records.length === 1 ? "day" : "days"} picked
+              </p>
+            </div>
+            {threeDay.breakdown && (
+              <span className="text-2xl font-bold tabular-nums">
+                {formatCurrency(threeDay.breakdown.total)}
+                {threeDay.breakdown.unpricedOvertimeHours > 0 && "*"}
+              </span>
+            )}
+          </div>
+
+          {!ready && (
+            <p className="text-sm text-muted-foreground">
+              Enter the 3-day contract rate above to work this out.
+            </p>
+          )}
+
+          {threeDay.breakdown && (
+            <div className="space-y-1.5 border-t border-border/60 pt-3">
+              {threeDay.breakdown.lines.map((line) => (
+                <div
+                  key={line.label}
+                  className="flex items-baseline justify-between gap-3 text-sm"
+                >
+                  <span>{line.label}</span>
+                  <span className="tabular-nums">
+                    {formatCurrency(line.amount)}
+                  </span>
+                </div>
+              ))}
+              {threeDay.breakdown.unpricedOvertimeHours > 0 && (
+                <p className="text-xs text-amber-400 pt-1">
+                  * {threeDay.breakdown.unpricedOvertimeHours}h of overtime on
+                  these days is not priced — the 3-day schedule&rsquo;s overtime
+                  rules aren&rsquo;t built yet, so the total is what the contract,
+                  prorated days, adjustments and penalties come to.
+                </p>
+              )}
+              {threeDay.needsInfo > 0 && (
+                <p className="text-xs text-amber-400">
+                  {threeDay.needsInfo}{" "}
+                  {threeDay.needsInfo === 1 ? "day is" : "days are"} still
+                  missing times, so their penalties aren&rsquo;t counted yet.
+                </p>
+              )}
+            </div>
+          )}
+
+          {threeDay.breakdown && (
+            <div className="flex items-center gap-2 pt-1">
+              <button
+                type="button"
+                disabled={savingWeek === threeDay.firstDay}
+                onClick={() =>
+                  saveWeek(
+                    threeDay.firstDay,
+                    threeDay.breakdown!.total,
+                    threeDay.records.map((r) => r._id)
+                  )
+                }
+                className="rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground disabled:opacity-50"
+              >
+                {savingWeek === threeDay.firstDay
+                  ? "Saving…"
+                  : savedWeeks.has(threeDay.firstDay)
+                    ? "Saved — save again"
+                    : "Save 3-day contract"}
+              </button>
+            </div>
+          )}
+
+          {threeDay.breakdown && savedWeeks.has(threeDay.firstDay) && (
+            <div className="border-t border-border/60 pt-3">
+              <PayStubSection
+                scope="week"
+                weekStart={threeDay.firstDay}
+                showName={title.trim() || "this production"}
+                owed={threeDay.breakdown.total}
+                performerName="This performer"
+                period={`the 3-day contract from ${shortDate(threeDay.firstDay)}`}
+                owedLines={threeDay.breakdown.lines.map((line) => ({
+                  label: line.label,
+                  hours: null,
+                  amount: line.amount,
+                }))}
+              />
+            </div>
+          )}
+        </div>
+      )}
 
       {calculated.map(({ week, breakdown, override, turnarounds, rules }) => {
         const open = openWeek === week.start;

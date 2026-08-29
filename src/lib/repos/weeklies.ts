@@ -17,6 +17,8 @@ function weekWindowOf(date: string, weekStartsOn: number) {
 export interface WeeklyRow {
   _id: string;
   userId: string;
+  /** "weekly" or "three_day" — which contract shape groups these days. */
+  kind: string;
   title: string;
   weekStart: string;
   weekStartsOn: number;
@@ -29,6 +31,8 @@ export interface WeeklyRow {
 }
 
 export interface SaveWeeklyInput {
+  /** Defaults to a weekly; a 3-day contract rides the same table. */
+  kind?: "weekly" | "three_day";
   title: string;
   weekStart: string;
   weekStartsOn: number;
@@ -67,6 +71,7 @@ export async function saveWeekly(
 ): Promise<WeeklyRow> {
   const db = await getDb();
   const now = nowIso();
+  const kind = input.kind ?? "weekly";
 
   // A weekly is named by the first day actually worked, so its weekStart
   // moves if an earlier day joins the week. Matching on the exact date
@@ -77,9 +82,9 @@ export async function saveWeekly(
 
   const existing = await db
     .prepare(
-      "SELECT * FROM weeklies WHERE userId = ?1 AND title = ?2 AND weekStart BETWEEN ?3 AND ?4"
+      "SELECT * FROM weeklies WHERE userId = ?1 AND title = ?2 AND kind = ?5 AND weekStart BETWEEN ?3 AND ?4"
     )
-    .bind(userId, input.title, bucket.start, bucket.end)
+    .bind(userId, input.title, bucket.start, bucket.end, kind)
     .first<WeeklyRow>();
 
   const id = existing?._id ?? newId();
@@ -106,7 +111,7 @@ export async function saveWeekly(
   } else {
     await db
       .prepare(
-        "INSERT INTO weeklies (_id, userId, title, weekStart, weekStartsOn, agreement, weeklyRate, distantLocation, expectedAmount, createdAt, updatedAt) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?10)"
+        "INSERT INTO weeklies (_id, userId, kind, title, weekStart, weekStartsOn, agreement, weeklyRate, distantLocation, expectedAmount, createdAt, updatedAt) VALUES (?1, ?2, ?11, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?10)"
       )
       .bind(
         id,
@@ -118,10 +123,13 @@ export async function saveWeekly(
         input.weeklyRate,
         input.distantLocation ? 1 : 0,
         input.expectedAmount,
-        now
+        now,
+        kind
       )
       .run();
   }
+
+  const stampLength = kind === "three_day" ? "three_day" : "weekly";
 
   // "other" is a negotiated deal, not a schedule — days keep the
   // workStatus they already have rather than taking a name the daily
@@ -145,16 +153,16 @@ export async function saveWeekly(
     if (unnamed && input.title.trim()) {
       await db
         .prepare(
-          "UPDATE work_records SET weeklyId = ?2, weeklyContract = 1, contractLength = 'weekly', workStatus = COALESCE(?3, workStatus), showName = ?4, updatedAt = ?5 WHERE _id = ?1 AND userId = ?6"
+          "UPDATE work_records SET weeklyId = ?2, weeklyContract = 1, contractLength = ?7, workStatus = COALESCE(?3, workStatus), showName = ?4, updatedAt = ?5 WHERE _id = ?1 AND userId = ?6"
         )
-        .bind(recordId, id, stampStatus, `${input.title} — Day ${day}`, now, userId)
+        .bind(recordId, id, stampStatus, `${input.title} — Day ${day}`, now, userId, stampLength)
         .run();
     } else {
       await db
         .prepare(
-          "UPDATE work_records SET weeklyId = ?2, weeklyContract = 1, contractLength = 'weekly', workStatus = COALESCE(?3, workStatus), updatedAt = ?4 WHERE _id = ?1 AND userId = ?5"
+          "UPDATE work_records SET weeklyId = ?2, weeklyContract = 1, contractLength = ?6, workStatus = COALESCE(?3, workStatus), updatedAt = ?4 WHERE _id = ?1 AND userId = ?5"
         )
-        .bind(recordId, id, stampStatus, now, userId)
+        .bind(recordId, id, stampStatus, now, userId, stampLength)
         .run();
     }
   }
@@ -211,6 +219,7 @@ export async function assignRecordToWeekly(
     row.showName.startsWith(`${weekly.title} — Day `);
 
   const stampStatus = weekly.agreement in RATES ? weekly.agreement : null;
+  const stampLength = weekly.kind === "three_day" ? "three_day" : "weekly";
 
   if (unnamed) {
     const { results } = await db
@@ -226,7 +235,7 @@ export async function assignRecordToWeekly(
     }
     await db
       .prepare(
-        "UPDATE work_records SET weeklyId = ?2, weeklyContract = 1, contractLength = 'weekly', workStatus = COALESCE(?3, workStatus), showName = ?4, updatedAt = ?5 WHERE _id = ?1 AND userId = ?6"
+        "UPDATE work_records SET weeklyId = ?2, weeklyContract = 1, contractLength = ?7, workStatus = COALESCE(?3, workStatus), showName = ?4, updatedAt = ?5 WHERE _id = ?1 AND userId = ?6"
       )
       .bind(
         recordId,
@@ -234,15 +243,16 @@ export async function assignRecordToWeekly(
         stampStatus,
         `${weekly.title} — Day ${max + 1}`,
         now,
-        userId
+        userId,
+        stampLength
       )
       .run();
   } else {
     await db
       .prepare(
-        "UPDATE work_records SET weeklyId = ?2, weeklyContract = 1, contractLength = 'weekly', workStatus = COALESCE(?3, workStatus), updatedAt = ?4 WHERE _id = ?1 AND userId = ?5"
+        "UPDATE work_records SET weeklyId = ?2, weeklyContract = 1, contractLength = ?6, workStatus = COALESCE(?3, workStatus), updatedAt = ?4 WHERE _id = ?1 AND userId = ?5"
       )
-      .bind(recordId, weeklyId, stampStatus, now, userId)
+      .bind(recordId, weeklyId, stampStatus, now, userId, stampLength)
       .run();
   }
 }
@@ -269,7 +279,7 @@ export async function ensureWeeklyForRecord(
 
   const record = await db
     .prepare(
-      "SELECT _id, showName, workDate, workStatus, weeklyId FROM work_records WHERE _id = ?1 AND userId = ?2"
+      "SELECT _id, showName, workDate, workStatus, weeklyId, contractLength FROM work_records WHERE _id = ?1 AND userId = ?2"
     )
     .bind(recordId, userId)
     .first<{
@@ -278,8 +288,33 @@ export async function ensureWeeklyForRecord(
       workDate: string | null;
       workStatus: string | null;
       weeklyId: string | null;
+      contractLength: string | null;
     }>();
-  if (!record || record.weeklyId) return null;
+  if (!record) return null;
+  const kind =
+    record.contractLength === "three_day"
+      ? "three_day"
+      : record.contractLength === "weekly"
+        ? "weekly"
+        : null;
+  if (!kind) return null;
+
+  // Already attached: done if the group is the right shape; if the day
+  // changed shape (weekly to 3-day or back), it leaves the old group and
+  // joins or founds one of the new kind.
+  if (record.weeklyId) {
+    const current = await db
+      .prepare("SELECT * FROM weeklies WHERE _id = ?1 AND userId = ?2")
+      .bind(record.weeklyId, userId)
+      .first<WeeklyRow>();
+    if (current && current.kind === kind) return current;
+    await db
+      .prepare(
+        "UPDATE work_records SET weeklyId = NULL, updatedAt = ?2 WHERE _id = ?1 AND userId = ?3"
+      )
+      .bind(recordId, nowIso(), userId)
+      .run();
+  }
 
   const title = (record.showName ?? "").trim();
   if (!title || /^Untranscribed Exhibit G \d+$/.test(title)) return null;
@@ -287,8 +322,8 @@ export async function ensureWeeklyForRecord(
   if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) return null;
 
   const { results } = await db
-    .prepare("SELECT * FROM weeklies WHERE userId = ?1 AND title = ?2")
-    .bind(userId, title)
+    .prepare("SELECT * FROM weeklies WHERE userId = ?1 AND title = ?2 AND kind = ?3")
+    .bind(userId, title, kind)
     .all<WeeklyRow>();
   let weekly =
     (results ?? []).find((w) => {
@@ -313,6 +348,7 @@ export async function ensureWeeklyForRecord(
     weekly = {
       _id: newId(),
       userId,
+      kind,
       title,
       weekStart: date,
       weekStartsOn: DEFAULT_WEEK_STARTS_ON,
@@ -325,7 +361,7 @@ export async function ensureWeeklyForRecord(
     };
     await db
       .prepare(
-        "INSERT INTO weeklies (_id, userId, title, weekStart, weekStartsOn, agreement, weeklyRate, distantLocation, expectedAmount, createdAt, updatedAt) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?10)"
+        "INSERT INTO weeklies (_id, userId, kind, title, weekStart, weekStartsOn, agreement, weeklyRate, distantLocation, expectedAmount, createdAt, updatedAt) VALUES (?1, ?2, ?11, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?10)"
       )
       .bind(
         weekly._id,
@@ -337,7 +373,8 @@ export async function ensureWeeklyForRecord(
         0,
         0,
         0,
-        now
+        now,
+        kind
       )
       .run();
   }

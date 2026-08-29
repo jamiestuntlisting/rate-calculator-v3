@@ -36,6 +36,7 @@ export async function POST(req: Request) {
     }
     const userId = await getEffectiveUserId(auth.session);
     const weekly = await saveWeekly(userId, {
+      kind: body.kind === "three_day" ? "three_day" : "weekly",
       title,
       weekStart,
       weekStartsOn: Math.min(6, Math.max(0, Math.floor(Number(body.weekStartsOn) || 1))),

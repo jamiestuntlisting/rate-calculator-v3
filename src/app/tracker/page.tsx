@@ -64,6 +64,7 @@ const RECORD_STATUS_LABELS: Record<string, string> = {
 
 interface WeeklyGroup {
   _id: string;
+  kind?: string;
   title: string;
   weekStart: string;
   weeklyRate: number;
@@ -347,11 +348,11 @@ export default function TrackerPage() {
                           <TableCell className="font-semibold">
                             {weekly.title}
                             <span className="ml-2 rounded px-1.5 py-0.5 text-[10px] uppercase tracking-wide border border-primary/40 text-primary">
-                              Weekly · {members.length} day{members.length === 1 ? "" : "s"}
+                              {weekly.kind === "three_day" ? "3-day" : "Weekly"} · {members.length} day{members.length === 1 ? "" : "s"}
                             </span>
                           </TableCell>
                           <TableCell className="hidden md:table-cell text-muted-foreground text-xs">
-                            Weekly contract
+                            {weekly.kind === "three_day" ? "3-day contract" : "Weekly contract"}
                           </TableCell>
                           <TableCell className="text-right font-semibold">
                             {weekly.expectedAmount

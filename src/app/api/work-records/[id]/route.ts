@@ -76,10 +76,15 @@ export async function PUT(
     // marking it back detaches it. Only edits that state a contract
     // length weigh in — a payment-only PUT leaves membership alone.
     if (typeof data.contractLength === "string") {
-      if (record.contractLength === "weekly" && !record.weeklyId) {
+      if (
+        record.contractLength === "weekly" ||
+        record.contractLength === "three_day"
+      ) {
+        // Idempotent: attaches, re-kinds (weekly to 3-day and back), or
+        // simply confirms the group the day already belongs to.
         const weekly = await ensureWeeklyForRecord(userId, id);
         if (weekly) record.weeklyId = weekly._id;
-      } else if (record.contractLength !== "weekly" && record.weeklyId) {
+      } else if (record.weeklyId) {
         await releaseRecordFromWeekly(userId, id);
         record.weeklyId = null;
       }

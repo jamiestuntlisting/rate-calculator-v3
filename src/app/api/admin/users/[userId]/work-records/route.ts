@@ -210,7 +210,7 @@ export async function POST(
 
     // Same rule as the member-facing route: a weekly day belongs to a
     // weekly object from the moment it exists.
-    if (record.contractLength === "weekly") {
+    if (record.contractLength === "weekly" || record.contractLength === "three_day") {
       const weekly = await ensureWeeklyForRecord(userId, record._id);
       if (weekly) record.weeklyId = weekly._id;
     }
