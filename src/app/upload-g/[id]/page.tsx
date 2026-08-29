@@ -5,6 +5,7 @@ import Link from "next/link";
 import { ArrowLeft, Loader2, RotateCw, Save } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { TimeSelect } from "@/components/calculator/time-select";
 import { toast } from "sonner";
 
 interface GUpload {
@@ -61,19 +62,25 @@ interface Transcription {
  * In the order the columns run across the card, so transcribing is a straight
  * read left to right rather than a hunt for the matching box.
  */
-const FIELDS: Array<{ key: keyof TranscriptionRow; label: string; width: string }> = [
+const FIELDS: Array<{
+  key: keyof TranscriptionRow;
+  label: string;
+  width: string;
+  /** Time columns get the real AM/PM picker, not a bare number field. */
+  time?: boolean;
+}> = [
   { key: "performer", label: "Cast", width: "11rem" },
   { key: "character", label: "Character", width: "11rem" },
-  { key: "callTime", label: "Make-up Hair Wrdrbe", width: "7.5rem" },
-  { key: "reportOnSet", label: "Report on Set", width: "7.5rem" },
-  { key: "dismissOnSet", label: "Dismiss on Set", width: "7.5rem" },
-  { key: "dismissMakeupWardrobe", label: "Dismiss MU/Hair Wrdrbe", width: "7.5rem" },
-  { key: "ndMealIn", label: "ND In", width: "6.5rem" },
-  { key: "ndMealOut", label: "ND Out", width: "6.5rem" },
-  { key: "firstMealStart", label: "1st Meal Out", width: "6.5rem" },
-  { key: "firstMealFinish", label: "1st Meal In", width: "6.5rem" },
-  { key: "secondMealStart", label: "2nd Meal Out", width: "6.5rem" },
-  { key: "secondMealFinish", label: "2nd Meal In", width: "6.5rem" },
+  { key: "callTime", label: "Make-up Hair Wrdrbe", width: "8rem", time: true },
+  { key: "reportOnSet", label: "Report on Set", width: "8rem", time: true },
+  { key: "dismissOnSet", label: "Dismiss on Set", width: "8rem", time: true },
+  { key: "dismissMakeupWardrobe", label: "Dismiss MU/Hair Wrdrbe", width: "8rem", time: true },
+  { key: "ndMealIn", label: "ND In", width: "8rem", time: true },
+  { key: "ndMealOut", label: "ND Out", width: "8rem", time: true },
+  { key: "firstMealStart", label: "1st Meal Out", width: "8rem", time: true },
+  { key: "firstMealFinish", label: "1st Meal In", width: "8rem", time: true },
+  { key: "secondMealStart", label: "2nd Meal Out", width: "8rem", time: true },
+  { key: "secondMealFinish", label: "2nd Meal In", width: "8rem", time: true },
   { key: "notes", label: "Notes", width: "14rem" },
 ];
 
@@ -481,25 +488,40 @@ export default function TranscribePage({
                 ))}
               </div>
               <div className="flex gap-2">
-                {FIELDS.map((f) => (
-                  <Input
-                    key={f.key}
-                    value={row[f.key]}
-                    onChange={(e) =>
-                      setRow((prev) => ({ ...prev, [f.key]: e.target.value }))
-                    }
-                    style={{ width: f.width }}
-                    className="h-10 text-sm shrink-0"
-                    placeholder={f.label}
-                    inputMode={
-                      f.key === "performer" ||
-                      f.key === "character" ||
-                      f.key === "notes"
-                        ? "text"
-                        : "numeric"
-                    }
-                  />
-                ))}
+                {FIELDS.map((f) =>
+                  f.time ? (
+                    /* The card's time boxes get the platform's own AM/PM
+                       picker — the same one every other form uses — so a
+                       "915" can never land as unparseable text. A value
+                       typed as free text before this change shows empty
+                       here; re-pick it and it saves clean. */
+                    <div
+                      key={f.key}
+                      style={{ width: f.width }}
+                      className="shrink-0"
+                    >
+                      <TimeSelect
+                        id={`row-${f.key}`}
+                        value={row[f.key]}
+                        onChange={(v) =>
+                          setRow((prev) => ({ ...prev, [f.key]: v }))
+                        }
+                        compact
+                      />
+                    </div>
+                  ) : (
+                    <Input
+                      key={f.key}
+                      value={row[f.key]}
+                      onChange={(e) =>
+                        setRow((prev) => ({ ...prev, [f.key]: e.target.value }))
+                      }
+                      style={{ width: f.width }}
+                      className="h-11 text-sm shrink-0"
+                      placeholder={f.label}
+                    />
+                  )
+                )}
               </div>
             </div>
           </div>
