@@ -576,6 +576,9 @@ export function WeeklyForm() {
       {calculated.map(({ week, breakdown, override, turnarounds, rules }) => {
         const open = openWeek === week.start;
         const saved = savedWeeks.has(week.start);
+        // The weekly is defined by the first day actually worked — the
+        // calendar boundary only decides which days belong together.
+        const firstDay = (week.records[0]?.workDate ?? week.start).slice(0, 10);
         return (
           <div key={week.start} className="rounded-lg border border-border">
             <button
@@ -591,7 +594,7 @@ export function WeeklyForm() {
               )}
               <span className="flex-1 min-w-0">
                 <span className="block font-medium">
-                  {weekLabel(week.start)}
+                  {weekLabel(firstDay)}
                 </span>
                 <span className="block text-xs text-muted-foreground">
                   {week.records.length} day
@@ -704,7 +707,7 @@ export function WeeklyForm() {
                   disabled={savingWeek === week.start}
                   onClick={() =>
                     saveWeek(
-                      week.start,
+                      firstDay,
                       breakdown?.grandTotal ?? 0,
                       week.records.map((r) => r._id)
                     )
@@ -731,7 +734,7 @@ export function WeeklyForm() {
                     </p>
                     <PayStubSection
                       scope="week"
-                      weekStart={week.start}
+                      weekStart={firstDay}
                       showName={title.trim() || week.records[0]?.showName || "this production"}
                       owed={breakdown.grandTotal}
                       performerName={
@@ -740,7 +743,7 @@ export function WeeklyForm() {
                             user.email
                           : "This performer"
                       }
-                      period={weekLabel(week.start).toLowerCase()}
+                      period={weekLabel(firstDay).toLowerCase()}
                       owedLines={breakdown.lineItems.map(
                         (item): PayStubLine => ({
                           label: item.label,

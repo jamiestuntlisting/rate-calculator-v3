@@ -55,18 +55,31 @@ export async function saveWeekly(
   const db = await getDb();
   const now = nowIso();
 
+  // A weekly is named by the first day actually worked, so its weekStart
+  // moves if an earlier day joins the week. Matching on the exact date
+  // would then fork a second weekly for the same show and week — so the
+  // match is by calendar-week bucket: any existing weekly for this title
+  // whose start falls in the same payroll week is the one to update.
+  const parsed = /^(\d{4})-(\d{2})-(\d{2})$/.exec(input.weekStart)!;
+  const startUtc = Date.UTC(+parsed[1], +parsed[2] - 1, +parsed[3]);
+  const startDow = new Date(startUtc).getUTCDay();
+  const shift = (startDow - input.weekStartsOn + 7) % 7;
+  const iso = (ms: number) => new Date(ms).toISOString().slice(0, 10);
+  const bucketStart = iso(startUtc - shift * 86400000);
+  const bucketEnd = iso(startUtc - shift * 86400000 + 6 * 86400000);
+
   const existing = await db
     .prepare(
-      "SELECT * FROM weeklies WHERE userId = ?1 AND title = ?2 AND weekStart = ?3"
+      "SELECT * FROM weeklies WHERE userId = ?1 AND title = ?2 AND weekStart BETWEEN ?3 AND ?4"
     )
-    .bind(userId, input.title, input.weekStart)
+    .bind(userId, input.title, bucketStart, bucketEnd)
     .first<WeeklyRow>();
 
   const id = existing?._id ?? newId();
   if (existing) {
     await db
       .prepare(
-        "UPDATE weeklies SET weekStartsOn = ?2, agreement = ?3, weeklyRate = ?4, distantLocation = ?5, expectedAmount = ?6, updatedAt = ?7 WHERE _id = ?1"
+        "UPDATE weeklies SET weekStart = ?8, weekStartsOn = ?2, agreement = ?3, weeklyRate = ?4, distantLocation = ?5, expectedAmount = ?6, updatedAt = ?7 WHERE _id = ?1"
       )
       .bind(
         id,
@@ -75,7 +88,8 @@ export async function saveWeekly(
         input.weeklyRate,
         input.distantLocation ? 1 : 0,
         input.expectedAmount,
-        now
+        now,
+        input.weekStart
       )
       .run();
     await db
