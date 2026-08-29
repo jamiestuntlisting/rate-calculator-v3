@@ -889,47 +889,43 @@ export default function WorkDetailPage() {
                       />
                     </div>
                     <div className="space-y-1 min-w-0">
-                      <Label className="text-sm text-muted-foreground">Agreement Type</Label>
+                      <Label className="text-sm text-muted-foreground">Contract Length</Label>
                       <Select
-                        value={editData.workStatus}
-                        onValueChange={(v) => setEditData(d => ({ ...d, workStatus: v }))}
+                        value={editData.contractLength}
+                        onValueChange={(v) =>
+                          setEditData((d) => ({
+                            ...d,
+                            contractLength: v as "daily" | "three_day" | "weekly",
+                          }))
+                        }
                       >
                         <SelectTrigger className="w-full min-w-0">
                           <SelectValue />
                         </SelectTrigger>
                         <SelectContent>
-                          {AGREEMENTS.map((agreement) => (
-                            <SelectItem key={agreement.id} value={agreement.id}>
-                              {agreementLabel(agreement.id)}
-                            </SelectItem>
-                          ))}
+                          <SelectItem value="daily">Daily</SelectItem>
+                          <SelectItem value="three_day">3 Day (TV)</SelectItem>
+                          <SelectItem value="weekly">Weekly</SelectItem>
                         </SelectContent>
                       </Select>
                     </div>
                   </div>
 
-                  <div className="space-y-1 max-w-xs">
-                    <Label className="text-sm text-muted-foreground">
-                      Contract Length
-                    </Label>
+                  <div className="space-y-1 max-w-xs min-w-0">
+                    <Label className="text-sm text-muted-foreground">Agreement Type</Label>
                     <Select
-                      value={editData.contractLength}
-                      onValueChange={(v) =>
-                        setEditData((d) => ({
-                          ...d,
-                          contractLength: v as "daily" | "three_day" | "weekly",
-                        }))
-                      }
+                      value={editData.workStatus}
+                      onValueChange={(v) => setEditData(d => ({ ...d, workStatus: v }))}
                     >
                       <SelectTrigger className="w-full min-w-0">
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="daily">Daily</SelectItem>
-                        <SelectItem value="three_day">3 Day (TV)</SelectItem>
-                        <SelectItem value="weekly">
-                          Weekly — folds into a week on the Weekly page
-                        </SelectItem>
+                        {AGREEMENTS.map((agreement) => (
+                          <SelectItem key={agreement.id} value={agreement.id}>
+                            {agreementLabel(agreement.id)}
+                          </SelectItem>
+                        ))}
                       </SelectContent>
                     </Select>
                   </div>
