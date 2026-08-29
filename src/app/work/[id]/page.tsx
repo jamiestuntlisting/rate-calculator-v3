@@ -96,7 +96,7 @@ export default function WorkDetailPage() {
   // Inline edit state
   const [editing, setEditing] = useState(false);
   const [editData, setEditData] = useState({
-    weeklyContract: false,
+    contractLength: "daily" as "daily" | "three_day" | "weekly",
     showName: "",
     workDate: "",
     characterName: "",
@@ -253,7 +253,9 @@ export default function WorkDetailPage() {
         isSeventhDay: record.isSeventhDay || false,
         isHoliday: record.isHoliday || false,
         workStatus: record.workStatus || "theatrical_basic",
-        weeklyContract: record.weeklyContract || false,
+        contractLength:
+          (record.contractLength as "daily" | "three_day" | "weekly") ||
+          (record.weeklyContract ? "weekly" : "daily"),
         ndMealIn: record.ndMealIn || "",
         ndMealOut: record.ndMealOut || "",
         firstMealStart: record.firstMealStart || "",
@@ -412,7 +414,8 @@ export default function WorkDetailPage() {
         // back on scale and pays it overtime a flat deal never earns. The
         // flat rate is set on Log Work; here it just survives the edit.
         flatDayRate: record?.flatDayRate ?? null,
-        weeklyContract: editData.weeklyContract,
+        contractLength: editData.contractLength,
+        weeklyContract: editData.contractLength === "weekly",
         characterName: editData.characterName,
         notes: record?.notes || "",
       };
@@ -905,16 +908,30 @@ export default function WorkDetailPage() {
                     </div>
                   </div>
 
-                  <div className="flex items-center space-x-2">
-                    <Checkbox
-                      id="edit-weeklyContract"
-                      checked={editData.weeklyContract}
-                      onCheckedChange={(v) => setEditData(d => ({ ...d, weeklyContract: !!v }))}
-                    />
-                    <Label htmlFor="edit-weeklyContract" className="text-sm font-normal">
-                      Weekly contract — this day folds into a week on the
-                      Weekly page
+                  <div className="space-y-1 max-w-xs">
+                    <Label className="text-sm text-muted-foreground">
+                      Contract Length
                     </Label>
+                    <Select
+                      value={editData.contractLength}
+                      onValueChange={(v) =>
+                        setEditData((d) => ({
+                          ...d,
+                          contractLength: v as "daily" | "three_day" | "weekly",
+                        }))
+                      }
+                    >
+                      <SelectTrigger className="w-full min-w-0">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="daily">Daily</SelectItem>
+                        <SelectItem value="three_day">3 Day (TV)</SelectItem>
+                        <SelectItem value="weekly">
+                          Weekly — folds into a week on the Weekly page
+                        </SelectItem>
+                      </SelectContent>
+                    </Select>
                   </div>
 
                   {/* Non-stunt-coordinator fields, in the same order the

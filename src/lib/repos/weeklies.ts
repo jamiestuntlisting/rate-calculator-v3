@@ -124,14 +124,14 @@ export async function saveWeekly(
     if (unnamed && input.title.trim()) {
       await db
         .prepare(
-          "UPDATE work_records SET weeklyId = ?2, weeklyContract = 1, workStatus = COALESCE(?3, workStatus), showName = ?4, updatedAt = ?5 WHERE _id = ?1 AND userId = ?6"
+          "UPDATE work_records SET weeklyId = ?2, weeklyContract = 1, contractLength = 'weekly', workStatus = COALESCE(?3, workStatus), showName = ?4, updatedAt = ?5 WHERE _id = ?1 AND userId = ?6"
         )
         .bind(recordId, id, stampStatus, `${input.title} — Day ${day}`, now, userId)
         .run();
     } else {
       await db
         .prepare(
-          "UPDATE work_records SET weeklyId = ?2, weeklyContract = 1, workStatus = COALESCE(?3, workStatus), updatedAt = ?4 WHERE _id = ?1 AND userId = ?5"
+          "UPDATE work_records SET weeklyId = ?2, weeklyContract = 1, contractLength = 'weekly', workStatus = COALESCE(?3, workStatus), updatedAt = ?4 WHERE _id = ?1 AND userId = ?5"
         )
         .bind(recordId, id, stampStatus, now, userId)
         .run();
@@ -165,7 +165,7 @@ export async function assignRecordToWeekly(
   if (weeklyId === null) {
     await db
       .prepare(
-        "UPDATE work_records SET weeklyId = NULL, weeklyContract = 0, updatedAt = ?2 WHERE _id = ?1 AND userId = ?3"
+        "UPDATE work_records SET weeklyId = NULL, weeklyContract = 0, contractLength = 'daily', updatedAt = ?2 WHERE _id = ?1 AND userId = ?3"
       )
       .bind(recordId, now, userId)
       .run();
@@ -205,7 +205,7 @@ export async function assignRecordToWeekly(
     }
     await db
       .prepare(
-        "UPDATE work_records SET weeklyId = ?2, weeklyContract = 1, workStatus = COALESCE(?3, workStatus), showName = ?4, updatedAt = ?5 WHERE _id = ?1 AND userId = ?6"
+        "UPDATE work_records SET weeklyId = ?2, weeklyContract = 1, contractLength = 'weekly', workStatus = COALESCE(?3, workStatus), showName = ?4, updatedAt = ?5 WHERE _id = ?1 AND userId = ?6"
       )
       .bind(
         recordId,
@@ -219,7 +219,7 @@ export async function assignRecordToWeekly(
   } else {
     await db
       .prepare(
-        "UPDATE work_records SET weeklyId = ?2, weeklyContract = 1, workStatus = COALESCE(?3, workStatus), updatedAt = ?4 WHERE _id = ?1 AND userId = ?5"
+        "UPDATE work_records SET weeklyId = ?2, weeklyContract = 1, contractLength = 'weekly', workStatus = COALESCE(?3, workStatus), updatedAt = ?4 WHERE _id = ?1 AND userId = ?5"
       )
       .bind(recordId, weeklyId, stampStatus, now, userId)
       .run();

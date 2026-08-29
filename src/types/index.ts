@@ -110,6 +110,8 @@ export interface WorkRecord {
   flatDayRate?: number | null;
   /** The day belongs to a weekly contract; its money comes from the week. */
   weeklyContract?: boolean;
+  /** daily | three_day | weekly — how long the deal runs. */
+  contractLength?: "daily" | "three_day" | "weekly";
   /** The saved weekly this day is grouped under in the tracker. */
   weeklyId?: string | null;
   characterName: string;

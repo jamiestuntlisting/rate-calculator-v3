@@ -147,7 +147,10 @@ export function ExhibitGForm() {
    * figure is the working, not the entitlement. The flag rides the record
    * so the weekly page can say which days are week days.
    */
-  const [weeklyContract, setWeeklyContract] = useState(false);
+  const [contractLength, setContractLength] = useState<
+    "daily" | "three_day" | "weekly"
+  >("daily");
+  const weeklyContract = contractLength === "weekly";
   const [contractsTouched, setContractsTouched] = useState(false);
   const [multipleEpisodeWeekly, setMultipleEpisodeWeekly] = useState(false);
   const [showNdMeal, setShowNdMeal] = useState(false);
@@ -327,6 +330,7 @@ export function ExhibitGForm() {
             recordStatus: "complete",
             documents: allDocuments,
             weeklyContract,
+            contractLength,
             expectedAmount: flatRate,
             paymentStatus: "unpaid",
             paidAmount: 0,
@@ -379,6 +383,7 @@ export function ExhibitGForm() {
           contracts,
           multipleEpisodeWeekly,
           weeklyContract,
+          contractLength,
           paymentStatus: "unpaid",
           paidAmount: 0,
         }),
@@ -615,20 +620,36 @@ export function ExhibitGForm() {
                   />
                 </div>
               )}
-              <div className="flex items-center space-x-2">
-                <Checkbox
-                  id="weeklyContract"
-                  checked={weeklyContract}
-                  onCheckedChange={(v) => setWeeklyContract(!!v)}
-                />
-                <Label htmlFor="weeklyContract" className="text-base font-normal">
-                  Weekly contract
+              <div className="space-y-1 min-w-0">
+                <Label htmlFor="contractLength" className="text-base">
+                  Contract Length
                 </Label>
+                <Select
+                  value={contractLength}
+                  onValueChange={(v) =>
+                    setContractLength(v as "daily" | "three_day" | "weekly")
+                  }
+                >
+                  <SelectTrigger id="contractLength" className="text-lg h-12 w-full min-w-0">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="daily" className="text-base">Daily</SelectItem>
+                    <SelectItem value="three_day" className="text-base">3 Day (TV)</SelectItem>
+                    <SelectItem value="weekly" className="text-base">Weekly</SelectItem>
+                  </SelectContent>
+                </Select>
               </div>
               {weeklyContract && (
                 <p className="text-xs text-muted-foreground -mt-1">
                   This day folds into a week — log it here, then add the days
                   together on the Weekly page. Rates shown are weekly scale.
+                </p>
+              )}
+              {contractLength === "three_day" && (
+                <p className="text-xs text-muted-foreground -mt-1">
+                  A television 3-day player. The day still logs normally;
+                  the 3-day schedule rates are coming.
                 </p>
               )}
               <div className="space-y-1 min-w-0">
