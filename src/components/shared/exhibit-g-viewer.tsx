@@ -19,7 +19,7 @@ interface ExhibitGViewerProps {
   /** PDFs get the browser's own viewer — the transform machinery is for images. */
   isPdf?: boolean;
   label?: string;
-  /** Pane height. Kept short on phones so the fields stay reachable. */
+  /** Pane height cap. The pane hugs the image when it fits shorter. */
   height?: string;
   initialRotation?: number;
   /** Persist a rotation, if the caller has somewhere to put it. */
@@ -145,7 +145,14 @@ export function ExhibitGViewer({
       <div
         ref={paneRef}
         className="overflow-auto bg-muted"
-        style={{ height }}
+        // The prop is a cap, not the size: a card photographed landscape
+        // fits well short of it, and a fixed pane would show a slab of
+        // dead space under the image. Until the image loads there is no
+        // content height, so hold the cap to avoid a grow-on-load jump.
+        style={{
+          height: displayH ? `min(${Math.ceil(displayH)}px, ${height})` : height,
+          minHeight: "4rem",
+        }}
         onWheel={onWheel}
         onTouchStart={onTouchStart}
         onTouchMove={onTouchMove}
