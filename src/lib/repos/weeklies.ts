@@ -1,5 +1,18 @@
 import { getDb, newId, nowIso } from "@/lib/db";
 import { RATES } from "@/lib/rate-constants";
+import { DEFAULT_WEEK_STARTS_ON } from "@/lib/weekly/weeks";
+
+/** The calendar-week window containing `date`, for a given week start. */
+function weekWindowOf(date: string, weekStartsOn: number) {
+  const parsed = /^(\d{4})-(\d{2})-(\d{2})$/.exec(date)!;
+  const utc = Date.UTC(+parsed[1], +parsed[2] - 1, +parsed[3]);
+  const shift = (new Date(utc).getUTCDay() - weekStartsOn + 7) % 7;
+  const iso = (ms: number) => new Date(ms).toISOString().slice(0, 10);
+  return {
+    start: iso(utc - shift * 86400000),
+    end: iso(utc - shift * 86400000 + 6 * 86400000),
+  };
+}
 
 export interface WeeklyRow {
   _id: string;
@@ -60,19 +73,13 @@ export async function saveWeekly(
   // would then fork a second weekly for the same show and week — so the
   // match is by calendar-week bucket: any existing weekly for this title
   // whose start falls in the same payroll week is the one to update.
-  const parsed = /^(\d{4})-(\d{2})-(\d{2})$/.exec(input.weekStart)!;
-  const startUtc = Date.UTC(+parsed[1], +parsed[2] - 1, +parsed[3]);
-  const startDow = new Date(startUtc).getUTCDay();
-  const shift = (startDow - input.weekStartsOn + 7) % 7;
-  const iso = (ms: number) => new Date(ms).toISOString().slice(0, 10);
-  const bucketStart = iso(startUtc - shift * 86400000);
-  const bucketEnd = iso(startUtc - shift * 86400000 + 6 * 86400000);
+  const bucket = weekWindowOf(input.weekStart, input.weekStartsOn);
 
   const existing = await db
     .prepare(
       "SELECT * FROM weeklies WHERE userId = ?1 AND title = ?2 AND weekStart BETWEEN ?3 AND ?4"
     )
-    .bind(userId, input.title, bucketStart, bucketEnd)
+    .bind(userId, input.title, bucket.start, bucket.end)
     .first<WeeklyRow>();
 
   const id = existing?._id ?? newId();
@@ -238,4 +245,122 @@ export async function assignRecordToWeekly(
       .bind(recordId, weeklyId, stampStatus, now, userId)
       .run();
   }
+}
+
+/**
+ * Make a day marked "weekly" belong to a weekly object, immediately.
+ *
+ * Ticking Weekly on a day form used to set a flag and nothing else — no
+ * weekly existed anywhere, so nothing showed in the tracker groups or on
+ * the weekly page's saved list. This finds the weekly for the day's show
+ * whose week contains the day (judged by each weekly's own week-start
+ * setting), creates one if the show has none there, walks the weekly's
+ * start date back when an earlier day joins, and stamps the record. Days
+ * with no real show name are left alone: a weekly named after an
+ * untranscribed upload would be junk, and those days can be assigned by
+ * hand from the tracker once they have a title.
+ */
+export async function ensureWeeklyForRecord(
+  userId: string,
+  recordId: string
+): Promise<WeeklyRow | null> {
+  const db = await getDb();
+  const now = nowIso();
+
+  const record = await db
+    .prepare(
+      "SELECT _id, showName, workDate, workStatus, weeklyId FROM work_records WHERE _id = ?1 AND userId = ?2"
+    )
+    .bind(recordId, userId)
+    .first<{
+      _id: string;
+      showName: string | null;
+      workDate: string | null;
+      workStatus: string | null;
+      weeklyId: string | null;
+    }>();
+  if (!record || record.weeklyId) return null;
+
+  const title = (record.showName ?? "").trim();
+  if (!title || /^Untranscribed Exhibit G \d+$/.test(title)) return null;
+  const date = (record.workDate ?? "").slice(0, 10);
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) return null;
+
+  const { results } = await db
+    .prepare("SELECT * FROM weeklies WHERE userId = ?1 AND title = ?2")
+    .bind(userId, title)
+    .all<WeeklyRow>();
+  let weekly =
+    (results ?? []).find((w) => {
+      const window = weekWindowOf(w.weekStart, w.weekStartsOn);
+      return date >= window.start && date <= window.end;
+    }) ?? null;
+
+  if (weekly) {
+    // The weekly is named by its first worked day.
+    if (date < weekly.weekStart) {
+      await db
+        .prepare("UPDATE weeklies SET weekStart = ?2, updatedAt = ?3 WHERE _id = ?1")
+        .bind(weekly._id, date, now)
+        .run();
+      weekly = { ...weekly, weekStart: date };
+    }
+  } else {
+    const agreement =
+      record.workStatus && record.workStatus in RATES
+        ? record.workStatus
+        : "theatrical_basic";
+    weekly = {
+      _id: newId(),
+      userId,
+      title,
+      weekStart: date,
+      weekStartsOn: DEFAULT_WEEK_STARTS_ON,
+      agreement,
+      weeklyRate: 0,
+      distantLocation: 0,
+      expectedAmount: 0,
+      createdAt: now,
+      updatedAt: now,
+    };
+    await db
+      .prepare(
+        "INSERT INTO weeklies (_id, userId, title, weekStart, weekStartsOn, agreement, weeklyRate, distantLocation, expectedAmount, createdAt, updatedAt) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?10)"
+      )
+      .bind(
+        weekly._id,
+        userId,
+        title,
+        date,
+        weekly.weekStartsOn,
+        agreement,
+        0,
+        0,
+        0,
+        now
+      )
+      .run();
+  }
+
+  await db
+    .prepare(
+      "UPDATE work_records SET weeklyId = ?2, updatedAt = ?3 WHERE _id = ?1 AND userId = ?4"
+    )
+    .bind(recordId, weekly._id, now, userId)
+    .run();
+  return weekly;
+}
+
+/** A day edited off a weekly contract leaves its weekly's membership. */
+export async function releaseRecordFromWeekly(
+  userId: string,
+  recordId: string
+): Promise<void> {
+  const db = await getDb();
+  await db
+    .prepare(
+      "UPDATE work_records SET weeklyId = NULL, updatedAt = ?2 WHERE _id = ?1 AND userId = ?3 AND weeklyId IS NOT NULL"
+    )
+    .bind(recordId, nowIso(), userId)
+    .run();
 }

@@ -5,6 +5,7 @@ import {
   updateWorkRecord,
 } from "@/lib/repos/work-records";
 import { requireAuth, getEffectiveUserId } from "@/lib/api-auth";
+import { ensureWeeklyForRecord, releaseRecordFromWeekly } from "@/lib/repos/weeklies";
 import { recordName } from "@/lib/repos/name-suggestions";
 
 export async function GET(
@@ -60,17 +61,28 @@ export async function PUT(
       data.characterName = await recordName("character", data.characterName);
     }
 
-    const record = await updateWorkRecord(
-      id,
-      await getEffectiveUserId(auth.session),
-      data
-    );
+    const userId = await getEffectiveUserId(auth.session);
+    const record = await updateWorkRecord(id, userId, data);
 
     if (!record) {
       return NextResponse.json(
         { error: "Work record not found" },
         { status: 404 }
       );
+    }
+
+    // Weekly-ness and membership move together: marking a day weekly
+    // attaches it to (or creates) its show's weekly for that week, and
+    // marking it back detaches it. Only edits that state a contract
+    // length weigh in — a payment-only PUT leaves membership alone.
+    if (typeof data.contractLength === "string") {
+      if (record.contractLength === "weekly" && !record.weeklyId) {
+        const weekly = await ensureWeeklyForRecord(userId, id);
+        if (weekly) record.weeklyId = weekly._id;
+      } else if (record.contractLength !== "weekly" && record.weeklyId) {
+        await releaseRecordFromWeekly(userId, id);
+        record.weeklyId = null;
+      }
     }
 
     return NextResponse.json(record);

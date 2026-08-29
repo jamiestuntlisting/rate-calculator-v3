@@ -126,6 +126,18 @@ export function WeeklyForm() {
     useState<WeekStartDay>(DEFAULT_WEEK_STARTS_ON);
 
   const [records, setRecords] = useState<WorkRecord[] | null>(null);
+  /** The weeklies already saved — proof they persist, and a way back in. */
+  const [weeklies, setWeeklies] = useState<
+    Array<{
+      _id: string;
+      title: string;
+      weekStart: string;
+      weekStartsOn: number;
+      agreement: string;
+      weeklyRate: number;
+      distantLocation: number;
+    }>
+  >([]);
   const [picked, setPicked] = useState<Set<string>>(new Set());
   const [overrides, setOverrides] = useState<Record<string, WeekOverride>>({});
   const [openWeek, setOpenWeek] = useState<string | null>(null);
@@ -155,7 +167,35 @@ export function WeeklyForm() {
     } catch {
       setRecords([]);
     }
+    try {
+      const res = await fetch("/api/weeklies");
+      if (!res.ok) throw new Error();
+      const data = await res.json();
+      setWeeklies(data.weeklies ?? []);
+    } catch {
+      setWeeklies([]);
+    }
   }, []);
+
+  /** Reopen a saved weekly: its deal in the questionnaire, its days picked. */
+  const openWeekly = (w: (typeof weeklies)[number]) => {
+    setTitle(w.title);
+    setWeekStartsOn(
+      (Math.min(6, Math.max(0, w.weekStartsOn)) as WeekStartDay) ??
+        DEFAULT_WEEK_STARTS_ON
+    );
+    if (w.agreement in RATES) {
+      setAgreement(w.agreement as RateSchedule);
+    } else {
+      setAgreement("other");
+      setWeeklyRate(w.weeklyRate || 0);
+    }
+    setDistantLocation(Boolean(w.distantLocation));
+    const members = (records ?? [])
+      .filter((r) => r.weeklyId === w._id)
+      .map((r) => r._id);
+    setPicked(new Set(members));
+  };
 
   useEffect(() => {
     load();
@@ -339,6 +379,47 @@ export function WeeklyForm() {
           )}
         </DialogContent>
       </Dialog>
+
+      {/* What has already been saved. Every weekly persists the moment it
+          is created — here, from a day form, or from the tracker — and
+          this list is the proof. Tapping one reopens it: its deal fills
+          the questionnaire and its days are picked below. */}
+      {weeklies.length > 0 && (
+        <CollapsibleSection
+          title="Saved weeklies"
+          defaultOpen
+          summary={`${weeklies.length} saved`}
+        >
+          <div className="space-y-1 p-1">
+            {weeklies.map((w) => {
+              const days = (records ?? []).filter(
+                (r) => r.weeklyId === w._id
+              ).length;
+              return (
+                <button
+                  key={w._id}
+                  type="button"
+                  onClick={() => openWeekly(w)}
+                  className="flex w-full items-center justify-between gap-3 rounded-lg border border-border/60 px-3 py-2.5 text-left hover:bg-accent/40"
+                >
+                  <span className="min-w-0">
+                    <span className="block truncate text-sm font-medium">
+                      {w.title}
+                    </span>
+                    <span className="block text-xs text-muted-foreground">
+                      {weekLabel(w.weekStart)}
+                    </span>
+                  </span>
+                  <span className="flex shrink-0 items-center gap-2 text-xs text-muted-foreground">
+                    {days === 1 ? "1 day" : `${days} days`}
+                    <ChevronRight className="h-4 w-4" />
+                  </span>
+                </button>
+              );
+            })}
+          </div>
+        </CollapsibleSection>
+      )}
 
       <CollapsibleSection
         title="Job Details"

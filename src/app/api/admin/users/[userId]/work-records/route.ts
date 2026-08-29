@@ -8,6 +8,7 @@ import { getSession, isAdminEmail } from "@/lib/auth";
 import { calculatePaymentDueDate } from "@/lib/time-utils";
 import { calculateRate } from "@/lib/rate-engine";
 import { weeklyEquivalentDayRate } from "@/lib/agreements";
+import { ensureWeeklyForRecord } from "@/lib/repos/weeklies";
 import type { ExhibitGInput } from "@/types";
 
 async function requireAdmin() {
@@ -206,6 +207,13 @@ export async function POST(
       },
       userId
     );
+
+    // Same rule as the member-facing route: a weekly day belongs to a
+    // weekly object from the moment it exists.
+    if (record.contractLength === "weekly") {
+      const weekly = await ensureWeeklyForRecord(userId, record._id);
+      if (weekly) record.weeklyId = weekly._id;
+    }
 
     return NextResponse.json(record, { status: 201 });
   } catch (error) {

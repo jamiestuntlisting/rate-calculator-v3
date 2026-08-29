@@ -6,6 +6,7 @@ import {
 import { calculatePaymentDueDate } from "@/lib/time-utils";
 import { requireAuth, getEffectiveUserId } from "@/lib/api-auth";
 import { recordName } from "@/lib/repos/name-suggestions";
+import { ensureWeeklyForRecord } from "@/lib/repos/weeklies";
 
 export async function GET(request: NextRequest) {
   try {
@@ -109,6 +110,7 @@ export async function POST(request: Request) {
     const showName = await recordName("show", data.showName);
     const characterName = await recordName("character", data.characterName ?? "");
 
+    const userId = await getEffectiveUserId(auth.session);
     const record = await createWorkRecord(
       {
         ...data,
@@ -118,8 +120,15 @@ export async function POST(request: Request) {
         paymentDueDate,
         missingExhibitG: !hasExhibitG && data.workType !== "other",
       },
-      await getEffectiveUserId(auth.session)
+      userId
     );
+
+    // A day logged as weekly belongs to a weekly object from the moment
+    // it exists — that is what makes it show up as a saved weekly.
+    if (record.contractLength === "weekly") {
+      const weekly = await ensureWeeklyForRecord(userId, record._id);
+      if (weekly) record.weeklyId = weekly._id;
+    }
 
     return NextResponse.json(record, { status: 201 });
   } catch (error) {
