@@ -984,13 +984,6 @@ export default function WorkDetailPage() {
                           </SelectContent>
                         </Select>
                       </div>
-                      {editData.contractLength === "weekly" && (
-                        <p className="text-xs text-muted-foreground -mt-1">
-                          This day folds into a week — the days are added
-                          together on the Weekly page. Rates shown are weekly
-                          scale.
-                        </p>
-                      )}
                       {editData.contractLength === "three_day" && (
                         <p className="text-xs text-muted-foreground -mt-1">
                           A television 3-day player. The day still logs

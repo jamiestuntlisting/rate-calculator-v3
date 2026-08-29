@@ -656,12 +656,6 @@ export function ExhibitGForm() {
                   </SelectContent>
                 </Select>
               </div>
-              {weeklyContract && (
-                <p className="text-xs text-muted-foreground -mt-1">
-                  This day folds into a week — log it here, then add the days
-                  together on the Weekly page. Rates shown are weekly scale.
-                </p>
-              )}
               {contractLength === "three_day" && (
                 <p className="text-xs text-muted-foreground -mt-1">
                   A television 3-day player. The day still logs normally;
