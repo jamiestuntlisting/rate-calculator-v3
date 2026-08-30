@@ -152,8 +152,10 @@ describe("a flat deal", () => {
   it("separates a coordinator on a flat deal from one on a day rate", () => {
     // The flat deal is the higher Schedule K figure and buys the day; the
     // daily coordinator tracks the performer minimum and works overtime.
-    expect(RATES.stunt_coordinator.daily).toBe(1996);
-    expect(RATES.stunt_coordinator_daily.daily).toBe(
+    expect(RATES.stunt_coordinator.daily).toBe(1696);
+    // Schedule K-I has its own daily minimum, above the day performer's.
+    expect(RATES.stunt_coordinator_daily.daily).toBe(1329);
+    expect(RATES.stunt_coordinator_daily.daily).toBeGreaterThan(
       RATES.theatrical_basic.daily
     );
     const long = { callTime: "07:00", dismissOnSet: "21:30" };
@@ -269,7 +271,7 @@ describe("a day inside a weekly contract", () => {
     );
     // The tiers follow their own weeklies, coordinators Schedule K's.
     expect(weeklyEquivalentDayRate("low_budget")).toBeCloseTo(622.05, 2);
-    expect(weeklyEquivalentDayRate("stunt_coordinator")).toBeCloseTo(1487.8, 2);
+    expect(weeklyEquivalentDayRate("stunt_coordinator")).toBeCloseTo(1350.4, 2);
     expect(weeklyEquivalentDayRate("nonsense")).toBeCloseTo(957.0, 2);
   });
 

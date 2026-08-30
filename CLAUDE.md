@@ -61,11 +61,14 @@ state stays in step.
   of performance", so they follow the basic rate whenever it moves. Stunt
   coordinators are never reduced — Schedule K applies whatever the
   production's budget, so a coordinator on a low budget show is still
-  `stunt_coordinator`. That one is the **flat deal** coordinator ($1,996,
-  the higher Schedule K figure, no times and no overtime);
-  `stunt_coordinator_daily` is a coordinator employed at less than flat
-  deal, which tracks the day performer minimum and earns overtime like
-  anyone else — the distinction is why both rates exist.
+  `stunt_coordinator`. That one is the **flat deal** coordinator
+  (K-III: $1,696/day, $6,752/week on 07/01/26, no times and no
+  overtime); `stunt_coordinator_daily` is a coordinator employed at less
+  than flat deal (K-I/K-II: $1,329/day, $4,955/week), who earns overtime
+  like anyone else — the distinction is why both rates exist. These were
+  verified against the 2026-30 wage-table ladders in 08/2026, replacing
+  a wrong $1,996/$7,439 flat pair and the wrong assumption that the
+  daily coordinator tracks the day performer minimum.
   A deal that is none of the schedules sets `flatDayRate` on the record.
   **A flat deal earns no overtime**: the number buys the day, so the engine
   returns it as one segment however long the day ran, and a sixteen-hour

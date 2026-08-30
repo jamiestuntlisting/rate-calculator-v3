@@ -42,11 +42,16 @@ Two further changes are local and also need carrying upstream:
   already honored the guarantee via the Step 11 `max()`; before this the
   difference sat in no line and a short day's breakdown did not sum to
   its total. Flat deals keep their single segment.
-- `rate-constants.ts` splits the stunt coordinator in two.
-  `stunt_coordinator` is the flat-deal figure it always was ($1,996); the
-  new `stunt_coordinator_daily` is a coordinator employed at *less than*
-  flat deal, which tracks the day performer minimum and works overtime like
-  anyone else. That distinction is the reason both rates exist in Schedule K.
+- `rate-constants.ts` splits the stunt coordinator in two, with figures
+  verified against the 2026-30 wage tables (07/01/26 column) in 08/2026.
+  `stunt_coordinator` is the Schedule K-III flat deal — $1,696/day,
+  $6,752/week, no overtime; the $1,996/$7,439 this file carried before
+  matched no published row, and a real 08/2026 coordinator contract is
+  written at exactly $1,696. `stunt_coordinator_daily` is a coordinator
+  employed at *less than* flat deal (K-I daily / K-II weekly), who works
+  overtime like anyone else at Schedule K's own minimums — $1,329/day,
+  $4,955/week, about 3.6% above the day performer rows it was previously
+  assumed to track.
 
 Rates are a flat set of current minimums, so a work day from an earlier
 contract year is calculated at today's rates. Historical schedules keyed by

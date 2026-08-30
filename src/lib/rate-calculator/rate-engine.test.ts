@@ -32,11 +32,11 @@ describe("calculateRate — daily minimum guarantee", () => {
     expect(result.penalties.totalPenalties).toBe(0);
   });
 
-  it("stunt coordinator 8-hour day pays full $1,996 day rate", () => {
+  it("stunt coordinator 8-hour day pays the full $1,696 flat-deal day rate", () => {
     const result = calculateRate({ ...baseInput, workStatus: "stunt_coordinator" });
-    expect(result.baseRate).toBe(1996);
-    expect(result.hourlyRate).toBe(249.5);
-    expect(result.grandTotal).toBe(1996);
+    expect(result.baseRate).toBe(1696);
+    expect(result.hourlyRate).toBe(212);
+    expect(result.grandTotal).toBe(1696);
   });
 });
 

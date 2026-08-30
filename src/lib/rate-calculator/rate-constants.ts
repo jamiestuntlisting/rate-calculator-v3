@@ -27,24 +27,31 @@ export const RATES = {
     hourly: 160.375, // same rate as theatrical
     straightTimeHours: 8,
   },
-  // A coordinator on a "flat deal": one number for the day, no overtime.
-  // This is the higher Schedule K figure, and it is what `stunt_coordinator`
-  // has always meant here.
+  // A coordinator on a "flat deal" (Schedule K-III): one number for the
+  // day or week, no overtime. Verified against the 2026-30 wage tables'
+  // 07/01/26 column — the daily ladder runs 1,647 / 1,696 / 1,747 / 1,799
+  // / 1,853 and the weekly 6,555 / 6,752 / 6,955 / 7,164 / 7,379, each a
+  // clean 3% step, and James's own 08/2026 coordinator contract is
+  // written at exactly $1,696. The 1,996/7,439 previously here matched no
+  // published row.
   stunt_coordinator: {
-    daily: 1996.0,
-    weekly: 7439.0,
-    hourly: 249.5, // 1996 / 8
+    daily: 1696.0,
+    weekly: 6752.0,
+    hourly: 212.0, // 1696 / 8
     straightTimeHours: 8,
   },
 
-  // A coordinator employed at *less than* flat deal is on a day rate and
-  // works overtime like anyone else — which is the reason the two exist
-  // separately. The rate tracks the day performer minimum ($1,246 → $1,283
-  // on 07/01/2026), and the weekly tracks weekly scale.
+  // A coordinator employed at *less than* flat deal (Schedule K-I daily,
+  // K-II weekly) works overtime like anyone else — which is the reason the
+  // two exist separately. It does NOT track the day performer minimum: the
+  // tables carry its own rows, about 3.6% above the performer's (daily
+  // ladder 1,290 / 1,329 / 1,369 / 1,410 / 1,452; weekly 4,811 / 4,955 /
+  // 5,104 / 5,257 / 5,415), cross-checking daily-to-weekly at the same
+  // ratio as the performer rows.
   stunt_coordinator_daily: {
-    daily: 1283.0,
-    weekly: 4785.0,
-    hourly: 160.375, // 1283 / 8
+    daily: 1329.0,
+    weekly: 4955.0,
+    hourly: 166.125, // 1329 / 8
     straightTimeHours: 8,
   },
 
