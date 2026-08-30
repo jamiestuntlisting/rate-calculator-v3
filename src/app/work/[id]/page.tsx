@@ -25,7 +25,8 @@ import { mealLengthWarning } from "@/lib/meal-length";
 import { WRAP_MINUTES, wrapOrderWarning } from "@/lib/wrap-check";
 import { ShowCombobox } from "@/components/shared/show-combobox";
 import { effectiveHourlyRate, workHoursFor } from "@/lib/work-hours";
-import { addMinutes, MEAL_MINUTES } from "@/components/calculator/time-select";
+import { MEAL_MINUTES } from "@/components/calculator/time-select";
+import { followedTime } from "@/lib/follow-time";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import {
@@ -1190,11 +1191,13 @@ export default function WorkDetailPage() {
                                         setEditData((d) => ({
                                           ...d,
                                           firstMealStart: v || null,
-                                          // Offer the half hour back, never overwrite it.
-                                          firstMealFinish:
-                                            v && !d.firstMealFinish
-                                              ? addMinutes(v, MEAL_MINUTES)
-                                              : d.firstMealFinish,
+                                          // The Out follows the In: offered,
+                                          // moved when crossed, kept when later.
+                                          firstMealFinish: followedTime(
+                                            v,
+                                            d.firstMealFinish,
+                                            MEAL_MINUTES
+                                          ),
                                         }))
                                       }
                                       compact
@@ -1244,10 +1247,11 @@ export default function WorkDetailPage() {
                                           setEditData((d) => ({
                                             ...d,
                                             secondMealStart: v || null,
-                                            secondMealFinish:
-                                              v && !d.secondMealFinish
-                                                ? addMinutes(v, MEAL_MINUTES)
-                                                : d.secondMealFinish,
+                                            secondMealFinish: followedTime(
+                                              v,
+                                              d.secondMealFinish,
+                                              MEAL_MINUTES
+                                            ),
                                           }))
                                         }
                                         compact
@@ -1292,11 +1296,13 @@ export default function WorkDetailPage() {
                                   setEditData((d) => ({
                                     ...d,
                                     dismissOnSet: v,
-                                    // Offer the usual wrap, never overwrite one.
-                                    dismissMakeupWardrobe:
-                                      v && !d.dismissMakeupWardrobe
-                                        ? addMinutes(v, WRAP_MINUTES)
-                                        : d.dismissMakeupWardrobe,
+                                    // The wrap follows the dismissal the same
+                                    // way a meal's Out follows its In.
+                                    dismissMakeupWardrobe: followedTime(
+                                      v,
+                                      d.dismissMakeupWardrobe,
+                                      WRAP_MINUTES
+                                    ),
                                   }))
                                 }
                               />

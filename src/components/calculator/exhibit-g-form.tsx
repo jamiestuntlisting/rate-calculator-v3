@@ -44,7 +44,8 @@ import type { ExhibitGInput, WorkDocument, CalculationBreakdown } from "@/types"
 import { ratesForDate } from "@/lib/rate-constants";
 import { Save } from "lucide-react";
 import { snapToSixMinutes, formatCurrency } from "@/lib/time-utils";
-import { addMinutes, MEAL_MINUTES } from "@/components/calculator/time-select";
+import { MEAL_MINUTES } from "@/components/calculator/time-select";
+import { followedTime } from "@/lib/follow-time";
 import { calculateRate } from "@/lib/rate-engine";
 import { checkNdMeal, ND_MEAL_WINDOW_HOURS } from "@/lib/nd-meal";
 import { mealLengthWarning } from "@/lib/meal-length";
@@ -200,10 +201,9 @@ export function ExhibitGForm() {
       setInput((prev) => ({
         ...prev,
         [startField]: value || null,
-        [finishField]:
-          value && !prev[finishField]
-            ? addMinutes(value, MEAL_MINUTES)
-            : prev[finishField],
+        // The Out follows: offered when empty, moved when the new In just
+        // crossed it, kept when it already sits later.
+        [finishField]: followedTime(value, prev[finishField], MEAL_MINUTES),
       }));
     },
     []
@@ -219,10 +219,11 @@ export function ExhibitGForm() {
     setInput((prev) => ({
       ...prev,
       dismissOnSet: value,
-      dismissMakeupWardrobe:
-        value && !prev.dismissMakeupWardrobe
-          ? addMinutes(value, WRAP_MINUTES)
-          : prev.dismissMakeupWardrobe,
+      dismissMakeupWardrobe: followedTime(
+        value,
+        prev.dismissMakeupWardrobe,
+        WRAP_MINUTES
+      ),
     }));
   }, []);
 
