@@ -227,7 +227,6 @@ export function ExhibitGForm() {
    * while the day is running — today's date, no end time entered.
    */
   const [showLiveRate, setShowLiveRate] = useState(false);
-  const [wrapSetByHand, setWrapSetByHand] = useState(false);
   /** The paycheck-shaped working under the total, opened by tapping it. */
   const [showLiveLines, setShowLiveLines] = useState(false);
 
@@ -290,32 +289,40 @@ export function ExhibitGForm() {
    * Same idea for the end of the day: dismissal offers the usual wrap a
    * quarter hour on, so the wrap picker opens after the dismissal
    * instead of at whatever time it is now. Never overwrites a wrap
-   * already entered.
+   * already entered — and never fires at all while the live counter is
+   * running: the offer is for filling in a finished day, and a day the
+   * counter is still counting is visibly not finished. Filling Wrapped
+   * there would stop the counter the moment the dismissal was typed,
+   * or worse, leave a counter running next to a wrapped time.
    */
-  const setDismissOnSet = useCallback((value: string) => {
-    setInput((prev) => ({
-      ...prev,
-      dismissOnSet: value,
-      dismissMakeupWardrobe: followedTime(
-        value,
-        prev.dismissMakeupWardrobe,
-        WRAP_MINUTES
-      ),
-    }));
-  }, []);
+  const setDismissOnSet = useCallback(
+    (value: string) => {
+      setInput((prev) => {
+        const counting =
+          showLiveRate && isToday(prev.workDate) && !prev.dismissMakeupWardrobe;
+        return {
+          ...prev,
+          dismissOnSet: value,
+          dismissMakeupWardrobe: counting
+            ? prev.dismissMakeupWardrobe
+            : followedTime(value, prev.dismissMakeupWardrobe, WRAP_MINUTES),
+        };
+      });
+    },
+    [showLiveRate]
+  );
 
   /**
-   * The live rate is a running total for a day still going — and being
-   * dismissed from set does not end it. Makeup/wardrobe removal time is
-   * paid work time and overtime runs to the final dismissal (SAG-AFTRA's
-   * 15-minute rule), so with a set dismissal entered the counter keeps
-   * ticking, standing the clock in for the wrap instead. What ends it is
-   * the performer typing a Wrapped time themselves: `wrapSetByHand` is
-   * true only for a hand-entered wrap, never for the +15 the form offers
-   * when the dismissal is set — an offer is a suggestion of when removal
-   * usually finishes, not a statement that it has.
+   * The live rate is a running total for a day still going. A time in
+   * the Wrapped field — typed or offered — ends it: a wrapped day has an
+   * end on screen, and this may be an earlier day being filled in late,
+   * so a counter running next to a wrapped time contradicts the form. A
+   * set dismissal alone does not end it: makeup/wardrobe removal is paid
+   * work time and overtime runs to the final dismissal (SAG-AFTRA's
+   * 15-minute rule), so the clock stands in for the wrap until Wrapped
+   * is set.
    */
-  const liveRate = showLiveRate && !wrapSetByHand;
+  const liveRate = showLiveRate && !input.dismissMakeupWardrobe;
 
   useEffect(() => {
     if (!liveRate) return;
@@ -1127,7 +1134,7 @@ export function ExhibitGForm() {
               </div>
               <div className="flex items-center justify-between gap-4 p-2 rounded bg-muted/50">
                 <Label htmlFor="dismissMakeupWardrobe" className="text-base shrink-0">Wrapped</Label>
-                <div className="flex-1 min-w-0 max-w-[15rem]"><TimeSelect id="dismissMakeupWardrobe" value={input.dismissMakeupWardrobe || ""} onChange={(v) => { setWrapSetByHand(Boolean(v)); setInput((prev) => ({ ...prev, dismissMakeupWardrobe: v || null, dismissOnSet: v ? precedingTime(v, prev.dismissOnSet, WRAP_MINUTES) ?? prev.dismissOnSet : prev.dismissOnSet })); }} /></div>
+                <div className="flex-1 min-w-0 max-w-[15rem]"><TimeSelect id="dismissMakeupWardrobe" value={input.dismissMakeupWardrobe || ""} onChange={(v) => setInput((prev) => ({ ...prev, dismissMakeupWardrobe: v || null, dismissOnSet: v ? precedingTime(v, prev.dismissOnSet, WRAP_MINUTES) ?? prev.dismissOnSet : prev.dismissOnSet }))} /></div>
               </div>
               {wrapOrderWarning(input.dismissOnSet, input.dismissMakeupWardrobe) && (
                 <p className="px-2 pb-1 text-xs text-amber-400">
@@ -1153,7 +1160,7 @@ export function ExhibitGForm() {
               counter sits right under its own switch rather than at the
               bottom of the page. Once an end time is entered the day is
               over, this whole block goes, and the total shows below. */}
-          {!isStuntCoordinator && isToday(input.workDate) && !wrapSetByHand && (
+          {!isStuntCoordinator && isToday(input.workDate) && !input.dismissMakeupWardrobe && (
             <div className="space-y-3">
               <div className="flex items-center space-x-2">
                 <Checkbox
