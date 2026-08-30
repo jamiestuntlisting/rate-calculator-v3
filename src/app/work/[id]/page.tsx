@@ -26,7 +26,7 @@ import { WRAP_MINUTES, wrapOrderWarning } from "@/lib/wrap-check";
 import { ShowCombobox } from "@/components/shared/show-combobox";
 import { effectiveHourlyRate, workHoursFor } from "@/lib/work-hours";
 import { MEAL_MINUTES } from "@/components/calculator/time-select";
-import { followedTime } from "@/lib/follow-time";
+import { followedTime, precedingTime } from "@/lib/follow-time";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import {
@@ -145,6 +145,31 @@ export default function WorkDetailPage() {
   });
   /** Whether the 2nd meal's In was hand-set (offers keep tracking +6h). */
   const editSecondTouched = useRef(false);
+  /** Same for the 1st meal's In: offers track call/ND, hand-set stays. */
+  const editFirstTouched = useRef(false);
+
+  /** Lunch defaults six hours after call, or after the ND meal's end. */
+  const reofferEditMeals = (
+    d: typeof editData,
+    anchor: string | null
+  ): Partial<typeof editData> => {
+    if (!anchor || editFirstTouched.current || !editMeals.first) return {};
+    const start = followedTime(anchor, null, MEAL_PENALTIES.maxHoursBeforeFirstMeal * 60) ?? "";
+    const finish = followedTime(start, null, MEAL_MINUTES);
+    const patch: Partial<typeof editData> = {
+      firstMealStart: start,
+      firstMealFinish: finish,
+    };
+    if (editMeals.second && !editSecondTouched.current) {
+      patch.secondMealStart = followedTime(finish, null, MEAL_PENALTIES.maxHoursBeforeSecondMeal * 60);
+      patch.secondMealFinish = followedTime(
+        patch.secondMealStart,
+        null,
+        MEAL_MINUTES
+      );
+    }
+    return patch;
+  };
   /** The whole ND rule, said in the form the way Log Work says it. */
   const editNdMeal = checkNdMeal(
     editData.callTime,
@@ -307,9 +332,12 @@ export default function WorkDetailPage() {
           !record.callTime,
         second: Boolean(record.secondMealStart || record.secondMealFinish),
       });
-      // A 2nd meal already on the record was set by someone: keep it.
+      // Meals already on the record were set by someone: keep them.
       editSecondTouched.current = Boolean(
         record.secondMealStart || record.secondMealFinish
+      );
+      editFirstTouched.current = Boolean(
+        record.firstMealStart || record.firstMealFinish
       );
     }
     setEditing(true);
@@ -1125,7 +1153,13 @@ export default function WorkDetailPage() {
                               <TimeSelect
                                 id="edit-callTime"
                                 value={editData.callTime}
-                                onChange={(v) => setEditData(d => ({ ...d, callTime: v }))}
+                                onChange={(v) =>
+                                  setEditData((d) => ({
+                                    ...d,
+                                    callTime: v,
+                                    ...reofferEditMeals(d, d.ndMealOut || v || null),
+                                  }))
+                                }
                               />
                             </div>
                           </div>
@@ -1157,7 +1191,7 @@ export default function WorkDetailPage() {
                                   </div>
                                   <div>
                                     <Label htmlFor="edit-ndMealOut" className="text-sm text-muted-foreground">Out</Label>
-                                    <TimeSelect id="edit-ndMealOut" value={editData.ndMealOut || ""} onChange={(v) => setEditData(d => ({ ...d, ndMealOut: v || null }))} compact />
+                                    <TimeSelect id="edit-ndMealOut" value={editData.ndMealOut || ""} onChange={(v) => setEditData(d => ({ ...d, ndMealOut: v || null, ...reofferEditMeals(d, v || d.callTime || null) }))} compact />
                                   </div>
                                 </div>
                               )}
@@ -1181,7 +1215,21 @@ export default function WorkDetailPage() {
                                   checked={editMeals.first}
                                   onCheckedChange={(v) => {
                                     setEditMeals(m => ({ ...m, first: !!v, second: v ? m.second : false }));
-                                    if (!v) setEditData(d => ({ ...d, firstMealStart: null, firstMealFinish: null, secondMealStart: null, secondMealFinish: null }));
+                                    if (!v) {
+                                      editFirstTouched.current = false;
+                                      setEditData(d => ({ ...d, firstMealStart: null, firstMealFinish: null, secondMealStart: null, secondMealFinish: null }));
+                                    } else {
+                                      setEditData((d) => {
+                                        const anchor = d.ndMealOut || d.callTime || null;
+                                        if (!anchor || d.firstMealStart) return d;
+                                        const start = followedTime(anchor, null, MEAL_PENALTIES.maxHoursBeforeFirstMeal * 60) ?? "";
+                                        return {
+                                          ...d,
+                                          firstMealStart: start,
+                                          firstMealFinish: followedTime(start, null, MEAL_MINUTES),
+                                        };
+                                      });
+                                    }
                                   }}
                                 />
                                 <Label htmlFor="edit-showFirstMeal" className="text-base font-normal">1st Meal</Label>
@@ -1195,6 +1243,7 @@ export default function WorkDetailPage() {
                                       value={editData.firstMealStart || ""}
                                       onChange={(v) =>
                                         setEditData((d) => {
+                                          editFirstTouched.current = true;
                                           // The Out follows the In: offered,
                                           // moved when crossed, kept when
                                           // later — and the 2nd meal follows
@@ -1365,7 +1414,18 @@ export default function WorkDetailPage() {
                               <TimeSelect
                                 id="edit-dismissMakeupWardrobe"
                                 value={editData.dismissMakeupWardrobe || ""}
-                                onChange={(v) => setEditData(d => ({ ...d, dismissMakeupWardrobe: v || null }))}
+                                onChange={(v) =>
+                                  setEditData((d) => ({
+                                    ...d,
+                                    dismissMakeupWardrobe: v || null,
+                                    // Whichever end is set first drives the
+                                    // other: a wrap at 10:00 offers the
+                                    // dismissal at 9:45.
+                                    dismissOnSet: v
+                                      ? precedingTime(v, d.dismissOnSet, WRAP_MINUTES) ?? d.dismissOnSet
+                                      : d.dismissOnSet,
+                                  }))
+                                }
                               />
                             </div>
                           </div>

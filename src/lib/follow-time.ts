@@ -31,3 +31,26 @@ export function followedTime(
   const mm = String(total % 60).padStart(2, "0");
   return `${hh}:${mm}`;
 }
+
+/**
+ * The mirror of `followedTime` for a companion that comes BEFORE its
+ * anchor — the on-set dismissal before the wrap. Kept when it already
+ * sits sanely before the anchor; offered at anchor − offset when empty
+ * or on the wrong side of it (by the same twelve-hour reading).
+ */
+export function precedingTime(
+  anchor: string | null | undefined,
+  existing: string | null | undefined,
+  offsetMinutes: number
+): string | null {
+  if (!anchor) return existing ?? null;
+  const sane =
+    existing && calculateDuration(existing, anchor) < 12 * 60;
+  if (sane) return existing ?? null;
+  const [h, m] = anchor.split(":").map(Number);
+  const total =
+    (h * 60 + m - offsetMinutes + 24 * 60) % (24 * 60);
+  const hh = String(Math.floor(total / 60)).padStart(2, "0");
+  const mm = String(total % 60).padStart(2, "0");
+  return `${hh}:${mm}`;
+}

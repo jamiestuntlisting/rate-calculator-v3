@@ -45,7 +45,7 @@ import { MEAL_PENALTIES, ratesForDate } from "@/lib/rate-constants";
 import { Save } from "lucide-react";
 import { snapToSixMinutes, formatCurrency } from "@/lib/time-utils";
 import { MEAL_MINUTES } from "@/components/calculator/time-select";
-import { followedTime } from "@/lib/follow-time";
+import { followedTime, precedingTime } from "@/lib/follow-time";
 import { calculateRate } from "@/lib/rate-engine";
 import { checkNdMeal, ND_MEAL_WINDOW_HOURS } from "@/lib/nd-meal";
 import { RateBreakdown } from "@/components/calculation/rate-breakdown";
@@ -170,12 +170,50 @@ export function ExhibitGForm() {
   const [showSecondMeal, setShowSecondMeal] = useState(false);
   const showSecondMealRef = useRef(false);
   showSecondMealRef.current = showSecondMeal;
+  const showFirstMealRef = useRef(true);
+  showFirstMealRef.current = showFirstMeal;
   /**
    * Whether the performer set the 2nd meal's In themselves. An offered
    * default keeps tracking six hours after the 1st meal as it moves; a
    * hand-set time stays wherever later they put it.
    */
   const secondMealTouched = useRef(false);
+  /** Same for the 1st meal's In: offers track call/ND, hand-set stays. */
+  const firstMealTouched = useRef(false);
+
+  /**
+   * The whole day cascades from its anchors: lunch defaults six hours
+   * after call (or after the ND meal's end, which resets the meal
+   * clock), the 2nd meal six hours after lunch, and the offers keep
+   * tracking until a hand touches them.
+   */
+  const reofferMeals = (
+    prev: ExhibitGInput,
+    anchor: string | null
+  ): Partial<ExhibitGInput> => {
+    if (!anchor || firstMealTouched.current || !showFirstMealRef.current) {
+      return {};
+    }
+    const start = followedTime(anchor, null, MEAL_PENALTIES.maxHoursBeforeFirstMeal * 60);
+    const finish = followedTime(start, null, MEAL_MINUTES);
+    const patch: Partial<ExhibitGInput> = {
+      firstMealStart: start,
+      firstMealFinish: finish,
+    };
+    if (showSecondMealRef.current && !secondMealTouched.current) {
+      patch.secondMealStart = followedTime(
+        finish,
+        null,
+        MEAL_PENALTIES.maxHoursBeforeSecondMeal * 60
+      );
+      patch.secondMealFinish = followedTime(
+        patch.secondMealStart,
+        null,
+        MEAL_MINUTES
+      );
+    }
+    return patch;
+  };
   /**
    * Off until asked for. Ticked, the counter runs in real time — the
    * number climbing is the point of watching it. A second checkbox under
@@ -226,6 +264,7 @@ export function ExhibitGForm() {
         // And the 2nd meal follows the 1st: six hours on by default, kept
         // wherever later the performer put it.
         if (startField === "secondMealStart") secondMealTouched.current = true;
+        if (startField === "firstMealStart") firstMealTouched.current = true;
         if (startField === "firstMealStart" && showSecondMealRef.current) {
           next.secondMealStart = secondMealTouched.current
             ? followedTime(finish, prev.secondMealStart, MEAL_PENALTIES.maxHoursBeforeSecondMeal * 60)
@@ -973,7 +1012,7 @@ export function ExhibitGForm() {
             <div className="space-y-0">
               <div className="flex items-center justify-between gap-4 p-2 rounded bg-muted/50">
                 <Label htmlFor="callTime" className="text-base shrink-0">Call Time</Label>
-                <div className="flex-1 min-w-0 max-w-[15rem]"><TimeSelect id="callTime" value={input.callTime} onChange={(v) => update("callTime", v)} /></div>
+                <div className="flex-1 min-w-0 max-w-[15rem]"><TimeSelect id="callTime" value={input.callTime} onChange={(v) => setInput((prev) => ({ ...prev, callTime: v, ...reofferMeals(prev, prev.ndMealOut || v || null) }))} /></div>
               </div>
               {/* Meals */}
               <div className="border-t border-b py-3 my-1 space-y-3">
@@ -991,7 +1030,7 @@ export function ExhibitGForm() {
                       </div>
                       <div>
                         <Label htmlFor="ndMealOut" className="text-sm text-muted-foreground">Out</Label>
-                        <TimeSelect id="ndMealOut" value={input.ndMealOut || ""} onChange={(v) => update("ndMealOut", v || null)} compact />
+                        <TimeSelect id="ndMealOut" value={input.ndMealOut || ""} onChange={(v) => setInput((prev) => ({ ...prev, ndMealOut: v || null, ...reofferMeals(prev, v || prev.callTime || null) }))} compact />
                       </div>
                     </div>
                   )}
@@ -1010,7 +1049,7 @@ export function ExhibitGForm() {
                 {/* 1st Meal */}
                 <div className="space-y-0">
                   <div className="flex items-center space-x-2 p-2">
-                    <Checkbox id="showFirstMeal" checked={showFirstMeal} onCheckedChange={(v) => { setShowFirstMeal(!!v); if (!v) { update("firstMealStart", null); update("firstMealFinish", null); setShowSecondMeal(false); update("secondMealStart", null); update("secondMealFinish", null); } }} />
+                    <Checkbox id="showFirstMeal" checked={showFirstMeal} onCheckedChange={(v) => { setShowFirstMeal(!!v); showFirstMealRef.current = !!v; if (!v) { firstMealTouched.current = false; update("firstMealStart", null); update("firstMealFinish", null); setShowSecondMeal(false); update("secondMealStart", null); update("secondMealFinish", null); } else { setInput((prev) => ({ ...prev, ...reofferMeals(prev, prev.ndMealOut || prev.callTime || null) })); } }} />
                     <Label htmlFor="showFirstMeal" className="text-base font-normal">1st Meal</Label>
                   </div>
                   {showFirstMeal && (
@@ -1073,7 +1112,7 @@ export function ExhibitGForm() {
               </div>
               <div className="flex items-center justify-between gap-4 p-2 rounded bg-muted/50">
                 <Label htmlFor="dismissMakeupWardrobe" className="text-base shrink-0">Wrapped</Label>
-                <div className="flex-1 min-w-0 max-w-[15rem]"><TimeSelect id="dismissMakeupWardrobe" value={input.dismissMakeupWardrobe || ""} onChange={(v) => update("dismissMakeupWardrobe", v || null)} /></div>
+                <div className="flex-1 min-w-0 max-w-[15rem]"><TimeSelect id="dismissMakeupWardrobe" value={input.dismissMakeupWardrobe || ""} onChange={(v) => setInput((prev) => ({ ...prev, dismissMakeupWardrobe: v || null, dismissOnSet: v ? precedingTime(v, prev.dismissOnSet, WRAP_MINUTES) ?? prev.dismissOnSet : prev.dismissOnSet }))} /></div>
               </div>
               {wrapOrderWarning(input.dismissOnSet, input.dismissMakeupWardrobe) && (
                 <p className="px-2 pb-1 text-xs text-amber-400">
