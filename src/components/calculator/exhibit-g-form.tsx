@@ -156,9 +156,13 @@ export function ExhibitGForm() {
    * figure is the working, not the entitlement. The flag rides the record
    * so the weekly page can say which days are week days.
    */
+  // "unset" is the default: the day calculates as a daily but has not
+  // decided anything, so the weekly page may still pull it into a
+  // contract. Picking "daily" on purpose is the opposite — it keeps the
+  // day out of weeklies — which is why both exist in the pulldown.
   const [contractLength, setContractLength] = useState<
-    "daily" | "three_day" | "weekly"
-  >("daily");
+    "unset" | "daily" | "three_day" | "weekly"
+  >("unset");
   const weeklyContract = contractLength === "weekly";
   const threeDayContract = contractLength === "three_day";
   /** Which 3-day figure the show's format pays. */
@@ -528,7 +532,7 @@ export function ExhibitGForm() {
             recordStatus: "complete",
             documents: allDocuments,
             weeklyContract,
-            contractLength,
+            contractLength: contractLength === "unset" ? null : contractLength,
             threeDayLength: threeDayContract ? threeDayLength : null,
             expectedAmount: flatRate,
             paymentStatus: "unpaid",
@@ -586,7 +590,7 @@ export function ExhibitGForm() {
           contracts,
           multipleEpisodeWeekly,
           weeklyContract,
-          contractLength,
+          contractLength: contractLength === "unset" ? null : contractLength,
           threeDayLength: threeDayContract ? threeDayLength : null,
           paymentStatus: "unpaid",
           paidAmount: 0,
@@ -838,7 +842,7 @@ export function ExhibitGForm() {
                 <Select
                   value={contractLength}
                   onValueChange={(v) => {
-                    const next = v as "daily" | "three_day" | "weekly";
+                    const next = v as "unset" | "daily" | "three_day" | "weekly";
                     setContractLength(next);
                     // The 3-day schedule covers players and flat-deal
                     // coordinators; anything else snaps to the player rate.
@@ -859,7 +863,8 @@ export function ExhibitGForm() {
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="daily" className="text-base">Daily</SelectItem>
+                    <SelectItem value="unset" className="text-base">Daily</SelectItem>
+                    <SelectItem value="daily" className="text-base">Daily — keep out of weeklies</SelectItem>
                     <SelectItem value="three_day" className="text-base">3 Day (TV)</SelectItem>
                     <SelectItem value="weekly" className="text-base">Weekly</SelectItem>
                   </SelectContent>

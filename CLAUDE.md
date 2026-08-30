@@ -98,7 +98,12 @@ state stays in step.
   one. The week starts Monday (`DEFAULT_WEEK_STARTS_ON`) and the page lets
   it be moved to any day, because productions differ; every group is
   labelled with the date it runs from so a wrong split shows rather than
-  hides. `/admin/weekly-bench` runs an export through it card by
+  hides. `work_records.contractLength` is three-way on purpose: NULL means
+  never stated (the day calculates as a daily but the weekly picker still
+  offers it, and picking it into a contract is what sets it), while an
+  explicit `'daily'` — "Daily — keep out of weeklies" in the pulldowns —
+  is a decision that keeps the day out. Do not "normalize" the NULLs;
+  migration 0019 exists to create them. `/admin/weekly-bench` runs an export through it card by
   card; it opens on a bundled reference export (`src/lib/showbiz-sample.ts`,
   gzipped and base64'd — regenerate with `scripts/build-showbiz-sample.py`),
   which should always read 132 of 133, the one miss being S1234. An admin can

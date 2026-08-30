@@ -112,7 +112,9 @@ export default function WorkDetailPage() {
   // Inline edit state
   const [editing, setEditing] = useState(false);
   const [editData, setEditData] = useState({
-    contractLength: "daily" as "daily" | "three_day" | "weekly",
+    // "unset" = never stated: calculates daily, may still join a weekly.
+    // "daily" is the deliberate choice that keeps the day out of them.
+    contractLength: "unset" as "unset" | "daily" | "three_day" | "weekly",
     threeDayLength: "short" as "short" | "long",
     showName: "",
     workDate: "",
@@ -313,8 +315,8 @@ export default function WorkDetailPage() {
         isHoliday: record.isHoliday || false,
         workStatus: record.workStatus || "theatrical_basic",
         contractLength:
-          (record.contractLength as "daily" | "three_day" | "weekly") ||
-          (record.weeklyContract ? "weekly" : "daily"),
+          (record.contractLength as "daily" | "three_day" | "weekly" | null) ??
+          (record.weeklyContract ? "weekly" : "unset"),
         threeDayLength: record.threeDayLength === "long" ? "long" : "short",
         ndMealIn: record.ndMealIn || "",
         ndMealOut: record.ndMealOut || "",
@@ -513,7 +515,8 @@ export default function WorkDetailPage() {
                     100
                 ) / 100
               : null,
-        contractLength: editData.contractLength,
+        contractLength:
+          editData.contractLength === "unset" ? null : editData.contractLength,
         threeDayLength:
           editData.contractLength === "three_day"
             ? editData.threeDayLength
@@ -1045,7 +1048,11 @@ export default function WorkDetailPage() {
                           onValueChange={(v) =>
                             setEditData((d) => ({
                               ...d,
-                              contractLength: v as "daily" | "three_day" | "weekly",
+                              contractLength: v as
+                                | "unset"
+                                | "daily"
+                                | "three_day"
+                                | "weekly",
                             }))
                           }
                         >
@@ -1053,7 +1060,8 @@ export default function WorkDetailPage() {
                             <SelectValue />
                           </SelectTrigger>
                           <SelectContent>
-                            <SelectItem value="daily" className="text-base">Daily</SelectItem>
+                            <SelectItem value="unset" className="text-base">Daily</SelectItem>
+                            <SelectItem value="daily" className="text-base">Daily — keep out of weeklies</SelectItem>
                             <SelectItem value="three_day" className="text-base">3 Day (TV)</SelectItem>
                             <SelectItem value="weekly" className="text-base">Weekly</SelectItem>
                           </SelectContent>
@@ -1563,6 +1571,11 @@ export default function WorkDetailPage() {
                               ? weeklyAgreementLabel(record.workStatus || "")
                               : agreementLabel(record.workStatus || "")}
                       </p>
+                      {record.contractLength === "daily" && (
+                        <p className="text-xs text-muted-foreground">
+                          Set Daily — kept out of weeklies
+                        </p>
+                      )}
                     </div>
                   )}
                   {isStuntCoordinator && (

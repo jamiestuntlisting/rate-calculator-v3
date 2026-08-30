@@ -333,16 +333,20 @@ export function WeeklyForm() {
    * whichever show is chosen.
    */
   const offered = useMemo(() => {
-    // A day whose contract was set to something else was already decided
-    // — offering it here just invites mixing contracts. What belongs to
-    // the current mode: days marked with its contract length (or already
-    // in a group of its kind), and unnamed Exhibit Gs, which could be
-    // anything until transcribed.
+    // A day whose contract was deliberately set to something else was
+    // already decided — offering it here just invites mixing contracts.
+    // But most days never decided anything: a length that was never
+    // stated (null) is a daily only by default, so the day is offered,
+    // and picking it into a contract is what decides it. What belongs to
+    // the current mode: days marked with its contract length or already
+    // in a group of its kind, days with no stated length, and unnamed
+    // Exhibit Gs, which could be anything until transcribed.
     const kindById = new Map(weeklies.map((w) => [w._id, w.kind]));
     const wanted = mode === "three_day" ? "three_day" : "weekly";
     const all = (records ?? []).filter(
       (r) =>
         isUnnamed(r, title) ||
+        r.contractLength == null ||
         r.contractLength === wanted ||
         (r.weeklyId != null && kindById.get(r.weeklyId) === wanted)
     );
@@ -712,9 +716,9 @@ export function WeeklyForm() {
             />
             <p className="text-xs text-muted-foreground">
               Filters the days below to this show — plus any Exhibit Gs with
-              no name yet, since those could be its days. Days set to a
-              daily contract stay out; mark a day Weekly on its record to
-              offer it here.
+              no name yet, since those could be its days. A day that never
+              chose a contract is offered too, and picking it here sets it.
+              Only days deliberately set Daily on their record stay out.
             </p>
           </div>
 

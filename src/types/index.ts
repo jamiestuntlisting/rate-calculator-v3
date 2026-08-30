@@ -112,7 +112,8 @@ export interface WorkRecord {
   /** The day belongs to a weekly contract; its money comes from the week. */
   weeklyContract?: boolean;
   /** daily | three_day | weekly — how long the deal runs. */
-  contractLength?: "daily" | "three_day" | "weekly";
+  /** Null/absent = never stated (calculates daily, may join a weekly). */
+  contractLength?: "daily" | "three_day" | "weekly" | null;
   /** Which 3-day figure the show's format pays: "short" (½ & 1-hr) or "long". */
   threeDayLength?: "short" | "long" | null;
   /** The saved weekly this day is grouped under in the tracker. */

@@ -22,7 +22,7 @@ interface WorkRecordRow {
   flatDayRate: number | null;
   threeDayLength: string | null;
   weeklyContract: number;
-  contractLength: string;
+  contractLength: string | null;
   weeklyId: string | null;
   contracts: number;
   multipleEpisodeWeekly: number;
@@ -69,7 +69,7 @@ export interface WorkRecordDoc {
   threeDayLength: string | null;
   weeklyContract: boolean;
   /** daily | three_day | weekly — how long the deal runs. */
-  contractLength: string;
+  contractLength: string | null;
   /** The saved weekly this day is grouped under, if any. Repo-managed. */
   weeklyId: string | null;
   contracts: number;
@@ -116,7 +116,14 @@ function toDoc(row: WorkRecordRow): WorkRecordDoc {
     flatDayRate: row.flatDayRate ?? null,
     threeDayLength: row.threeDayLength ?? null,
     weeklyContract: i2b(row.weeklyContract),
-    contractLength: row.contractLength || "daily",
+    // NULL means the length was never stated — such a day calculates as
+    // a daily but may still be pulled into a weekly. 'daily' is a choice.
+    contractLength:
+      row.contractLength === "daily" ||
+      row.contractLength === "weekly" ||
+      row.contractLength === "three_day"
+        ? row.contractLength
+        : null,
     weeklyId: row.weeklyId ?? null,
     contracts: row.contracts ?? 1,
     multipleEpisodeWeekly: i2b(row.multipleEpisodeWeekly),
@@ -165,8 +172,9 @@ const FIELD_SERIALIZERS: Record<string, (v: unknown) => unknown> = {
   flatDayRate: (v) => (Number(v) > 0 ? Number(v) : null),
   threeDayLength: (v) => (v === "short" || v === "long" ? v : null),
   weeklyContract: (v) => b2i(v),
+  // 'daily' only when actually chosen; anything else stores as unset.
   contractLength: (v) =>
-    v === "three_day" || v === "weekly" ? v : "daily",
+    v === "three_day" || v === "weekly" || v === "daily" ? v : null,
   // A day is one contract unless told otherwise, never zero.
   contracts: (v) => Math.max(1, Math.floor(Number(v) || 1)),
   multipleEpisodeWeekly: (v) => b2i(v),

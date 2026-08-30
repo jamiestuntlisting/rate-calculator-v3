@@ -74,8 +74,9 @@ export async function PUT(
     // Weekly-ness and membership move together: marking a day weekly
     // attaches it to (or creates) its show's weekly for that week, and
     // marking it back detaches it. Only edits that state a contract
-    // length weigh in — a payment-only PUT leaves membership alone.
-    if (typeof data.contractLength === "string") {
+    // length weigh in — a payment-only PUT leaves membership alone. A
+    // stated null counts: it is the length being set back to unset.
+    if (data.contractLength !== undefined) {
       if (
         record.contractLength === "weekly" ||
         record.contractLength === "three_day"

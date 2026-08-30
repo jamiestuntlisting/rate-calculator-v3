@@ -194,7 +194,11 @@ export async function assignRecordToWeekly(
   if (weeklyId === null) {
     await db
       .prepare(
-        "UPDATE work_records SET weeklyId = NULL, weeklyContract = 0, contractLength = 'daily', updatedAt = ?2 WHERE _id = ?1 AND userId = ?3"
+        // contractLength is deliberately left alone: the PUT that triggers a
+        // release has already written the value the user chose (an explicit
+        // 'daily' or back to unset), and stamping 'daily' here would turn
+        // "never stated" into "decided".
+        "UPDATE work_records SET weeklyId = NULL, weeklyContract = 0, updatedAt = ?2 WHERE _id = ?1 AND userId = ?3"
       )
       .bind(recordId, now, userId)
       .run();
