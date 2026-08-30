@@ -21,7 +21,7 @@ import {
 import { GapLine } from "@/components/calculator/gap-line";
 import { CollapsibleSection } from "@/components/calculator/collapsible-section";
 import { checkNdMeal, ND_MEAL_WINDOW_HOURS } from "@/lib/nd-meal";
-import { mealLengthWarning } from "@/lib/meal-length";
+import { mealLengthWarning, secondMealOrderWarning } from "@/lib/meal-length";
 import { WRAP_MINUTES, wrapOrderWarning } from "@/lib/wrap-check";
 import { ShowCombobox } from "@/components/shared/show-combobox";
 import { effectiveHourlyRate, workHoursFor } from "@/lib/work-hours";
@@ -47,7 +47,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Separator } from "@/components/ui/separator";
 import { RateBreakdown } from "@/components/calculation/rate-breakdown";
 import { formatCurrency } from "@/lib/time-utils";
-import { RATES, type RateSchedule } from "@/lib/rate-constants";
+import { MEAL_PENALTIES, RATES, type RateSchedule } from "@/lib/rate-constants";
 import { additionalContractPay } from "@/lib/multi-contract";
 import { PayStubSection } from "@/components/shared/pay-stub-section";
 import { useAuth } from "@/context/auth-context";
@@ -143,6 +143,8 @@ export default function WorkDetailPage() {
     first: true,
     second: false,
   });
+  /** Whether the 2nd meal's In was hand-set (offers keep tracking +6h). */
+  const editSecondTouched = useRef(false);
   /** The whole ND rule, said in the form the way Log Work says it. */
   const editNdMeal = checkNdMeal(
     editData.callTime,
@@ -305,6 +307,10 @@ export default function WorkDetailPage() {
           !record.callTime,
         second: Boolean(record.secondMealStart || record.secondMealFinish),
       });
+      // A 2nd meal already on the record was set by someone: keep it.
+      editSecondTouched.current = Boolean(
+        record.secondMealStart || record.secondMealFinish
+      );
     }
     setEditing(true);
   };
@@ -1188,24 +1194,44 @@ export default function WorkDetailPage() {
                                       id="edit-firstMealStart"
                                       value={editData.firstMealStart || ""}
                                       onChange={(v) =>
-                                        setEditData((d) => ({
-                                          ...d,
-                                          firstMealStart: v || null,
+                                        setEditData((d) => {
                                           // The Out follows the In: offered,
-                                          // moved when crossed, kept when later.
-                                          firstMealFinish: followedTime(
+                                          // moved when crossed, kept when
+                                          // later — and the 2nd meal follows
+                                          // the 1st, six hours on by default.
+                                          const finish = followedTime(
                                             v,
                                             d.firstMealFinish,
                                             MEAL_MINUTES
-                                          ),
-                                        }))
+                                          );
+                                          const next = {
+                                            ...d,
+                                            firstMealStart: v || null,
+                                            firstMealFinish: finish,
+                                          };
+                                          if (editMeals.second) {
+                                            next.secondMealStart = editSecondTouched.current
+                                              ? followedTime(
+                                                  finish,
+                                                  d.secondMealStart,
+                                                  MEAL_PENALTIES.maxHoursBeforeSecondMeal * 60
+                                                )
+                                              : followedTime(finish, null, MEAL_PENALTIES.maxHoursBeforeSecondMeal * 60);
+                                            next.secondMealFinish = followedTime(
+                                              next.secondMealStart,
+                                              d.secondMealFinish,
+                                              MEAL_MINUTES
+                                            );
+                                          }
+                                          return next;
+                                        })
                                       }
                                       compact
                                     />
                                   </div>
                                   <div>
                                     <Label htmlFor="edit-firstMealFinish" className="text-sm text-muted-foreground">Out</Label>
-                                    <TimeSelect id="edit-firstMealFinish" value={editData.firstMealFinish || ""} onChange={(v) => setEditData(d => ({ ...d, firstMealFinish: v || null }))} compact />
+                                    <TimeSelect id="edit-firstMealFinish" value={editData.firstMealFinish || ""} onChange={(v) => setEditData((d) => { const next = { ...d, firstMealFinish: v || null }; if (editMeals.second) { next.secondMealStart = editSecondTouched.current ? followedTime(v, d.secondMealStart, MEAL_PENALTIES.maxHoursBeforeSecondMeal * 60) : followedTime(v, null, MEAL_PENALTIES.maxHoursBeforeSecondMeal * 60); next.secondMealFinish = followedTime(next.secondMealStart, d.secondMealFinish, MEAL_MINUTES); } return next; })} compact />
                                   </div>
                                 </div>
                               )}
@@ -1231,7 +1257,19 @@ export default function WorkDetailPage() {
                                     checked={editMeals.second}
                                     onCheckedChange={(v) => {
                                       setEditMeals(m => ({ ...m, second: !!v }));
-                                      if (!v) setEditData(d => ({ ...d, secondMealStart: null, secondMealFinish: null }));
+                                      if (!v) {
+                                        editSecondTouched.current = false;
+                                        setEditData(d => ({ ...d, secondMealStart: null, secondMealFinish: null }));
+                                      } else {
+                                        setEditData((d) => {
+                                          const start = followedTime(d.firstMealFinish, d.secondMealStart, MEAL_PENALTIES.maxHoursBeforeSecondMeal * 60);
+                                          return {
+                                            ...d,
+                                            secondMealStart: start,
+                                            secondMealFinish: followedTime(start, d.secondMealFinish, MEAL_MINUTES),
+                                          };
+                                        });
+                                      }
                                     }}
                                   />
                                   <Label htmlFor="edit-showSecondMeal" className="text-base font-normal">2nd Meal</Label>
@@ -1243,7 +1281,8 @@ export default function WorkDetailPage() {
                                       <TimeSelect
                                         id="edit-secondMealStart"
                                         value={editData.secondMealStart || ""}
-                                        onChange={(v) =>
+                                        onChange={(v) => {
+                                          editSecondTouched.current = true;
                                           setEditData((d) => ({
                                             ...d,
                                             secondMealStart: v || null,
@@ -1252,8 +1291,8 @@ export default function WorkDetailPage() {
                                               d.secondMealFinish,
                                               MEAL_MINUTES
                                             ),
-                                          }))
-                                        }
+                                          }));
+                                        }}
                                         compact
                                       />
                                     </div>
@@ -1263,6 +1302,12 @@ export default function WorkDetailPage() {
                                     </div>
                                   </div>
                                 )}
+                                {editMeals.second &&
+                                  secondMealOrderWarning(editData.firstMealFinish, editData.secondMealStart) && (
+                                    <p className="px-2 pb-2 text-xs text-amber-400">
+                                      {secondMealOrderWarning(editData.firstMealFinish, editData.secondMealStart)}
+                                    </p>
+                                  )}
                                 {editMeals.second &&
                                   mealLengthWarning(editData.secondMealStart, editData.secondMealFinish) && (
                                     <p className="px-2 pb-2 text-xs text-amber-400">

@@ -41,14 +41,14 @@ import {
 } from "@/lib/agreements";
 import { toast } from "sonner";
 import type { ExhibitGInput, WorkDocument, CalculationBreakdown } from "@/types";
-import { ratesForDate } from "@/lib/rate-constants";
+import { MEAL_PENALTIES, ratesForDate } from "@/lib/rate-constants";
 import { Save } from "lucide-react";
 import { snapToSixMinutes, formatCurrency } from "@/lib/time-utils";
 import { MEAL_MINUTES } from "@/components/calculator/time-select";
 import { followedTime } from "@/lib/follow-time";
 import { calculateRate } from "@/lib/rate-engine";
 import { checkNdMeal, ND_MEAL_WINDOW_HOURS } from "@/lib/nd-meal";
-import { mealLengthWarning } from "@/lib/meal-length";
+import { mealLengthWarning, secondMealOrderWarning } from "@/lib/meal-length";
 import { WRAP_MINUTES, wrapOrderWarning } from "@/lib/wrap-check";
 import {
   additionalContractPay,
@@ -167,6 +167,14 @@ export function ExhibitGForm() {
   const [showNdMeal, setShowNdMeal] = useState(false);
   const [showFirstMeal, setShowFirstMeal] = useState(true); // 1st meal selected by default
   const [showSecondMeal, setShowSecondMeal] = useState(false);
+  const showSecondMealRef = useRef(false);
+  showSecondMealRef.current = showSecondMeal;
+  /**
+   * Whether the performer set the 2nd meal's In themselves. An offered
+   * default keeps tracking six hours after the 1st meal as it moves; a
+   * hand-set time stays wherever later they put it.
+   */
+  const secondMealTouched = useRef(false);
   /**
    * Off until asked for. Ticked, the counter runs in real time — the
    * number climbing is the point of watching it. A second checkbox under
@@ -198,13 +206,30 @@ export function ExhibitGForm() {
       finishField: "firstMealFinish" | "secondMealFinish",
       value: string
     ) => {
-      setInput((prev) => ({
-        ...prev,
-        [startField]: value || null,
+      setInput((prev) => {
         // The Out follows: offered when empty, moved when the new In just
         // crossed it, kept when it already sits later.
-        [finishField]: followedTime(value, prev[finishField], MEAL_MINUTES),
-      }));
+        const finish = followedTime(value, prev[finishField], MEAL_MINUTES);
+        const next = {
+          ...prev,
+          [startField]: value || null,
+          [finishField]: finish,
+        };
+        // And the 2nd meal follows the 1st: six hours on by default, kept
+        // wherever later the performer put it.
+        if (startField === "secondMealStart") secondMealTouched.current = true;
+        if (startField === "firstMealStart" && showSecondMealRef.current) {
+          next.secondMealStart = secondMealTouched.current
+            ? followedTime(finish, prev.secondMealStart, MEAL_PENALTIES.maxHoursBeforeSecondMeal * 60)
+            : followedTime(finish, null, MEAL_PENALTIES.maxHoursBeforeSecondMeal * 60);
+          next.secondMealFinish = followedTime(
+            next.secondMealStart,
+            prev.secondMealFinish,
+            MEAL_MINUTES
+          );
+        }
+        return next;
+      });
     },
     []
   );
@@ -954,7 +979,7 @@ export function ExhibitGForm() {
                       </div>
                       <div>
                         <Label htmlFor="firstMealFinish" className="text-sm text-muted-foreground">Out</Label>
-                        <TimeSelect id="firstMealFinish" value={input.firstMealFinish || ""} onChange={(v) => update("firstMealFinish", v || null)} compact />
+                        <TimeSelect id="firstMealFinish" value={input.firstMealFinish || ""} onChange={(v) => setInput((prev) => { if (!showSecondMeal) return { ...prev, firstMealFinish: v || null }; const start = secondMealTouched.current ? followedTime(v, prev.secondMealStart, MEAL_PENALTIES.maxHoursBeforeSecondMeal * 60) : followedTime(v, null, MEAL_PENALTIES.maxHoursBeforeSecondMeal * 60); return { ...prev, firstMealFinish: v || null, secondMealStart: start, secondMealFinish: followedTime(start, prev.secondMealFinish, MEAL_MINUTES) }; })} compact />
                       </div>
                     </div>
                   )}
@@ -969,7 +994,7 @@ export function ExhibitGForm() {
                 {showFirstMeal && (
                 <div className="space-y-0">
                   <div className="flex items-center space-x-2 p-2">
-                    <Checkbox id="showSecondMeal" checked={showSecondMeal} onCheckedChange={(v) => { setShowSecondMeal(!!v); if (!v) { update("secondMealStart", null); update("secondMealFinish", null); } }} />
+                    <Checkbox id="showSecondMeal" checked={showSecondMeal} onCheckedChange={(v) => { setShowSecondMeal(!!v); if (!v) { secondMealTouched.current = false; update("secondMealStart", null); update("secondMealFinish", null); } else { setInput((prev) => { const start = followedTime(prev.firstMealFinish, prev.secondMealStart, MEAL_PENALTIES.maxHoursBeforeSecondMeal * 60); return { ...prev, secondMealStart: start, secondMealFinish: followedTime(start, prev.secondMealFinish, MEAL_MINUTES) }; }); } }} />
                     <Label htmlFor="showSecondMeal" className="text-base font-normal">2nd Meal</Label>
                   </div>
                   {showSecondMeal && (
@@ -984,6 +1009,12 @@ export function ExhibitGForm() {
                       </div>
                     </div>
                   )}
+                  {showSecondMeal &&
+                    secondMealOrderWarning(input.firstMealFinish, input.secondMealStart) && (
+                      <p className="px-2 pb-2 text-xs text-amber-400">
+                        {secondMealOrderWarning(input.firstMealFinish, input.secondMealStart)}
+                      </p>
+                    )}
                   {showSecondMeal &&
                     mealLengthWarning(input.secondMealStart, input.secondMealFinish) && (
                       <p className="px-2 pb-2 text-xs text-amber-400">

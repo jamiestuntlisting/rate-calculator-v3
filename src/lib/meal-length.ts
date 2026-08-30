@@ -56,3 +56,21 @@ export function mealLengthWarning(
   const length = m === 0 ? `${h}h` : `${h}h ${m}m`;
   return `Lunch is at most an hour — this one runs ${length}.`;
 }
+
+/**
+ * The meals happen in order: the 2nd starts after the 1st ends. The
+ * forms offer the 2nd six hours on (the meal-interval rule) and drag it
+ * along if the 1st moves past it, so this warning is for an order
+ * someone actually typed. Judged by the same twelve-hour overnight
+ * reading as the length check.
+ */
+export function secondMealOrderWarning(
+  firstMealFinish: string | null | undefined,
+  secondMealStart: string | null | undefined
+): string | null {
+  if (!firstMealFinish || !secondMealStart) return null;
+  if (calculateDuration(firstMealFinish, secondMealStart) < 12 * 60) {
+    return null;
+  }
+  return "The 2nd meal lands before the 1st — check the order.";
+}

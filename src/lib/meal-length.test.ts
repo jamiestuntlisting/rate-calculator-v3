@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { checkMealLength, mealLengthWarning } from "./meal-length";
+import { checkMealLength, mealLengthWarning, secondMealOrderWarning } from "./meal-length";
 
 describe("meal length", () => {
   it("accepts the half hour and the hour, the two ends of the rule", () => {
@@ -34,5 +34,22 @@ describe("meal length", () => {
     expect(checkMealLength("12:00", null)).toBeNull();
     expect(checkMealLength(null, "12:30")).toBeNull();
     expect(mealLengthWarning("", "")).toBeNull();
+  });
+});
+
+describe("the meals happen in order", () => {
+  it("says nothing when the 2nd meal follows the 1st", () => {
+    expect(secondMealOrderWarning("12:30", "18:30")).toBeNull();
+    // A night shoot's 2nd meal after midnight still follows.
+    expect(secondMealOrderWarning("22:30", "01:00")).toBeNull();
+  });
+
+  it("warns when the 2nd meal was typed before the 1st", () => {
+    expect(secondMealOrderWarning("12:30", "09:24")).toContain("before the 1st");
+  });
+
+  it("says nothing while a time is missing", () => {
+    expect(secondMealOrderWarning(null, "09:24")).toBeNull();
+    expect(secondMealOrderWarning("12:30", null)).toBeNull();
   });
 });
