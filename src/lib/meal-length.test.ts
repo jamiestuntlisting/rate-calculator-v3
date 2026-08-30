@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { checkMealLength, mealLengthWarning, secondMealOrderWarning } from "./meal-length";
+import { checkMealLength, clampMealFinish, mealLengthWarning, secondMealOrderWarning } from "./meal-length";
 
 describe("meal length", () => {
   it("accepts the half hour and the hour, the two ends of the rule", () => {
@@ -51,5 +51,31 @@ describe("the meals happen in order", () => {
   it("says nothing while a time is missing", () => {
     expect(secondMealOrderWarning(null, "09:24")).toBeNull();
     expect(secondMealOrderWarning("12:30", null)).toBeNull();
+  });
+});
+
+describe("the lunch band is enforced, not just warned about", () => {
+  it("lets a legal meal through untouched", () => {
+    expect(clampMealFinish("12:00", "12:30")).toBe("12:30");
+    expect(clampMealFinish("12:00", "13:00")).toBe("13:00");
+    expect(clampMealFinish("23:45", "00:15")).toBe("00:15");
+  });
+
+  it("snaps a short meal to the half hour", () => {
+    expect(clampMealFinish("12:00", "12:10")).toBe("12:30");
+  });
+
+  it("snaps a long meal to the hour", () => {
+    // In 10:27, Out picked at 11:57 — an hour and a half becomes the hour.
+    expect(clampMealFinish("10:27", "11:57")).toBe("11:27");
+  });
+
+  it("leaves a crossed pair for the swapped warning", () => {
+    expect(clampMealFinish("14:30", "14:05")).toBe("14:05");
+  });
+
+  it("passes through while a time is missing", () => {
+    expect(clampMealFinish(null, "12:10")).toBe("12:10");
+    expect(clampMealFinish("12:00", null)).toBeNull();
   });
 });

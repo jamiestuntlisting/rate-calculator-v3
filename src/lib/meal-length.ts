@@ -74,3 +74,31 @@ export function secondMealOrderWarning(
   }
   return "The 2nd meal lands before the 1st — check the order.";
 }
+
+const addWrapped = (time: string, minutes: number): string => {
+  const m = /^(\d{1,2}):(\d{2})$/.exec(time);
+  if (!m) return time;
+  const total = (Number(m[1]) * 60 + Number(m[2]) + minutes) % (24 * 60);
+  return `${String(Math.floor(total / 60)).padStart(2, "0")}:${String(
+    total % 60
+  ).padStart(2, "0")}`;
+};
+
+/**
+ * A lunch is not allowed outside its band: an Out that would make the
+ * meal shorter than half an hour snaps to In + 30, longer than an hour
+ * snaps to In + 60. A crossed pair (the overnight reading past twelve
+ * hours) is left for the follow logic and the swapped warning — this
+ * only disciplines meals that are meals.
+ */
+export function clampMealFinish(
+  start: string | null | undefined,
+  finish: string | null | undefined
+): string | null {
+  if (!start || !finish) return finish ?? null;
+  const minutes = calculateDuration(start, finish);
+  if (minutes >= 12 * 60) return finish;
+  if (minutes < MEAL_MIN_MINUTES) return addWrapped(start, MEAL_MIN_MINUTES);
+  if (minutes > MEAL_MAX_MINUTES) return addWrapped(start, MEAL_MAX_MINUTES);
+  return finish;
+}

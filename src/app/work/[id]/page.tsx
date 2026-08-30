@@ -21,7 +21,7 @@ import {
 import { GapLine } from "@/components/calculator/gap-line";
 import { CollapsibleSection } from "@/components/calculator/collapsible-section";
 import { checkNdMeal, ND_MEAL_WINDOW_HOURS } from "@/lib/nd-meal";
-import { mealLengthWarning, secondMealOrderWarning } from "@/lib/meal-length";
+import { clampMealFinish, mealLengthWarning, secondMealOrderWarning } from "@/lib/meal-length";
 import { WRAP_MINUTES, wrapOrderWarning } from "@/lib/wrap-check";
 import { ShowCombobox } from "@/components/shared/show-combobox";
 import { effectiveHourlyRate, workHoursFor } from "@/lib/work-hours";
@@ -1199,10 +1199,13 @@ export default function WorkDetailPage() {
                                           // moved when crossed, kept when
                                           // later — and the 2nd meal follows
                                           // the 1st, six hours on by default.
-                                          const finish = followedTime(
+                                          const finish = clampMealFinish(
                                             v,
-                                            d.firstMealFinish,
-                                            MEAL_MINUTES
+                                            followedTime(
+                                              v,
+                                              d.firstMealFinish,
+                                              MEAL_MINUTES
+                                            )
                                           );
                                           const next = {
                                             ...d,
@@ -1231,7 +1234,7 @@ export default function WorkDetailPage() {
                                   </div>
                                   <div>
                                     <Label htmlFor="edit-firstMealFinish" className="text-sm text-muted-foreground">Out</Label>
-                                    <TimeSelect id="edit-firstMealFinish" value={editData.firstMealFinish || ""} onChange={(v) => setEditData((d) => { const next = { ...d, firstMealFinish: v || null }; if (editMeals.second) { next.secondMealStart = editSecondTouched.current ? followedTime(v, d.secondMealStart, MEAL_PENALTIES.maxHoursBeforeSecondMeal * 60) : followedTime(v, null, MEAL_PENALTIES.maxHoursBeforeSecondMeal * 60); next.secondMealFinish = followedTime(next.secondMealStart, d.secondMealFinish, MEAL_MINUTES); } return next; })} compact />
+                                    <TimeSelect id="edit-firstMealFinish" value={editData.firstMealFinish || ""} onChange={(v) => setEditData((d) => { const next = { ...d, firstMealFinish: clampMealFinish(d.firstMealStart, v || null) }; if (editMeals.second) { next.secondMealStart = editSecondTouched.current ? followedTime(next.firstMealFinish, d.secondMealStart, MEAL_PENALTIES.maxHoursBeforeSecondMeal * 60) : followedTime(next.firstMealFinish, null, MEAL_PENALTIES.maxHoursBeforeSecondMeal * 60); next.secondMealFinish = followedTime(next.secondMealStart, d.secondMealFinish, MEAL_MINUTES); } return next; })} compact />
                                   </div>
                                 </div>
                               )}
@@ -1286,10 +1289,13 @@ export default function WorkDetailPage() {
                                           setEditData((d) => ({
                                             ...d,
                                             secondMealStart: v || null,
-                                            secondMealFinish: followedTime(
+                                            secondMealFinish: clampMealFinish(
                                               v,
-                                              d.secondMealFinish,
-                                              MEAL_MINUTES
+                                              followedTime(
+                                                v,
+                                                d.secondMealFinish,
+                                                MEAL_MINUTES
+                                              )
                                             ),
                                           }));
                                         }}
@@ -1298,7 +1304,7 @@ export default function WorkDetailPage() {
                                     </div>
                                     <div>
                                       <Label htmlFor="edit-secondMealFinish" className="text-sm text-muted-foreground">Out</Label>
-                                      <TimeSelect id="edit-secondMealFinish" value={editData.secondMealFinish || ""} onChange={(v) => setEditData(d => ({ ...d, secondMealFinish: v || null }))} compact />
+                                      <TimeSelect id="edit-secondMealFinish" value={editData.secondMealFinish || ""} onChange={(v) => setEditData(d => ({ ...d, secondMealFinish: clampMealFinish(d.secondMealStart, v || null) }))} compact />
                                     </div>
                                   </div>
                                 )}

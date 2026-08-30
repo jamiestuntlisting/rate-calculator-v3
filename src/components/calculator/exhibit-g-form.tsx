@@ -48,7 +48,7 @@ import { MEAL_MINUTES } from "@/components/calculator/time-select";
 import { followedTime } from "@/lib/follow-time";
 import { calculateRate } from "@/lib/rate-engine";
 import { checkNdMeal, ND_MEAL_WINDOW_HOURS } from "@/lib/nd-meal";
-import { mealLengthWarning, secondMealOrderWarning } from "@/lib/meal-length";
+import { clampMealFinish, mealLengthWarning, secondMealOrderWarning } from "@/lib/meal-length";
 import { WRAP_MINUTES, wrapOrderWarning } from "@/lib/wrap-check";
 import {
   additionalContractPay,
@@ -209,7 +209,10 @@ export function ExhibitGForm() {
       setInput((prev) => {
         // The Out follows: offered when empty, moved when the new In just
         // crossed it, kept when it already sits later.
-        const finish = followedTime(value, prev[finishField], MEAL_MINUTES);
+        const finish = clampMealFinish(
+          value,
+          followedTime(value, prev[finishField], MEAL_MINUTES)
+        );
         const next = {
           ...prev,
           [startField]: value || null,
@@ -979,7 +982,7 @@ export function ExhibitGForm() {
                       </div>
                       <div>
                         <Label htmlFor="firstMealFinish" className="text-sm text-muted-foreground">Out</Label>
-                        <TimeSelect id="firstMealFinish" value={input.firstMealFinish || ""} onChange={(v) => setInput((prev) => { if (!showSecondMeal) return { ...prev, firstMealFinish: v || null }; const start = secondMealTouched.current ? followedTime(v, prev.secondMealStart, MEAL_PENALTIES.maxHoursBeforeSecondMeal * 60) : followedTime(v, null, MEAL_PENALTIES.maxHoursBeforeSecondMeal * 60); return { ...prev, firstMealFinish: v || null, secondMealStart: start, secondMealFinish: followedTime(start, prev.secondMealFinish, MEAL_MINUTES) }; })} compact />
+                        <TimeSelect id="firstMealFinish" value={input.firstMealFinish || ""} onChange={(v) => setInput((prev) => { const fin = clampMealFinish(prev.firstMealStart, v || null); if (!showSecondMeal) return { ...prev, firstMealFinish: fin }; const start = secondMealTouched.current ? followedTime(fin, prev.secondMealStart, MEAL_PENALTIES.maxHoursBeforeSecondMeal * 60) : followedTime(fin, null, MEAL_PENALTIES.maxHoursBeforeSecondMeal * 60); return { ...prev, firstMealFinish: fin, secondMealStart: start, secondMealFinish: followedTime(start, prev.secondMealFinish, MEAL_MINUTES) }; })} compact />
                       </div>
                     </div>
                   )}
@@ -1005,7 +1008,7 @@ export function ExhibitGForm() {
                       </div>
                       <div>
                         <Label htmlFor="secondMealFinish" className="text-sm text-muted-foreground">Out</Label>
-                        <TimeSelect id="secondMealFinish" value={input.secondMealFinish || ""} onChange={(v) => update("secondMealFinish", v || null)} compact />
+                        <TimeSelect id="secondMealFinish" value={input.secondMealFinish || ""} onChange={(v) => setInput((prev) => ({ ...prev, secondMealFinish: clampMealFinish(prev.secondMealStart, v || null) }))} compact />
                       </div>
                     </div>
                   )}
