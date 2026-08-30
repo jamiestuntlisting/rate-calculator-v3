@@ -1,76 +1,183 @@
-// SAG-AFTRA Theatrical Basic Agreement (effective 07/01/2026).
-// The 2026 TV/Theatrical contract raised minimums 3% on 07/01/2026; the day
-// performer rate went from $1,246 to $1,283. The other figures below carry
-// the same 3% increase forward from the 2025-2026 schedule.
-/** A day performer's minimum on a low budget agreement, as a share of basic. */
-function lowBudget(share: number) {
-  const money = (n: number) => Math.round(n * 100) / 100;
-  const daily = money(1283.0 * share);
-  return {
+// SAG-AFTRA Theatrical/Television Basic Agreement rates, by effective date.
+//
+// Rates change on July 1 (the 2023 cycle's mid-year 11/9/23 bump being the
+// strike-year exception), so a work day is priced by the schedule in force
+// on its date — a 2025 day at 2025 rates, whatever year it is entered.
+//
+// The schedules below are the ones that could be VERIFIED against the
+// published wage tables (each row a clean 3% ladder, daily and weekly rows
+// cross-checking at the performer's daily-to-weekly ratio, and two cells
+// anchored by real 08/2026 contracts). Years before 07/01/2025 are absent
+// on purpose: the app never guesses a rate, so a day before the earliest
+// schedule uses the earliest schedule and /admin/rates says so. When the
+// real tables for earlier years are in hand they slot in here.
+//
+// "scheduled increase" rows carry the 2026-30 agreement's contractual 3%
+// raises. Most of their cells are quoted in the published five-year
+// ladders; the day performer dailies past 07/26 are projected by the same
+// nearest-dollar 3% rule that reproduces every verified ladder, and should
+// be confirmed against the posted table each July.
+
+export interface ScheduleCells {
+  /** Day performer (Schedule A/H) daily and weekly minimums. */
+  basicDaily: number;
+  basicWeekly: number;
+  /** Stunt coordinator on a flat deal (Schedule K-III). */
+  coordFlatDaily: number;
+  coordFlatWeekly: number;
+  /** Stunt coordinator employed at less than flat deal (K-I / K-II). */
+  coordDailyDaily: number;
+  coordDailyWeekly: number;
+}
+
+export interface RateScheduleEntry {
+  /** First day this schedule applies, YYYY-MM-DD. */
+  effectiveFrom: string;
+  /** Where the figures come from — shown on /admin/rates. */
+  source: "wage tables" | "scheduled increase";
+  cells: ScheduleCells;
+}
+
+/** Ascending by effective date. */
+export const RATE_SCHEDULES: RateScheduleEntry[] = [
+  {
+    effectiveFrom: "2025-07-01",
+    source: "wage tables",
+    cells: {
+      basicDaily: 1246.0,
+      basicWeekly: 4646.0,
+      coordFlatDaily: 1647.0,
+      coordFlatWeekly: 6555.0,
+      coordDailyDaily: 1290.0,
+      coordDailyWeekly: 4811.0,
+    },
+  },
+  {
+    effectiveFrom: "2026-07-01",
+    source: "wage tables",
+    cells: {
+      basicDaily: 1283.0,
+      basicWeekly: 4785.0,
+      coordFlatDaily: 1696.0,
+      coordFlatWeekly: 6752.0,
+      coordDailyDaily: 1329.0,
+      coordDailyWeekly: 4955.0,
+    },
+  },
+  {
+    effectiveFrom: "2027-07-01",
+    source: "scheduled increase",
+    cells: {
+      basicDaily: 1321.0,
+      basicWeekly: 4929.0,
+      coordFlatDaily: 1747.0,
+      coordFlatWeekly: 6955.0,
+      coordDailyDaily: 1369.0,
+      coordDailyWeekly: 5104.0,
+    },
+  },
+  {
+    effectiveFrom: "2028-07-01",
+    source: "scheduled increase",
+    cells: {
+      basicDaily: 1361.0,
+      basicWeekly: 5077.0,
+      coordFlatDaily: 1799.0,
+      coordFlatWeekly: 7164.0,
+      coordDailyDaily: 1410.0,
+      coordDailyWeekly: 5257.0,
+    },
+  },
+  {
+    effectiveFrom: "2029-07-01",
+    source: "scheduled increase",
+    cells: {
+      basicDaily: 1402.0,
+      basicWeekly: 5229.0,
+      coordFlatDaily: 1853.0,
+      coordFlatWeekly: 7379.0,
+      coordDailyDaily: 1452.0,
+      coordDailyWeekly: 5415.0,
+    },
+  },
+];
+
+export type RateSchedule =
+  | "theatrical_basic"
+  | "television"
+  | "stunt_coordinator"
+  | "stunt_coordinator_daily"
+  | "low_budget"
+  | "modified_low_budget"
+  | "ultra_low_budget";
+
+export interface RateEntry {
+  daily: number;
+  weekly: number;
+  hourly: number;
+  straightTimeHours: number;
+}
+
+export type RateTable = Record<RateSchedule, RateEntry>;
+
+const money = (n: number) => Math.round(n * 100) / 100;
+
+/**
+ * A full rate table from one schedule's cells. Television pays the same
+ * as Theatrical. The low budget agreements do not publish their own
+ * dollar minimums — each is written as a percentage of "the applicable
+ * rate from the Basic Agreement current at the time of performance", so
+ * they are derived and move with the basic rate, which is what the
+ * contract says happens. Stunt COORDINATORS are excluded from the
+ * reduction in all three: Schedule K applies whatever the budget.
+ */
+function buildRates(cells: ScheduleCells): RateTable {
+  const performer = (daily: number, weekly: number): RateEntry => ({
     daily,
-    weekly: money(4785.0 * share),
+    weekly,
     hourly: daily / 8,
     straightTimeHours: 8,
+  });
+  const lowBudget = (share: number): RateEntry =>
+    performer(money(cells.basicDaily * share), money(cells.basicWeekly * share));
+  return {
+    theatrical_basic: performer(cells.basicDaily, cells.basicWeekly),
+    television: performer(cells.basicDaily, cells.basicWeekly),
+    stunt_coordinator: performer(cells.coordFlatDaily, cells.coordFlatWeekly),
+    stunt_coordinator_daily: performer(
+      cells.coordDailyDaily,
+      cells.coordDailyWeekly
+    ),
+    low_budget: lowBudget(0.65),
+    modified_low_budget: lowBudget(0.35),
+    ultra_low_budget: lowBudget(0.2),
   };
 }
 
-export const RATES = {
-  theatrical_basic: {
-    daily: 1283.0,
-    weekly: 4785.0,
-    hourly: 160.375, // 1283 / 8
-    straightTimeHours: 8,
-  },
-  television: {
-    daily: 1283.0,
-    weekly: 4785.0,
-    hourly: 160.375, // same rate as theatrical
-    straightTimeHours: 8,
-  },
-  // A coordinator on a "flat deal" (Schedule K-III): one number for the
-  // day or week, no overtime. Verified against the 2026-30 wage tables'
-  // 07/01/26 column — the daily ladder runs 1,647 / 1,696 / 1,747 / 1,799
-  // / 1,853 and the weekly 6,555 / 6,752 / 6,955 / 7,164 / 7,379, each a
-  // clean 3% step, and James's own 08/2026 coordinator contract is
-  // written at exactly $1,696. The 1,996/7,439 previously here matched no
-  // published row.
-  stunt_coordinator: {
-    daily: 1696.0,
-    weekly: 6752.0,
-    hourly: 212.0, // 1696 / 8
-    straightTimeHours: 8,
-  },
+const BUILT: RateTable[] = RATE_SCHEDULES.map((s) => buildRates(s.cells));
 
-  // A coordinator employed at *less than* flat deal (Schedule K-I daily,
-  // K-II weekly) works overtime like anyone else — which is the reason the
-  // two exist separately. It does NOT track the day performer minimum: the
-  // tables carry its own rows, about 3.6% above the performer's (daily
-  // ladder 1,290 / 1,329 / 1,369 / 1,410 / 1,452; weekly 4,811 / 4,955 /
-  // 5,104 / 5,257 / 5,415), cross-checking daily-to-weekly at the same
-  // ratio as the performer rows.
-  stunt_coordinator_daily: {
-    daily: 1329.0,
-    weekly: 4955.0,
-    hourly: 166.125, // 1329 / 8
-    straightTimeHours: 8,
-  },
+/**
+ * The rate table in force on a date. No date, or a date before the
+ * earliest schedule, falls back to the earliest applicable table rather
+ * than inventing one; a date past the last schedule uses the last.
+ */
+export function ratesForDate(workDate?: string | null): RateTable {
+  const d =
+    workDate && /^\d{4}-\d{2}-\d{2}/.test(workDate)
+      ? workDate.slice(0, 10)
+      : new Date().toISOString().slice(0, 10);
+  let pick = 0;
+  for (let i = 0; i < RATE_SCHEDULES.length; i++) {
+    if (RATE_SCHEDULES[i].effectiveFrom <= d) pick = i;
+  }
+  return BUILT[pick];
+}
 
-  // The low budget agreements do not publish their own dollar minimums.
-  // Each is written as a percentage of "the applicable rate from the Basic
-  // Agreement current at the time of performance", so they are derived from
-  // the schedule above rather than typed out — when the basic rate moves,
-  // these move with it, which is what the contract says happens.
-  //
-  // Stunt COORDINATORS are excluded from the reduction in all three: their
-  // daily, weekly and flat-deal rates track Schedule K of the Basic
-  // Agreement whatever the production's budget, so a coordinator on a low
-  // budget show is still `stunt_coordinator` above.
-  low_budget: lowBudget(0.65),
-  modified_low_budget: lowBudget(0.35),
-  ultra_low_budget: lowBudget(0.2),
-} as const;
-
-export type RateSchedule = keyof typeof RATES;
+/**
+ * Today's rates — what pickers and labels show. Calculation paths pass
+ * the work day's date to `ratesForDate` instead of reading this.
+ */
+export const RATES: RateTable = ratesForDate();
 
 export const OVERTIME = {
   straightTimeEnd: 8, // hours 1-8 at 1.0x
@@ -101,4 +208,6 @@ export const FORCED_CALL = {
 
 export const TIME_INCREMENT_MINUTES = 6; // OT in 1/10th hour (6-min) increments
 
-export const EFFECTIVE_DATE = "2026-07-01"; // SAG-AFTRA contract effective date encoded by this version
+/** The newest schedule this build knows about. */
+export const EFFECTIVE_DATE =
+  RATE_SCHEDULES[RATE_SCHEDULES.length - 1].effectiveFrom;

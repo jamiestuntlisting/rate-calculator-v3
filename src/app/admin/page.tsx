@@ -14,6 +14,7 @@ import {
   Ban,
   ListTodo,
   FlaskConical,
+  CalendarClock,
 } from "lucide-react";
 import { useAuth } from "@/context/auth-context";
 import { isAdminEmail } from "@/lib/admin-emails";
@@ -49,6 +50,12 @@ const ADMIN_PAGES = [
     title: "Names",
     detail: "Block misspelled show titles and character names.",
     icon: Ban,
+  },
+  {
+    href: "/admin/rates",
+    title: "Rate schedules",
+    detail: "The rates in force by date — what any work day is priced on.",
+    icon: CalendarClock,
   },
   {
     href: "/admin/weekly-bench",

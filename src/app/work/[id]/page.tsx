@@ -8,8 +8,10 @@ import { Input } from "@/components/ui/input";
 import { TimeSelect, toDisplay } from "@/components/calculator/time-select";
 import {
   AGREEMENTS,
+  FLAT_AGREEMENTS,
   agreementLabel,
   dayRate,
+  isFlatAgreement,
   weeklyAgreementLabel,
   weeklyEquivalentDayRate,
 } from "@/lib/agreements";
@@ -446,15 +448,20 @@ export default function WorkDetailPage() {
         workStatus: editData.workStatus,
         // Without this the recalculation drops the flat deal, puts the day
         // back on scale and pays it overtime a flat deal never earns. The
-        // flat rate is set on Log Work; here it just survives the edit.
-        flatDayRate: record?.flatDayRate ?? null,
+        // flat rate is set on Log Work; here it survives the edit — unless
+        // a commercial/flat-deal record was moved onto a schedule, where
+        // the schedule takes over pricing.
+        flatDayRate:
+          isFlatAgreement(record?.workStatus) && !isFlatAgreement(editData.workStatus)
+            ? null
+            : record?.flatDayRate ?? null,
         // A weekly's day is approximated at the weekly scale over five
         // days — a scale day at that rate, shown everywhere with an
         // asterisk. Recalculating without it would price the day at the
         // daily scale, which is not the contract that was signed.
         dayRateOverride:
           editData.contractLength === "weekly"
-            ? weeklyEquivalentDayRate(editData.workStatus)
+            ? weeklyEquivalentDayRate(editData.workStatus, editData.workDate)
             : null,
         contractLength: editData.contractLength,
         weeklyContract: editData.contractLength === "weekly",
@@ -484,7 +491,8 @@ export default function WorkDetailPage() {
               record?.contracts,
               editData.workStatus as RateSchedule | null,
               record?.multipleEpisodeWeekly ?? false,
-              record?.flatDayRate
+              record?.flatDayRate,
+              editData.workDate
             ).pay;
         }
       }
@@ -1024,6 +1032,15 @@ export default function WorkDetailPage() {
                                   : agreementLabel(agreement.id)}
                               </SelectItem>
                             ))}
+                            {FLAT_AGREEMENTS.map((agreement) => (
+                              <SelectItem
+                                key={agreement.id}
+                                value={agreement.id}
+                                className="text-base"
+                              >
+                                {agreement.name} — the record&rsquo;s own rate
+                              </SelectItem>
+                            ))}
                           </SelectContent>
                         </Select>
                       </div>
@@ -1366,7 +1383,7 @@ export default function WorkDetailPage() {
                       <p className="text-muted-foreground">Agreement</p>
                       <p className="font-semibold">
                         {record.flatDayRate
-                          ? `Flat ${dayRate(record.flatDayRate)}`
+                          ? `${record.workStatus === "commercial" ? "Commercial" : "Flat"} ${dayRate(record.flatDayRate)}`
                           : record.weeklyContract
                             ? weeklyAgreementLabel(record.workStatus || "")
                             : agreementLabel(record.workStatus || "")}

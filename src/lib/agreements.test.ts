@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { calculateRate } from "@/lib/rate-engine";
-import { RATES } from "@/lib/rate-constants";
+import { RATES, ratesForDate } from "@/lib/rate-constants";
 import type { ExhibitGInput } from "@/lib/rate-calculator/types";
 import {
   AGREEMENTS,
@@ -32,6 +32,48 @@ const day = (over: Partial<ExhibitGInput> = {}): ExhibitGInput => ({
   characterName: "",
   notes: "",
   ...over,
+});
+
+describe("the rate schedules", () => {
+  it("picks the schedule in force on the work day", () => {
+    expect(ratesForDate("2026-06-30").theatrical_basic.daily).toBe(1246);
+    expect(ratesForDate("2026-07-01").theatrical_basic.daily).toBe(1283);
+    expect(ratesForDate("2027-07-01").theatrical_basic.daily).toBe(1321);
+  });
+
+  it("never guesses before the earliest schedule, and holds the latest after the last", () => {
+    // A 2021 day needs the real 2021 table, which is not loaded — until it
+    // is, the earliest known schedule applies rather than an invented one.
+    expect(ratesForDate("2021-03-15").theatrical_basic.daily).toBe(1246);
+    expect(ratesForDate("2031-01-01").theatrical_basic.daily).toBe(1402);
+  });
+
+  it("prices the same times differently across the July 1 line", () => {
+    const before = calculateRate(day({ workDate: "2026-06-15" }));
+    const after = calculateRate(day({ workDate: "2026-07-15" }));
+    expect(before.baseRate).toBe(1246);
+    expect(after.baseRate).toBe(1283);
+    expect(after.grandTotal).toBeGreaterThan(before.grandTotal);
+  });
+
+  it("derives the low budget tiers from that year's own basic", () => {
+    expect(ratesForDate("2025-08-01").low_budget.daily).toBeCloseTo(
+      1246 * 0.65,
+      2
+    );
+  });
+
+  it("gives the weekly equivalent from the day's year", () => {
+    expect(
+      weeklyEquivalentDayRate("theatrical_basic", "2025-08-01")
+    ).toBeCloseTo(4646 / 5, 2);
+  });
+
+  it("carries the verified coordinator ladders by year", () => {
+    expect(ratesForDate("2025-08-01").stunt_coordinator.daily).toBe(1647);
+    expect(ratesForDate("2026-08-24").stunt_coordinator.daily).toBe(1696);
+    expect(ratesForDate("2025-08-01").stunt_coordinator_daily.weekly).toBe(4811);
+  });
 });
 
 describe("the low budget tiers", () => {

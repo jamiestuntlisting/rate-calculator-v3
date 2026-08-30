@@ -8,7 +8,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { toast } from "sonner";
 import { ChevronDown, ChevronRight, Info, Loader2 } from "lucide-react";
 import { formatCurrency } from "@/lib/time-utils";
-import { RATES, type RateSchedule } from "@/lib/rate-constants";
+import { RATES, ratesForDate, type RateSchedule } from "@/lib/rate-constants";
 import { AGREEMENTS, weekRate, weeklyAgreementLabel } from "@/lib/agreements";
 
 /**
@@ -155,10 +155,6 @@ export function WeeklyForm() {
   /** The day whose Exhibit G is open in the popup viewer, if any. */
   const [viewing, setViewing] = useState<WorkRecord | null>(null);
 
-  // An "other" deal has no published scale, so its own rate stands in —
-  // premiums then follow the deal rather than a schedule it is not on.
-  const scaleWeeklyRate =
-    agreement === "other" ? weeklyRate : RATES[agreement].weekly;
   const guarantee = distantLocation ? ("distant" as const) : ("studio" as const);
   const guaranteeHours =
     WEEKLY_GUARANTEES.find((g) => g.id === guarantee)?.hours ?? 44;
@@ -316,9 +312,18 @@ export function WeeklyForm() {
     () =>
       weeks.map((week) => {
         const override = overrides[week.start] ?? NO_OVERRIDE;
+        // The scale in force when the week was worked — a 2025 week at the
+        // 2025 weekly, whatever year it is entered. An "other" deal has no
+        // published scale, so its own rate stands in and premiums follow
+        // the deal rather than a schedule it is not on.
+        const weekFirstDay = (week.records[0]?.workDate ?? week.start).slice(0, 10);
+        const weekScale =
+          agreement === "other"
+            ? weeklyRate
+            : ratesForDate(weekFirstDay)[agreement].weekly;
         const { input, derivation } = workRecordsToWeeklyInput(week.records, {
-          scaleWeeklyRate,
-          contractWeeklyRate: weeklyRate,
+          scaleWeeklyRate: weekScale,
+          contractWeeklyRate: agreement === "other" ? weeklyRate : weekScale,
         });
         // Weekly overtime is the hours the week ran past its guarantee,
         // read off the days rather than asked for.
@@ -349,7 +354,7 @@ export function WeeklyForm() {
     [
       weeks,
       overrides,
-      scaleWeeklyRate,
+      agreement,
       weeklyRate,
       ready,
       guaranteeHours,

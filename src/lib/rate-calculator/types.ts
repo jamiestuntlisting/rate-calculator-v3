@@ -17,7 +17,12 @@ export interface ExhibitGInput {
   isSixthDay: boolean;
   isSeventhDay: boolean;
   isHoliday: boolean;
-  workStatus: RateSchedule;
+  /**
+   * A schedule from RATES, or an app-level flat agreement ("commercial",
+   * "flat_deal") that always rides `flatDayRate`. Unknown values fall
+   * back to basic for the lookup, and the flat rate wins over it.
+   */
+  workStatus: RateSchedule | (string & {});
   /**
    * A negotiated number that buys the day outright — a flat deal. Given
    * one, the day comes back as a single segment however long it ran and

@@ -105,7 +105,8 @@ export interface WorkRecord {
   isSixthDay: boolean;
   isSeventhDay: boolean;
   isHoliday: boolean;
-  workStatus: RateSchedule | null;
+  /** A schedule, or an app-level flat agreement ("commercial", "flat_deal"). */
+  workStatus: (RateSchedule | (string & {})) | null;
   /** A negotiated day rate instead of the schedule's — a flat deal. */
   flatDayRate?: number | null;
   /** The day belongs to a weekly contract; its money comes from the week. */

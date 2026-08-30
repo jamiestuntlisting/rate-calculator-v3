@@ -179,7 +179,7 @@ export async function POST(
           flatDayRate: Number(data.flatDayRate) > 0 ? Number(data.flatDayRate) : null,
           dayRateOverride:
             data.contractLength === "weekly" || data.weeklyContract
-              ? weeklyEquivalentDayRate(data.workStatus)
+              ? weeklyEquivalentDayRate(data.workStatus, data.workDate)
               : null,
           characterName: data.characterName ?? "",
           notes: data.notes ?? "",

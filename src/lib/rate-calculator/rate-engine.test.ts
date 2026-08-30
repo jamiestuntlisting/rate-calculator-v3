@@ -4,7 +4,9 @@ import type { ExhibitGInput } from "./types";
 
 const baseInput: ExhibitGInput = {
   showName: "Test",
-  workDate: "2026-04-22",
+  // Inside the 07/01/2026 schedule year — the engine now prices by the
+  // work day's date, and these expectations pin the 07/26 figures.
+  workDate: "2026-08-22",
   callTime: "06:00",
   dismissOnSet: "14:00",
   dismissMakeupWardrobe: null,

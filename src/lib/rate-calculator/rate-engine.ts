@@ -1,5 +1,5 @@
 import {
-  RATES,
+  ratesForDate,
   OVERTIME,
   MULTIPLIERS,
   MEAL_PENALTIES,
@@ -26,7 +26,10 @@ import type {
  * Pure function: takes Exhibit G input, returns full breakdown.
  */
 export function calculateRate(input: ExhibitGInput, options?: { skipRounding?: boolean; additionalSeconds?: number }): CalculationBreakdown {
-  const rates = RATES[input.workStatus as RateSchedule] ?? RATES.theatrical_basic;
+  // The schedule in force on the day being priced — a 2025 day pays 2025
+  // rates however long ago it is entered.
+  const table = ratesForDate(input.workDate);
+  const rates = table[input.workStatus as RateSchedule] ?? table.theatrical_basic;
   // A flat deal names its own day rate; otherwise an override (a scale-like
   // rate that is not the schedule's, e.g. a weekly's day equivalent) or the
   // schedule's daily applies.

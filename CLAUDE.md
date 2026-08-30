@@ -46,10 +46,14 @@ state stays in step.
 - **Rate engine** — `src/lib/rate-calculator/` is a *vendored verbatim copy*
   of the shared `StuntListing/rate-calculator` package (day rates, Exhibit G
   math). Do not edit it to fix app-level things; fix upstream and re-copy.
-  Its README lists the deliberate divergences: rates updated to the
-  07/01/2026 schedule (day performer $1,283), the three low budget
-  agreements, and the optional `flatDayRate` override — all of which the
-  source repo has not got. `@/lib/rate-engine`, `rate-constants`, `time-utils` are
+  Its README lists the deliberate divergences: date-keyed rate schedules
+  (`RATE_SCHEDULES`/`ratesForDate` — a work day is priced by the schedule
+  in force on its date; verified tables from 07/01/2025 through the
+  2026-30 agreement's scheduled raises; earlier dates use the earliest
+  schedule until real tables are added, and `/admin/rates` shows the
+  whole table), the three low budget agreements, `flatDayRate`,
+  `dayRateOverride`, and workStatus accepting the app's flat
+  pseudo-agreements — none of which the source repo has got. `@/lib/rate-engine`, `rate-constants`, `time-utils` are
   one-line re-export shims onto it.
 - **Agreements** — `src/lib/agreements.ts` is the only place the list of
   offered agreements is written down; the picker, the work page and
@@ -69,7 +73,10 @@ state stays in step.
   verified against the 2026-30 wage-table ladders in 08/2026, replacing
   a wrong $1,996/$7,439 flat pair and the wrong assumption that the
   daily coordinator tracks the day performer minimum.
-  A deal that is none of the schedules sets `flatDayRate` on the record.
+  A deal that is none of the schedules is picked as **Commercial** or
+  **Flat deal** in the same pulldown (`FLAT_AGREEMENTS`) — the performer
+  types the contract's number, `flatDayRate` rides the record, and the
+  old separate flat-rate checkbox is gone.
   **A flat deal earns no overtime**: the number buys the day, so the engine
   returns it as one segment however long the day ran, and a sixteen-hour
   day pays what an eight-hour day pays. Meal penalties are not wages and
@@ -231,11 +238,11 @@ Still waiting on James:
    customers, subscriptions, products) and the price ids for Plus and the
    transcription add-on. The $15 per-Exhibit-G price is a placeholder James
    has not confirmed.
-2. **Historical rate schedules** — rates are a single current set, so a 2021
-   work day is calculated at 2026 rates. Blocked twice over: the fix belongs
-   in the vendored engine and so must go upstream (item 4), and it needs the
-   real historical schedules as data. Guessing rates would silently misstate
-   pay.
+2. **Historical rate schedules** — built for 07/01/2025 onward (verified
+   tables + the 2026-30 scheduled raises); a day picks its schedule by
+   date. Still waiting on James for the pre-2025 wage tables — until then
+   older days use the 2025 figures and `/admin/rates` says so. The
+   11/9/2023 mid-year bump is the known wrinkle when those load.
 3. **Weekly overtime absorption threshold** — bounded, not pinned; see
    `OVERTIME_ABSORPTION_NOTE`. If James learns the real rule it is one
    constant.

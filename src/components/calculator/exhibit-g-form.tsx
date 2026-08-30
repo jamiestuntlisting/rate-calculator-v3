@@ -28,15 +28,16 @@ import { CollapsibleSection } from "@/components/calculator/collapsible-section"
 import { TimeSelect } from "@/components/calculator/time-select";
 import {
   AGREEMENTS,
+  FLAT_AGREEMENTS,
   agreementLabel,
   dayRate,
   dayRateFor,
+  isFlatAgreement,
   weeklyAgreementLabel,
   weeklyEquivalentDayRate,
 } from "@/lib/agreements";
 import { toast } from "sonner";
 import type { ExhibitGInput, WorkDocument, CalculationBreakdown } from "@/types";
-import type { RateSchedule } from "@/lib/rate-constants";
 import { RATES } from "@/lib/rate-constants";
 import { Save } from "lucide-react";
 import { snapToSixMinutes, formatCurrency } from "@/lib/time-utils";
@@ -137,11 +138,11 @@ export function ExhibitGForm() {
    */
   const [contracts, setContracts] = useState(1);
   /**
-   * A flat deal names its own day rate instead of taking a schedule's. The
-   * tick is separate state because "no rate yet" and "no flat deal" are the
-   * same value otherwise, and the box has to come before the number.
+   * Flatness comes from the picked agreement, not a separate checkbox —
+   * the contract says flat, so Commercial and Flat deal live in the
+   * pulldown and reveal the rate field.
    */
-  const [flatDeal, setFlatDeal] = useState(false);
+  const flatAgreement = isFlatAgreement(input.workStatus);
   /**
    * The day belongs to a weekly contract. It still logs its times and
    * still gets a daily working (the weekly derivation reads its overtime
@@ -258,7 +259,13 @@ export function ExhibitGForm() {
   const calcInput: ExhibitGInput = useMemo(
     () =>
       weeklyContract
-        ? { ...input, dayRateOverride: weeklyEquivalentDayRate(input.workStatus) }
+        ? {
+            ...input,
+            dayRateOverride: weeklyEquivalentDayRate(
+              input.workStatus,
+              input.workDate
+            ),
+          }
         : input,
     [input, weeklyContract]
   );
@@ -266,6 +273,11 @@ export function ExhibitGForm() {
 
   const liveBreakdown: CalculationBreakdown | null = useMemo(() => {
     if (isStuntCoordinator) return null;
+    // A commercial or flat deal has no published scale: until the rate is
+    // typed there is nothing honest to show.
+    if (flatAgreement && !(calcInput.flatDayRate && calcInput.flatDayRate > 0)) {
+      return null;
+    }
     if (!calcInput.callTime) return null;
     if (liveRate) {
       try {
@@ -385,7 +397,11 @@ export function ExhibitGForm() {
       // Calculate if we have enough data
       let calculation: CalculationBreakdown | undefined;
       let expectedAmount: number | undefined;
-      if (input.callTime && input.dismissOnSet) {
+      if (
+        input.callTime &&
+        input.dismissOnSet &&
+        (!flatAgreement || (input.flatDayRate ?? 0) > 0)
+      ) {
         try {
           calculation = calculateRate(calcInput);
           // The engine works out one contract; the rest are day rates on top.
@@ -458,9 +474,10 @@ export function ExhibitGForm() {
         contracts,
         input.workStatus,
         multipleEpisodeWeekly,
-        input.flatDayRate
+        input.flatDayRate,
+        input.workDate
       ),
-    [contracts, input.workStatus, multipleEpisodeWeekly, input.flatDayRate]
+    [contracts, input.workStatus, multipleEpisodeWeekly, input.flatDayRate, input.workDate]
   );
 
   const handleExhibitGRotate = (index: number, rotation: number) => {
@@ -608,7 +625,7 @@ export function ExhibitGForm() {
                 input.workDate,
                 input.characterName,
                 input.flatDayRate
-                  ? `Flat ${dayRate(input.flatDayRate)}`
+                  ? `${input.workStatus === "commercial" ? "Commercial" : "Flat"} ${dayRate(input.flatDayRate)}`
                   : weeklyContract
                     ? weeklyAgreementLabel(input.workStatus)
                     : agreementLabel(input.workStatus),
@@ -685,7 +702,15 @@ export function ExhibitGForm() {
                 <Label htmlFor="workStatus" className="text-base">Agreement Type</Label>
                 <Select
                   value={input.workStatus}
-                  onValueChange={(v) => update("workStatus", v as RateSchedule)}
+                  onValueChange={(v) =>
+                    setInput((prev) => ({
+                      ...prev,
+                      workStatus: v,
+                      // The typed rate belongs to the flat agreements; a
+                      // schedule takes over pricing the moment it is picked.
+                      flatDayRate: isFlatAgreement(v) ? prev.flatDayRate : null,
+                    }))
+                  }
                 >
                   <SelectTrigger id="workStatus" className="text-lg h-12 w-full min-w-0">
                     <SelectValue />
@@ -702,55 +727,49 @@ export function ExhibitGForm() {
                           : agreementLabel(agreement.id)}
                       </SelectItem>
                     ))}
+                    {FLAT_AGREEMENTS.map((agreement) => (
+                      <SelectItem
+                        key={agreement.id}
+                        value={agreement.id}
+                        className="text-base"
+                      >
+                        {agreement.name} — type the rate
+                      </SelectItem>
+                    ))}
                   </SelectContent>
                 </Select>
               </div>
 
-              <div className="space-y-2 min-w-0">
-                <div className="flex items-center space-x-2">
-                  <Checkbox
-                    id="flatDeal"
-                    checked={flatDeal}
-                    onCheckedChange={(v) => {
-                      setFlatDeal(!!v);
-                      if (!v) update("flatDayRate", null);
-                    }}
-                  />
-                  <Label htmlFor="flatDeal" className="text-base font-normal">
-                    Flat rate — a deal that is not one of these
-                  </Label>
-                </div>
-                {flatDeal && (
-                  <>
-                    <div className="flex items-center justify-between gap-4">
-                      <Label htmlFor="flatDayRate" className="text-base shrink-0">
-                        Day rate
-                      </Label>
-                      <div className="relative flex-1 min-w-0 max-w-[15rem]">
-                        <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground">
-                          $
-                        </span>
-                        <Input
-                          id="flatDayRate"
-                          type="number"
-                          min="0"
-                          step="50"
-                          value={input.flatDayRate || ""}
-                          onChange={(e) =>
-                            update("flatDayRate", parseFloat(e.target.value) || null)
-                          }
-                          className="pl-7 w-full"
-                          placeholder="0.00"
-                        />
-                      </div>
+              {flatAgreement && (
+                <div className="space-y-2 min-w-0">
+                  <div className="flex items-center justify-between gap-4">
+                    <Label htmlFor="flatDayRate" className="text-base shrink-0">
+                      Day rate
+                    </Label>
+                    <div className="relative flex-1 min-w-0 max-w-[15rem]">
+                      <span className="absolute left-3 top-1/2 -translate-y-1/2 text-lg text-muted-foreground">
+                        $
+                      </span>
+                      <Input
+                        id="flatDayRate"
+                        type="number"
+                        min="0"
+                        step="50"
+                        value={input.flatDayRate || ""}
+                        onChange={(e) =>
+                          update("flatDayRate", parseFloat(e.target.value) || null)
+                        }
+                        className="pl-7 w-full h-12 text-lg"
+                        placeholder="0.00"
+                      />
                     </div>
-                    <p className="text-xs text-muted-foreground">
-                      One number for the day — no overtime, however long it
-                      runs. Meal penalties still land on top.
-                    </p>
-                  </>
-                )}
-              </div>
+                  </div>
+                  <p className="text-xs text-muted-foreground">
+                    The number on the contract buys the day — no overtime,
+                    however long it runs. Meal penalties still land on top.
+                  </p>
+                </div>
+              )}
             </div>
 
           </CollapsibleSection>

@@ -14,7 +14,6 @@
  * returns rather than changing it.
  */
 
-import { type RateSchedule } from "@/lib/rate-constants";
 import { dayRateFor } from "@/lib/agreements";
 
 /** One Exhibit G is one contract, so the field only means something above this. */
@@ -44,11 +43,12 @@ export interface AdditionalContracts {
  */
 export function additionalContractPay(
   contracts: number | null | undefined,
-  schedule: RateSchedule | null | undefined,
+  schedule: string | null | undefined,
   multipleEpisodeWeekly: boolean,
-  flatDayRate?: number | null
+  flatDayRate?: number | null,
+  workDate?: string | null
 ): AdditionalContracts {
-  const dayRate = dayRateFor(schedule, flatDayRate);
+  const dayRate = dayRateFor(schedule, flatDayRate, workDate);
   const whole = Math.floor(contracts ?? 1);
   const count = Number.isFinite(whole) ? Math.max(0, whole - 1) : 0;
 

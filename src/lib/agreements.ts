@@ -1,4 +1,4 @@
-import { RATES, type RateSchedule } from "@/lib/rate-constants";
+import { RATES, ratesForDate, type RateSchedule } from "@/lib/rate-constants";
 
 /**
  * The agreements a performer can pick, in the order they are offered.
@@ -45,6 +45,22 @@ export const AGREEMENTS: ReadonlyArray<{
   },
 ];
 
+/**
+ * Deals whose flatness comes from the contract itself: the picker offers
+ * them beside the schedules, the performer types the rate, and the day
+ * pays that number however long it ran. A commercial is the standing
+ * example — it is not on the Basic Agreement, so calculating it at scale
+ * would state a figure nobody is owed; the typed rate is the truth.
+ */
+export const FLAT_AGREEMENTS = [
+  { id: "commercial", name: "Commercial", note: "Type the day rate from the deal" },
+  { id: "flat_deal", name: "Flat deal", note: "Any contract that names one number" },
+] as const;
+
+export function isFlatAgreement(id: string | null | undefined): boolean {
+  return id === "commercial" || id === "flat_deal";
+}
+
 /** "$1,283/day", and "$833.95/day" where the tier lands on cents. */
 export function dayRate(amount: number): string {
   return `$${amount.toLocaleString("en-US", {
@@ -57,6 +73,8 @@ export function dayRate(amount: number): string {
 export function agreementName(id: string): string {
   const offered = AGREEMENTS.find((a) => a.id === id);
   if (offered) return offered.name;
+  const flat = FLAT_AGREEMENTS.find((a) => a.id === id);
+  if (flat) return flat.name;
   // Saved before Theatrical and Television were shown as one thing.
   if (id === "television") return "Theatrical / Television";
   return "Theatrical / Television";
@@ -96,16 +114,22 @@ export function weeklyAgreementLabel(id: string): string {
  * and weekly overtime live. Kept here rather than in the vendored engine
  * because "divide by five" is this app's convention, not contract text.
  */
-export function weeklyEquivalentDayRate(id: string | null | undefined): number {
-  const weekly = (RATES[id as RateSchedule] ?? RATES.theatrical_basic).weekly;
+export function weeklyEquivalentDayRate(
+  id: string | null | undefined,
+  workDate?: string | null
+): number {
+  const table = ratesForDate(workDate);
+  const weekly = (table[id as RateSchedule] ?? table.theatrical_basic).weekly;
   return Math.round((weekly / 5) * 100) / 100;
 }
 
 /** The day rate a record is calculated on, flat deal or schedule. */
 export function dayRateFor(
   id: string | null | undefined,
-  flatDayRate?: number | null
+  flatDayRate?: number | null,
+  workDate?: string | null
 ): number {
   if (flatDayRate != null && flatDayRate > 0) return flatDayRate;
-  return (RATES[id as RateSchedule] ?? RATES.theatrical_basic).daily;
+  const table = ratesForDate(workDate);
+  return (table[id as RateSchedule] ?? table.theatrical_basic).daily;
 }
