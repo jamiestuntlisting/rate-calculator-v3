@@ -212,3 +212,57 @@ describe("weekly gross — all 133 ShowBiz cards", () => {
     );
   });
 });
+
+describe("weekly minimum — the contract floors the week", () => {
+  it("a 1-day week tops up to the full weekly with a guarantee line", () => {
+    const result = calculateWeekly({
+      scaleWeeklyRate: 4785,
+      contractWeeklyRate: 4785,
+      daysWorked: 1,
+      minimumWeekly: 4785,
+    });
+    // 0.2 × 4785 = 957 of base, 3828 of guarantee, one full week owed.
+    expect(result.prorationFactor).toBe(0.2);
+    const guarantee = result.lineItems.find(
+      (l) => l.label === "Weekly guarantee"
+    );
+    expect(guarantee?.amount).toBe(3828);
+    expect(result.subtotal).toBe(4785);
+    expect(result.grandTotal).toBe(4785);
+  });
+
+  it("a week that works out over the minimum keeps the larger figure", () => {
+    const result = calculateWeekly({
+      scaleWeeklyRate: 4785,
+      contractWeeklyRate: 4785,
+      daysWorked: 5,
+      weeklyOvertimeHours: 6,
+      minimumWeekly: 4785,
+    });
+    expect(
+      result.lineItems.some((l) => l.label === "Weekly guarantee")
+    ).toBe(false);
+    expect(result.grandTotal).toBeGreaterThan(4785);
+  });
+
+  it("penalties are not wages: they land on top of the floored week", () => {
+    const result = calculateWeekly({
+      scaleWeeklyRate: 4785,
+      contractWeeklyRate: 4785,
+      daysWorked: 2,
+      postSubtotalAdjustments: 120,
+      minimumWeekly: 4785,
+    });
+    expect(result.subtotal).toBe(4785);
+    expect(result.grandTotal).toBe(4905);
+  });
+
+  it("without a minimum the proration stands, as the payroll cards demand", () => {
+    const result = calculateWeekly({
+      scaleWeeklyRate: 4785,
+      contractWeeklyRate: 4785,
+      daysWorked: 1,
+    });
+    expect(result.subtotal).toBe(957);
+  });
+});

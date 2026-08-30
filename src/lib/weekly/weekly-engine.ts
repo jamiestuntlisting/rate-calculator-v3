@@ -66,6 +66,18 @@ export interface WeeklyInput {
   seventhDay?: boolean;
   /** Amounts added after the subtotal: allowances, meal penalties (col 190). */
   postSubtotalAdjustments?: number;
+  /**
+   * The least the week's wages can total — a signed weekly contract pays
+   * at least the full week, however few of its days were worked, so the
+   * contract forecast on /weekly passes the contract weekly rate here.
+   * When the lines come out short a "Weekly guarantee" line tops them up;
+   * when they come out over, the larger number stands. Penalties are not
+   * wages and land after the floor. The ShowBiz bench never passes this:
+   * a payroll card mid-run legitimately prorates a partial week (the
+   * engagement's other cards carry the rest), and the bench's job is to
+   * reproduce the card, not the contract.
+   */
+  minimumWeekly?: number;
 }
 
 export interface WeeklyLineItem {
@@ -170,7 +182,25 @@ export function calculateWeekly(input: WeeklyInput): WeeklyBreakdown {
   // Every term is summed at full precision and rounded once: the hourly rate
   // repeats on most cards, and rounding each line first is a cent out on
   // roughly one card in twenty.
-  const subtotal = round2(items.reduce((sum, item) => sum + item.raw, 0));
+  let subtotal = round2(items.reduce((sum, item) => sum + item.raw, 0));
+  const lineItems: WeeklyLineItem[] = items.map(({ raw, ...item }) => ({
+    ...item,
+    amount: round2(raw),
+  }));
+
+  // The contract's floor: wages never total less than the week. The line
+  // states the top-up so the card still sums, and penalties land after.
+  if (input.minimumWeekly && subtotal < input.minimumWeekly) {
+    const shortfall = round2(input.minimumWeekly - subtotal);
+    lineItems.push({
+      label: "Weekly guarantee",
+      units: 1,
+      rate: shortfall,
+      multiplier: 1,
+      amount: shortfall,
+    });
+    subtotal = round2(input.minimumWeekly);
+  }
 
   return {
     hourlyRate,
@@ -180,10 +210,7 @@ export function calculateWeekly(input: WeeklyInput): WeeklyBreakdown {
     absorbedOvertime: overtimeAbsorbed
       ? round2(weeklyOvertimeHours * hourlyRate * 1.5)
       : 0,
-    lineItems: items.map(({ raw, ...item }) => ({
-      ...item,
-      amount: round2(raw),
-    })),
+    lineItems,
     subtotal,
     postSubtotalAdjustments,
     grandTotal: round2(subtotal + postSubtotalAdjustments),

@@ -440,6 +440,10 @@ export function WeeklyForm() {
               ...input,
               weeklyOvertimeHours,
               extra: override.extra,
+              // A signed weekly pays at least the full week: fewer days
+              // just means the guarantee line makes up the difference,
+              // and a week that works out over it keeps the larger figure.
+              minimumWeekly: input.contractWeeklyRate,
             });
           } catch {
             breakdown = null;
