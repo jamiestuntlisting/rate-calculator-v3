@@ -123,10 +123,12 @@ export default function GetStartedPage() {
           Start with the pile
         </h1>
         <p className="text-muted-foreground leading-relaxed">
-          Exhibit Gs, contracts, call sheets — however many months of it
-          there are. Photograph everything and get it in. Every image
-          becomes a day in your tracker the moment it lands, numbered so
-          nothing gets lost, and the sorting can happen later.
+          The best time to start tracking your work was a long time ago.
+          Upload all your previous Exhibit Gs — contracts and call sheets
+          too — and we can help you update your resume, IMDb, taxes and
+          residuals. Every image becomes a day in your tracker the moment
+          it lands, numbered so nothing gets lost, and the sorting can
+          happen later.
         </p>
       </div>
 
@@ -192,6 +194,10 @@ export default function GetStartedPage() {
             Then
           </p>
           <h2 className="text-lg font-semibold">Who does the typing?</h2>
+          <p className="text-sm text-muted-foreground mt-1">
+            If you want us to transcribe all of these, tap the button and
+            we&rsquo;ll get started right away.
+          </p>
         </div>
 
         {allRequested || requested ? (
