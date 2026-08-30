@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -163,56 +163,6 @@ export function WeeklyForm() {
   const [savedWeeks, setSavedWeeks] = useState<Set<string>>(new Set());
   /** The day whose Exhibit G is open in the popup viewer, if any. */
   const [viewing, setViewing] = useState<WorkRecord | null>(null);
-  /**
-   * The two facts a G photo usually gives away at a glance — the show and
-   * the date — editable in the popup itself, so naming a day does not
-   * mean leaving the week being built. Times still live on the record.
-   */
-  const [viewEdit, setViewEdit] = useState({ showName: "", workDate: "" });
-  const [savingView, setSavingView] = useState(false);
-  const openViewer = (record: WorkRecord) => {
-    setViewing(record);
-    setViewEdit({
-      showName: record.showName?.trim() && !isUnnamed(record, "")
-        ? record.showName
-        : "",
-      workDate: (record.workDate || "").slice(0, 10),
-    });
-  };
-  const saveViewEdit = async () => {
-    if (!viewing) return;
-    if (!viewEdit.showName.trim() || !/^\d{4}-\d{2}-\d{2}$/.test(viewEdit.workDate)) {
-      toast.error("A show and a date name the day");
-      return;
-    }
-    setSavingView(true);
-    try {
-      const res = await fetch(`/api/work-records/${viewing._id}`, {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          showName: viewEdit.showName.trim(),
-          workDate: viewEdit.workDate,
-        }),
-      });
-      if (!res.ok) throw new Error();
-      const updated = (await res.json()) as WorkRecord;
-      setViewing(updated);
-      toast.success("Named — times still fill in on the record");
-      load();
-    } catch {
-      toast.error("Couldn't save");
-    } finally {
-      setSavingView(false);
-    }
-  };
-
-  const guarantee = distantLocation ? ("distant" as const) : ("studio" as const);
-  const guaranteeHours =
-    WEEKLY_GUARANTEES.find((g) => g.id === guarantee)?.hours ?? 44;
-  // 12 hours is the studio rest rule; 11 is the overnight-location figure.
-  const turnaroundHours = distantLocation ? 11 : 12;
-
   const load = useCallback(async () => {
     try {
       const res = await fetch(
@@ -233,6 +183,100 @@ export function WeeklyForm() {
       setWeeklies([]);
     }
   }, []);
+
+  /**
+   * The two facts a G photo usually gives away at a glance — the show and
+   * the date — editable in the popup itself, so naming a day does not
+   * mean leaving the week being built. Times still live on the record.
+   */
+  const [viewEdit, setViewEdit] = useState({ showName: "", workDate: "" });
+  /**
+   * The popup has no Save button: a show or date saves itself the moment
+   * it is set. A short debounce keeps a name being typed to one write,
+   * and only fields that are valid and actually different from the
+   * record go in the body — so a half-scrolled date wheel or a cleared
+   * name never overwrites anything.
+   */
+  const [viewSaveState, setViewSaveState] = useState<
+    "idle" | "saving" | "saved" | "error"
+  >("idle");
+  const viewSaveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const viewPending = useRef<{
+    id: string;
+    body: Partial<{ showName: string; workDate: string }>;
+  } | null>(null);
+  const openViewer = (record: WorkRecord) => {
+    setViewing(record);
+    setViewSaveState("idle");
+    setViewEdit({
+      showName: record.showName?.trim() && !isUnnamed(record, "")
+        ? record.showName
+        : "",
+      workDate: (record.workDate || "").slice(0, 10),
+    });
+  };
+  const pushViewEdit = useCallback(
+    async (id: string, body: Partial<{ showName: string; workDate: string }>) => {
+      setViewSaveState("saving");
+      try {
+        const res = await fetch(`/api/work-records/${id}`, {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(body),
+        });
+        if (!res.ok) throw new Error();
+        const updated = (await res.json()) as WorkRecord;
+        setViewing((cur) => (cur && cur._id === id ? updated : cur));
+        setViewSaveState("saved");
+        load();
+      } catch {
+        setViewSaveState("error");
+      }
+    },
+    [load]
+  );
+  useEffect(() => {
+    if (!viewing) return;
+    const body: Partial<{ showName: string; workDate: string }> = {};
+    const name = viewEdit.showName.trim();
+    if (name && name !== (viewing.showName || "").trim()) body.showName = name;
+    if (
+      /^\d{4}-\d{2}-\d{2}$/.test(viewEdit.workDate) &&
+      viewEdit.workDate !== (viewing.workDate || "").slice(0, 10)
+    ) {
+      body.workDate = viewEdit.workDate;
+    }
+    if (!body.showName && !body.workDate) {
+      viewPending.current = null;
+      return;
+    }
+    viewPending.current = { id: viewing._id, body };
+    const t = setTimeout(() => {
+      viewPending.current = null;
+      pushViewEdit(viewing._id, body);
+    }, 800);
+    viewSaveTimer.current = t;
+    return () => clearTimeout(t);
+  }, [viewEdit, viewing, pushViewEdit]);
+  /** An edit still inside the debounce saves anyway when the popup goes. */
+  const flushViewEdit = useCallback(() => {
+    if (viewSaveTimer.current) {
+      clearTimeout(viewSaveTimer.current);
+      viewSaveTimer.current = null;
+    }
+    const pending = viewPending.current;
+    if (pending) {
+      viewPending.current = null;
+      pushViewEdit(pending.id, pending.body);
+    }
+  }, [pushViewEdit]);
+  useEffect(() => flushViewEdit, [flushViewEdit]);
+
+  const guarantee = distantLocation ? ("distant" as const) : ("studio" as const);
+  const guaranteeHours =
+    WEEKLY_GUARANTEES.find((g) => g.id === guarantee)?.hours ?? 44;
+  // 12 hours is the studio rest rule; 11 is the overnight-location figure.
+  const turnaroundHours = distantLocation ? 11 : 12;
 
   /** Reopen a saved weekly: its deal in the questionnaire, its days picked. */
   const openWeekly = (w: (typeof weeklies)[number]) => {
@@ -514,7 +558,15 @@ export function WeeklyForm() {
       {/* The G, in place: look at the card without leaving the week
           being built. Filling the day in still means the record page —
           the link at the bottom goes there. */}
-      <Dialog open={viewing !== null} onOpenChange={(open) => !open && setViewing(null)}>
+      <Dialog
+        open={viewing !== null}
+        onOpenChange={(open) => {
+          if (!open) {
+            flushViewEdit();
+            setViewing(null);
+          }
+        }}
+      >
         <DialogContent className="max-w-3xl w-[calc(100vw-2rem)] p-4">
           <DialogHeader>
             <DialogTitle className="text-base">
@@ -531,8 +583,9 @@ export function WeeklyForm() {
                 initialRotation={viewingDoc.rotation ?? 0}
               />
               {/* Name the day right here — show and date are what the
-                  photo gives away at a glance; times go on the record. */}
-              <div className="grid grid-cols-1 sm:grid-cols-[1fr_auto_auto] gap-2 items-end">
+                  photo gives away at a glance; times go on the record.
+                  No Save button: each field saves as soon as it is set. */}
+              <div className="grid grid-cols-1 sm:grid-cols-[1fr_auto] gap-2 items-end">
                 <div className="space-y-1 min-w-0">
                   <Label htmlFor="viewShow" className="text-xs text-muted-foreground">
                     Show
@@ -561,15 +614,19 @@ export function WeeklyForm() {
                     className="w-full max-w-full"
                   />
                 </div>
-                <button
-                  type="button"
-                  onClick={saveViewEdit}
-                  disabled={savingView}
-                  className="h-9 rounded-md bg-primary px-4 text-sm font-medium text-primary-foreground disabled:opacity-50"
-                >
-                  {savingView ? "Saving…" : "Save"}
-                </button>
               </div>
+              <p
+                className="text-xs text-muted-foreground text-center"
+                aria-live="polite"
+              >
+                {viewSaveState === "saving"
+                  ? "Saving…"
+                  : viewSaveState === "saved"
+                    ? "Saved"
+                    : viewSaveState === "error"
+                      ? "Couldn't save — check the connection and set it again"
+                      : "Saves as soon as you set it"}
+              </p>
               <Link
                 href={`/work/${viewing._id}`}
                 className="text-sm underline underline-offset-4 text-center"
