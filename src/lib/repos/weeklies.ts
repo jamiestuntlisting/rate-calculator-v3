@@ -1,6 +1,30 @@
 import { getDb, newId, nowIso } from "@/lib/db";
 import { RATES } from "@/lib/rate-constants";
 import { DEFAULT_WEEK_STARTS_ON } from "@/lib/weekly/weeks";
+import { recalculateDay } from "@/lib/day-recalc";
+import { findWorkRecord, updateWorkRecord } from "@/lib/repos/work-records";
+
+/**
+ * Re-derive a day's stored calculation after its contract length was
+ * stamped. Attaching a day to a weekly changes what the day is worth —
+ * the weekly scale spread over five days instead of the daily scale —
+ * and the stored breakdown must say so, or the record page keeps
+ * showing the daily working. Days with nothing honest to compute
+ * (missing times, a coordinator's flat day) are left untouched.
+ */
+async function refreshDayCalculation(
+  userId: string,
+  recordId: string
+): Promise<void> {
+  const record = await findWorkRecord(recordId, userId);
+  if (!record) return;
+  const result = recalculateDay(record);
+  if (!result) return;
+  await updateWorkRecord(recordId, userId, {
+    calculation: result.calculation,
+    expectedAmount: result.expectedAmount,
+  });
+}
 
 /** The calendar-week window containing `date`, for a given week start. */
 function weekWindowOf(date: string, weekStartsOn: number) {
@@ -167,6 +191,10 @@ export async function saveWeekly(
     }
   }
 
+  for (const recordId of input.recordIds) {
+    await refreshDayCalculation(userId, recordId);
+  }
+
   const saved = await db
     .prepare("SELECT * FROM weeklies WHERE _id = ?1")
     .bind(id)
@@ -202,6 +230,7 @@ export async function assignRecordToWeekly(
       )
       .bind(recordId, now, userId)
       .run();
+    await refreshDayCalculation(userId, recordId);
     return;
   }
 
@@ -259,6 +288,7 @@ export async function assignRecordToWeekly(
       .bind(recordId, weeklyId, stampStatus, now, userId, stampLength)
       .run();
   }
+  await refreshDayCalculation(userId, recordId);
 }
 
 /**
@@ -389,6 +419,7 @@ export async function ensureWeeklyForRecord(
     )
     .bind(recordId, weekly._id, now, userId)
     .run();
+  await refreshDayCalculation(userId, recordId);
   return weekly;
 }
 
@@ -404,4 +435,5 @@ export async function releaseRecordFromWeekly(
     )
     .bind(recordId, nowIso(), userId)
     .run();
+  await refreshDayCalculation(userId, recordId);
 }

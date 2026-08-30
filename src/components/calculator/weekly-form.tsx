@@ -36,7 +36,7 @@ import {
   type WeeklyBreakdown,
   type WeeklyExtra,
 } from "@/lib/weekly/weekly-engine";
-import { workRecordsToWeeklyInput } from "@/lib/weekly/from-work-records";
+import { dayContribution, workRecordsToWeeklyInput } from "@/lib/weekly/from-work-records";
 import { calculateThreeDay } from "@/lib/three-day";
 import {
   DEFAULT_WEEK_STARTS_ON,
@@ -1281,34 +1281,51 @@ export function WeeklyForm() {
                 {/* The days inside this week, unnamed ones as Day N until
                     transcription gives them their real date and show. */}
                 <div className="space-y-1">
-                  {week.records.map((record, index) => (
-                    <div
-                      key={record._id}
-                      className="flex items-center gap-3 text-sm"
-                    >
-                      <span className="flex-1 min-w-0 truncate">
-                        <span className="text-muted-foreground">
-                          {shortDate(record.workDate)} ·{" "}
-                        </span>
-                        {dayLabel(record, index)}
-                      </span>
-                      {needsInfo(record) ? (
-                        <Link
-                          href={`/work/${record._id}`}
-                          className="shrink-0 rounded px-1.5 py-0.5 text-[10px] uppercase tracking-wide border border-amber-500/60 text-amber-400 hover:bg-amber-500/10"
-                        >
-                          Needs info
-                        </Link>
-                      ) : (
-                        <Link
-                          href={`/work/${record._id}`}
-                          className="shrink-0 text-xs text-muted-foreground underline underline-offset-2"
-                        >
-                          Details
-                        </Link>
-                      )}
-                    </div>
-                  ))}
+                  {week.records.map((record, index) => {
+                    const day = dayContribution(record);
+                    return (
+                      <div key={record._id} className="py-0.5">
+                        <div className="flex items-center gap-3 text-sm">
+                          <span className="flex-1 min-w-0 truncate">
+                            <span className="text-muted-foreground">
+                              {shortDate(record.workDate)} ·{" "}
+                            </span>
+                            {dayLabel(record, index)}
+                          </span>
+                          {needsInfo(record) ? (
+                            <Link
+                              href={`/work/${record._id}`}
+                              className="shrink-0 rounded px-1.5 py-0.5 text-[10px] uppercase tracking-wide border border-amber-500/60 text-amber-400 hover:bg-amber-500/10"
+                            >
+                              Needs info
+                            </Link>
+                          ) : (
+                            <Link
+                              href={`/work/${record._id}`}
+                              className="shrink-0 text-xs text-muted-foreground underline underline-offset-2"
+                            >
+                              Details
+                            </Link>
+                          )}
+                        </div>
+                        {/* The day's own numbers, read exactly as the week
+                            reads them, so these lines sum to the week's. */}
+                        {day && (
+                          <p className="text-xs text-muted-foreground tabular-nums">
+                            {Number(day.hours.toFixed(1))}h worked
+                            {day.ot15 > 0 &&
+                              ` · ${Number(day.ot15.toFixed(1))}h at 1.5×`}
+                            {day.ot2 > 0 &&
+                              ` · ${Number(day.ot2.toFixed(1))}h at 2×`}
+                            {day.adjustment > 0 &&
+                              ` · ${formatCurrency(day.adjustment)} adjustment`}
+                            {day.penalties > 0 &&
+                              ` · ${formatCurrency(day.penalties)} penalties`}
+                          </p>
+                        )}
+                      </div>
+                    );
+                  })}
                 </div>
 
                 <div className="flex flex-wrap items-center gap-1.5">

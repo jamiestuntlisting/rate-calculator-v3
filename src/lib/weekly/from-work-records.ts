@@ -38,6 +38,29 @@ function hoursAt(calculation: CalculationBreakdown, tier: Tier): number {
     .reduce((sum, segment) => sum + segment.hours, 0);
 }
 
+/**
+ * One day's contribution to its week, read the same way the derivation
+ * reads it — so a per-day line shown in the week card provably sums to
+ * the week's aggregate lines. Null when the day has no calculation yet.
+ */
+export function dayContribution(record: WorkRecord): {
+  hours: number;
+  ot15: number;
+  ot2: number;
+  penalties: number;
+  adjustment: number;
+} | null {
+  const calculation = record.calculation;
+  if (!calculation) return null;
+  return {
+    hours: calculation.netWorkHours,
+    ot15: hoursAt(calculation, "timeAndAHalf"),
+    ot2: hoursAt(calculation, "double"),
+    penalties: calculation.penalties?.totalPenalties ?? 0,
+    adjustment: record.stuntAdjustment || 0,
+  };
+}
+
 /** What was read off the days, so the calculator can show its working. */
 export interface WeeklyDerivation {
   days: number;
