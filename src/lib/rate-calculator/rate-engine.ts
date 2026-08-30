@@ -364,12 +364,17 @@ function calculateMealPenalties(input: ExhibitGInput): MealPenalty[] {
       penalties.push(...penaltyItems);
     }
   } else {
-    // No first meal recorded — check if work exceeded 6 hours
-    const workEnd = getLatestTime(
-      input.callTime,
-      input.dismissOnSet,
-      input.dismissMakeupWardrobe
-    );
+    // No first meal recorded — check if work exceeded 6 hours. Measured
+    // to the ON-SET dismissal: per the 15-minute rule, makeup/wardrobe
+    // removal time is paid as work time but excluded from meal-penalty
+    // accrual and other premiums.
+    const workEnd = input.dismissOnSet
+      ? input.dismissOnSet
+      : getLatestTime(
+          input.callTime,
+          input.dismissOnSet,
+          input.dismissMakeupWardrobe
+        );
     const totalMinutes = calculateDuration(input.callTime, workEnd);
     if (totalMinutes > MEAL_PENALTIES.maxHoursBeforeFirstMeal * 60) {
       // Entire work period past 6 hours is late

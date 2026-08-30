@@ -223,6 +223,7 @@ export function ExhibitGForm() {
    * while the day is running — today's date, no end time entered.
    */
   const [showLiveRate, setShowLiveRate] = useState(false);
+  const [wrapSetByHand, setWrapSetByHand] = useState(false);
   /** The paycheck-shaped working under the total, opened by tapping it. */
   const [showLiveLines, setShowLiveLines] = useState(false);
 
@@ -300,16 +301,17 @@ export function ExhibitGForm() {
   }, []);
 
   /**
-   * The live rate is a running total for a day still going. Once a
-   * dismissal or a wrap is entered the day has an end, and a number that
-   * carries on climbing past it is not what the performer earned — the
-   * live calculation replaces `dismissOnSet` with the current time, so it
-   * would quietly ignore the time they just typed. Derived rather than
-   * held in state: there is then no moment where the toggle is hidden but
-   * the override is still running.
+   * The live rate is a running total for a day still going — and being
+   * dismissed from set does not end it. Makeup/wardrobe removal time is
+   * paid work time and overtime runs to the final dismissal (SAG-AFTRA's
+   * 15-minute rule), so with a set dismissal entered the counter keeps
+   * ticking, standing the clock in for the wrap instead. What ends it is
+   * the performer typing a Wrapped time themselves: `wrapSetByHand` is
+   * true only for a hand-entered wrap, never for the +15 the form offers
+   * when the dismissal is set — an offer is a suggestion of when removal
+   * usually finishes, not a statement that it has.
    */
-  const wrapped = Boolean(input.dismissOnSet || input.dismissMakeupWardrobe);
-  const liveRate = showLiveRate && !wrapped;
+  const liveRate = showLiveRate && !wrapSetByHand;
 
   useEffect(() => {
     if (!liveRate) return;
@@ -377,19 +379,27 @@ export function ExhibitGForm() {
     }
     if (!calcInput.callTime) return null;
     if (liveRate) {
+      // The current time stands in for whichever end of the day has not
+      // happened yet: the set dismissal while the performer is still on
+      // set, the wrap once they are dismissed but still getting out of
+      // wardrobe. The offered wrap in the field is ignored here — live
+      // means as of this second, and the engine prices the removal
+      // stretch at whatever overtime tier the clock is in, because
+      // overtime runs to the final dismissal.
+      const liveEnd = (nowTime: string): ExhibitGInput =>
+        calcInput.dismissOnSet
+          ? { ...calcInput, dismissMakeupWardrobe: nowTime }
+          : { ...calcInput, dismissOnSet: nowTime };
       try {
         if (sixMinIntervals) {
-          return calculateRate({ ...calcInput, dismissOnSet: getCurrentTimeSnapped() });
+          return calculateRate(liveEnd(getCurrentTimeSnapped()));
         }
         const now = new Date();
-        const dismissTime = `${String(now.getHours()).padStart(2, "0")}:${String(now.getMinutes()).padStart(2, "0")}`;
-        return calculateRate(
-          { ...calcInput, dismissOnSet: dismissTime },
-          {
-            skipRounding: true,
-            additionalSeconds: now.getSeconds() + now.getMilliseconds() / 1000,
-          }
-        );
+        const nowTime = `${String(now.getHours()).padStart(2, "0")}:${String(now.getMinutes()).padStart(2, "0")}`;
+        return calculateRate(liveEnd(nowTime), {
+          skipRounding: true,
+          additionalSeconds: now.getSeconds() + now.getMilliseconds() / 1000,
+        });
       } catch {
         return null;
       }
@@ -1112,7 +1122,7 @@ export function ExhibitGForm() {
               </div>
               <div className="flex items-center justify-between gap-4 p-2 rounded bg-muted/50">
                 <Label htmlFor="dismissMakeupWardrobe" className="text-base shrink-0">Wrapped</Label>
-                <div className="flex-1 min-w-0 max-w-[15rem]"><TimeSelect id="dismissMakeupWardrobe" value={input.dismissMakeupWardrobe || ""} onChange={(v) => setInput((prev) => ({ ...prev, dismissMakeupWardrobe: v || null, dismissOnSet: v ? precedingTime(v, prev.dismissOnSet, WRAP_MINUTES) ?? prev.dismissOnSet : prev.dismissOnSet }))} /></div>
+                <div className="flex-1 min-w-0 max-w-[15rem]"><TimeSelect id="dismissMakeupWardrobe" value={input.dismissMakeupWardrobe || ""} onChange={(v) => { setWrapSetByHand(Boolean(v)); setInput((prev) => ({ ...prev, dismissMakeupWardrobe: v || null, dismissOnSet: v ? precedingTime(v, prev.dismissOnSet, WRAP_MINUTES) ?? prev.dismissOnSet : prev.dismissOnSet })); }} /></div>
               </div>
               {wrapOrderWarning(input.dismissOnSet, input.dismissMakeupWardrobe) && (
                 <p className="px-2 pb-1 text-xs text-amber-400">
@@ -1138,7 +1148,7 @@ export function ExhibitGForm() {
               counter sits right under its own switch rather than at the
               bottom of the page. Once an end time is entered the day is
               over, this whole block goes, and the total shows below. */}
-          {!isStuntCoordinator && isToday(input.workDate) && !wrapped && (
+          {!isStuntCoordinator && isToday(input.workDate) && !wrapSetByHand && (
             <div className="space-y-3">
               <div className="flex items-center space-x-2">
                 <Checkbox
@@ -1179,6 +1189,12 @@ export function ExhibitGForm() {
                         <span>+ {formatCurrency(liveBreakdown.penalties.totalPenalties)} penalties</span>
                       )}
                     </div>
+                    {input.dismissOnSet && (
+                      <p className="mt-1 text-[11px] text-muted-foreground">
+                        Dismissed from set — makeup and wardrobe removal is
+                        paid time, so this runs until you set Wrapped.
+                      </p>
+                    )}
                     <p className="mt-1 text-[11px] text-muted-foreground">
                       {showLiveLines ? "Hide the breakdown" : "Tap for the paycheck breakdown"}
                     </p>

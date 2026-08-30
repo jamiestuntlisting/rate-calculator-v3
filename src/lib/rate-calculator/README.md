@@ -52,10 +52,19 @@ Two further changes are local and also need carrying upstream:
   overtime like anyone else at Schedule K's own minimums — $1,329/day,
   $4,955/week, about 3.6% above the day performer rows it was previously
   assumed to track.
-
-Rates are a flat set of current minimums, so a work day from an earlier
-contract year is calculated at today's rates. Historical schedules keyed by
-effective date are the natural follow-up.
+- `rate-constants.ts` keys rates by date: `RATE_SCHEDULES` holds one table
+  per effective date (verified 07/01/2025 and 07/01/2026 columns, then the
+  2026-30 agreement's scheduled 3% raises), `ratesForDate(workDate)` picks
+  the one in force, and `rate-engine.ts` prices each day by its own date.
+  `RATES` remains as today's table for callers that don't pass a date.
+  Dates before the earliest schedule use it rather than a guess.
+- `rate-engine.ts` measures the no-meal-recorded penalty to the **set
+  dismissal** rather than the wrap. SAG-AFTRA's 15-minute rule (April 2022
+  contract bulletin): makeup/wardrobe removal is paid work time and
+  overtime runs to the final dismissal, but meal-penalty accrual,
+  turnaround and other premiums are based on when work on set ended,
+  excluding the removal window. Wages already used `getLatestTime`
+  (correct); only the penalty clock changed.
 
 The legacy import paths `@/lib/rate-engine`, `@/lib/rate-constants`, and
 `@/lib/time-utils` re-export from here, so app code needs no changes when

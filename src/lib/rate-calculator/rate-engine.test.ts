@@ -148,6 +148,22 @@ describe("calculateRate — meal penalties", () => {
     expect(result.penalties.mealPenalties).toHaveLength(0);
   });
 
+  it("no meal recorded: penalties measure to the set dismissal, not the wrap", () => {
+    // The 15-minute rule: makeup/wardrobe removal after set dismissal is
+    // paid work time, but meal penalties and other premiums accrue only to
+    // the on-set dismissal. 06:00 → 12:30 is 30 min past six hours (one
+    // period, $25); measured to the 12:45 wrap it would be two.
+    const result = calculateRate({
+      ...baseInput,
+      firstMealStart: null,
+      firstMealFinish: null,
+      dismissOnSet: "12:30",
+      dismissMakeupWardrobe: "12:45",
+    });
+    expect(result.penalties.mealPenalties).toHaveLength(1);
+    expect(result.penalties.mealPenalties[0].amount).toBe(25);
+  });
+
   it("rejects ND meal that ends >2 hours after call", () => {
     expect(() =>
       calculateRate({
