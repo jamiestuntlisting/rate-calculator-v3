@@ -48,6 +48,7 @@ import { MEAL_MINUTES } from "@/components/calculator/time-select";
 import { followedTime } from "@/lib/follow-time";
 import { calculateRate } from "@/lib/rate-engine";
 import { checkNdMeal, ND_MEAL_WINDOW_HOURS } from "@/lib/nd-meal";
+import { RateBreakdown } from "@/components/calculation/rate-breakdown";
 import { clampMealFinish, mealLengthWarning, secondMealOrderWarning } from "@/lib/meal-length";
 import { WRAP_MINUTES, wrapOrderWarning } from "@/lib/wrap-check";
 import {
@@ -184,6 +185,8 @@ export function ExhibitGForm() {
    * while the day is running — today's date, no end time entered.
    */
   const [showLiveRate, setShowLiveRate] = useState(false);
+  /** The paycheck-shaped working under the total, opened by tapping it. */
+  const [showLiveLines, setShowLiveLines] = useState(false);
   const [sixMinIntervals, setSixMinIntervals] = useState(false);
   // Tick counter to trigger recalc for live rate
   const [liveTick, setLiveTick] = useState(0);
@@ -1073,7 +1076,12 @@ export function ExhibitGForm() {
                 </Label>
               </div>
               {liveRate && liveBreakdown && (
-                <div className="rounded-lg border-2 border-primary bg-primary/5 p-4">
+                <button
+                  type="button"
+                  onClick={() => setShowLiveLines((v) => !v)}
+                  aria-expanded={showLiveLines}
+                  className="w-full rounded-lg border-2 border-primary bg-primary/5 p-4 text-left"
+                >
                   <div className="text-center">
                     <p className="text-sm text-muted-foreground">Live Rate</p>
                     <p className="text-3xl font-bold tracking-tight tabular-nums">
@@ -1096,8 +1104,18 @@ export function ExhibitGForm() {
                         <span>+ {formatCurrency(liveBreakdown.penalties.totalPenalties)} penalties</span>
                       )}
                     </div>
+                    <p className="mt-1 text-[11px] text-muted-foreground">
+                      {showLiveLines ? "Hide the breakdown" : "Tap for the paycheck breakdown"}
+                    </p>
                   </div>
-                </div>
+                </button>
+              )}
+              {liveRate && liveBreakdown && showLiveLines && (
+                <RateBreakdown
+                  breakdown={liveBreakdown}
+                  linesOnly
+                  approximation={contractApprox}
+                />
               )}
               {liveRate && (
                 <div className="flex items-center space-x-2">
@@ -1189,7 +1207,12 @@ export function ExhibitGForm() {
           {/* The settled total, once the day has an end. While the day is
               still running the live counter above is the number. */}
           {!liveRate && liveBreakdown && (
-            <div className="rounded-lg border-2 border-primary bg-primary/5 p-4">
+            <button
+              type="button"
+              onClick={() => setShowLiveLines((v) => !v)}
+              aria-expanded={showLiveLines}
+              className="w-full rounded-lg border-2 border-primary bg-primary/5 p-4 text-left"
+            >
               <div className="text-center">
                 <p className="text-sm text-muted-foreground">Calculated Total</p>
                 <p className="text-3xl font-bold tracking-tight tabular-nums">
@@ -1219,8 +1242,18 @@ export function ExhibitGForm() {
                     <span>+ {formatCurrency(liveBreakdown.penalties.totalPenalties)} penalties</span>
                   )}
                 </div>
+                <p className="mt-1 text-[11px] text-muted-foreground">
+                  {showLiveLines ? "Hide the breakdown" : "Tap for the paycheck breakdown"}
+                </p>
               </div>
-            </div>
+            </button>
+          )}
+          {!liveRate && liveBreakdown && showLiveLines && (
+            <RateBreakdown
+              breakdown={liveBreakdown}
+              linesOnly
+              approximation={contractApprox}
+            />
           )}
 
           </>)}

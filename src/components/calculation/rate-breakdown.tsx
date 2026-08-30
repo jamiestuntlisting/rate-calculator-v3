@@ -30,6 +30,11 @@ interface RateBreakdownProps {
    * asterisk. The contract itself is worked out for real on /weekly.
    */
   approximation?: "weekly" | "three_day" | null;
+  /**
+   * Render only the Pay Breakdown lines card — for tucking the working
+   * under a total somewhere else, like the live counter on Log Work.
+   */
+  linesOnly?: boolean;
 }
 
 export function RateBreakdown({
@@ -37,6 +42,7 @@ export function RateBreakdown({
   input,
   compact = false,
   approximation = null,
+  linesOnly = false,
 }: RateBreakdownProps) {
   const weeklyApproximation = approximation != null;
   const {
@@ -54,6 +60,92 @@ export function RateBreakdown({
 
   const hasStuntAdj = adjustedBaseRate > baseRate;
   const hasPenalties = penalties.totalPenalties > 0;
+
+  const linesCard = (() => {
+    const mealTotals = penalties.mealPenalties.reduce<Record<string, number>>((acc, mp) => {
+      acc[mp.meal] = (acc[mp.meal] || 0) + mp.amount;
+      return acc;
+    }, {});
+
+    return (
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-lg">Pay Breakdown</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Line</TableHead>
+                <TableHead className="text-right">Hours</TableHead>
+                <TableHead className="text-right">Rate</TableHead>
+                <TableHead className="text-right">Amount</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {segments.map((seg, i) => (
+                <TableRow key={i}>
+                  <TableCell className="font-medium">{seg.label}</TableCell>
+                  <TableCell className="text-right">
+                    {Number(seg.hours.toFixed(1))}
+                  </TableCell>
+                  <TableCell className="text-right">
+                    {formatCurrency(seg.rate * seg.multiplier)}
+                  </TableCell>
+                  <TableCell className="text-right font-semibold">
+                    {formatCurrency(seg.subtotal)}
+                  </TableCell>
+                </TableRow>
+              ))}
+              {hasStuntAdj && (
+                <TableRow>
+                  <TableCell className="font-medium">Stunt Adjustment (in rate)</TableCell>
+                  <TableCell className="text-right text-muted-foreground">—</TableCell>
+                  <TableCell className="text-right text-muted-foreground">—</TableCell>
+                  <TableCell className="text-right text-muted-foreground text-xs">
+                    folded into the hourly above
+                  </TableCell>
+                </TableRow>
+              )}
+              {Object.entries(mealTotals).map(([meal, total]) => (
+                <TableRow key={meal}>
+                  <TableCell className="font-medium">{meal} Penalty</TableCell>
+                  <TableCell className="text-right text-muted-foreground">—</TableCell>
+                  <TableCell className="text-right text-muted-foreground">—</TableCell>
+                  <TableCell className="text-right font-semibold">
+                    {formatCurrency(total)}
+                  </TableCell>
+                </TableRow>
+              ))}
+              {penalties.forcedCallPenalty > 0 && (
+                <TableRow>
+                  <TableCell className="font-medium">Forced Call Penalty</TableCell>
+                  <TableCell className="text-right text-muted-foreground">—</TableCell>
+                  <TableCell className="text-right text-muted-foreground">—</TableCell>
+                  <TableCell className="text-right font-semibold">
+                    {formatCurrency(penalties.forcedCallPenalty)}
+                  </TableCell>
+                </TableRow>
+              )}
+            </TableBody>
+            <TableFooter>
+              <TableRow>
+                <TableCell colSpan={3} className="font-semibold">
+                  Total
+                </TableCell>
+                <TableCell className="text-right font-bold">
+                  {formatCurrency(grandTotal)}
+                  {approximation != null && "*"}
+                </TableCell>
+              </TableRow>
+            </TableFooter>
+          </Table>
+        </CardContent>
+      </Card>
+    );
+  })();
+
+  if (linesOnly) return linesCard;
 
   return (
     <div className="space-y-6">
@@ -151,83 +243,8 @@ export function RateBreakdown({
       </Card>
 
       {/* One table, laid out the way a check reads: the hours at the rate
-          they were actually paid at, then the penalties, then the total.
-          The rate column already carries the multiplier — time-and-a-half
-          shows the base hourly times 1.5, because that is the number the
-          hour actually paid, and a separate multiplier column was one more
-          thing to cross-reference. */}
-      {(() => {
-        const mealTotals = penalties.mealPenalties.reduce<Record<string, number>>((acc, mp) => {
-          acc[mp.meal] = (acc[mp.meal] || 0) + mp.amount;
-          return acc;
-        }, {});
-
-        return (
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-lg">Pay Breakdown</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Line</TableHead>
-                    <TableHead className="text-right">Hours</TableHead>
-                    <TableHead className="text-right">Rate</TableHead>
-                    <TableHead className="text-right">Amount</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {segments.map((seg, i) => (
-                    <TableRow key={i}>
-                      <TableCell className="font-medium">{seg.label}</TableCell>
-                      <TableCell className="text-right">
-                        {Number(seg.hours.toFixed(1))}
-                      </TableCell>
-                      <TableCell className="text-right">
-                        {formatCurrency(seg.rate * seg.multiplier)}
-                      </TableCell>
-                      <TableCell className="text-right font-semibold">
-                        {formatCurrency(seg.subtotal)}
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                  {Object.entries(mealTotals).map(([meal, total]) => (
-                    <TableRow key={meal}>
-                      <TableCell className="font-medium">{meal} Penalty</TableCell>
-                      <TableCell className="text-right text-muted-foreground">—</TableCell>
-                      <TableCell className="text-right text-muted-foreground">—</TableCell>
-                      <TableCell className="text-right font-semibold">
-                        {formatCurrency(total)}
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                  {penalties.forcedCallPenalty > 0 && (
-                    <TableRow>
-                      <TableCell className="font-medium">Forced Call Penalty</TableCell>
-                      <TableCell className="text-right text-muted-foreground">—</TableCell>
-                      <TableCell className="text-right text-muted-foreground">—</TableCell>
-                      <TableCell className="text-right font-semibold">
-                        {formatCurrency(penalties.forcedCallPenalty)}
-                      </TableCell>
-                    </TableRow>
-                  )}
-                </TableBody>
-                <TableFooter>
-                  <TableRow>
-                    <TableCell colSpan={3} className="font-semibold">
-                      Total
-                    </TableCell>
-                    <TableCell className="text-right font-bold">
-                      {formatCurrency(grandTotal)}
-                    </TableCell>
-                  </TableRow>
-                </TableFooter>
-              </Table>
-            </CardContent>
-          </Card>
-        );
-      })()}
+          they were actually paid at, then the penalties, then the total. */}
+      {linesCard}
 
       {!compact && (
         <>
