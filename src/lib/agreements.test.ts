@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { calculateRate } from "@/lib/rate-engine";
-import { RATES, ratesForDate } from "@/lib/rate-constants";
+import { RATES, ratesForDate, threeDayRatesForDate } from "@/lib/rate-constants";
 import type { ExhibitGInput } from "@/lib/rate-calculator/types";
 import {
   AGREEMENTS,
@@ -8,6 +8,7 @@ import {
   agreementName,
   dayRate,
   dayRateFor,
+  threeDayContractRate,
   weeklyEquivalentDayRate,
 } from "./agreements";
 
@@ -67,6 +68,22 @@ describe("the rate schedules", () => {
     expect(
       weeklyEquivalentDayRate("theatrical_basic", "2025-08-01")
     ).toBeCloseTo(4646 / 5, 2);
+  });
+
+  it("carries the TV 3-day figures by year and format", () => {
+    expect(threeDayRatesForDate("2026-08-30")).toEqual({
+      performerShort: 3252,
+      performerLong: 3826,
+      coordFlatShort: 4760,
+      coordFlatLong: 5318,
+    });
+    expect(threeDayRatesForDate("2025-08-30").performerShort).toBe(3157);
+    // The contract figure by agreement and format, and the day it buys.
+    expect(threeDayContractRate("theatrical_basic", "short", "2026-08-30")).toBe(3252);
+    expect(threeDayContractRate("stunt_coordinator", "long", "2026-08-30")).toBe(5318);
+    expect(
+      Math.round((threeDayContractRate("theatrical_basic", "short", "2026-08-30") / 3) * 100) / 100
+    ).toBe(1084);
   });
 
   it("carries the verified coordinator ladders by year", () => {

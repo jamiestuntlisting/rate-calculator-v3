@@ -37,6 +37,10 @@ const ROWS: Array<{
   { label: "Coordinator flat deal · weekly", cell: (c) => c.coordFlatWeekly },
   { label: "Coordinator (less than flat) · daily", cell: (c) => c.coordDailyDaily },
   { label: "Coordinator (less than flat) · weekly", cell: (c) => c.coordDailyWeekly },
+  { label: "TV 3-day · ½ & 1-hr show", cell: (c) => c.threeDayShort },
+  { label: "TV 3-day · 1½ & 2-hr show", cell: (c) => c.threeDayLong },
+  { label: "Coordinator flat 3-day · ½ & 1-hr", cell: (c) => c.coordFlatThreeDayShort },
+  { label: "Coordinator flat 3-day · 1½ & 2-hr", cell: (c) => c.coordFlatThreeDayLong },
 ];
 
 /**

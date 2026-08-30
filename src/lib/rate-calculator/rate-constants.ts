@@ -28,6 +28,12 @@ export interface ScheduleCells {
   /** Stunt coordinator employed at less than flat deal (K-I / K-II). */
   coordDailyDaily: number;
   coordDailyWeekly: number;
+  /** TV 3-day player, by the show's format. */
+  threeDayShort: number; // ½ & 1-hour shows
+  threeDayLong: number; // 1½ & 2-hour shows
+  /** Stunt coordinator flat deal on a 3-day, same split. */
+  coordFlatThreeDayShort: number;
+  coordFlatThreeDayLong: number;
 }
 
 export interface RateScheduleEntry {
@@ -50,6 +56,10 @@ export const RATE_SCHEDULES: RateScheduleEntry[] = [
       coordFlatWeekly: 6555.0,
       coordDailyDaily: 1290.0,
       coordDailyWeekly: 4811.0,
+      threeDayShort: 3157.0,
+      threeDayLong: 3715.0,
+      coordFlatThreeDayShort: 4621.0,
+      coordFlatThreeDayLong: 5163.0,
     },
   },
   {
@@ -62,6 +72,10 @@ export const RATE_SCHEDULES: RateScheduleEntry[] = [
       coordFlatWeekly: 6752.0,
       coordDailyDaily: 1329.0,
       coordDailyWeekly: 4955.0,
+      threeDayShort: 3252.0,
+      threeDayLong: 3826.0,
+      coordFlatThreeDayShort: 4760.0,
+      coordFlatThreeDayLong: 5318.0,
     },
   },
   {
@@ -74,6 +88,10 @@ export const RATE_SCHEDULES: RateScheduleEntry[] = [
       coordFlatWeekly: 6955.0,
       coordDailyDaily: 1369.0,
       coordDailyWeekly: 5104.0,
+      threeDayShort: 3350.0,
+      threeDayLong: 3941.0,
+      coordFlatThreeDayShort: 4903.0,
+      coordFlatThreeDayLong: 5478.0,
     },
   },
   {
@@ -86,6 +104,10 @@ export const RATE_SCHEDULES: RateScheduleEntry[] = [
       coordFlatWeekly: 7164.0,
       coordDailyDaily: 1410.0,
       coordDailyWeekly: 5257.0,
+      threeDayShort: 3451.0,
+      threeDayLong: 4059.0,
+      coordFlatThreeDayShort: 5050.0,
+      coordFlatThreeDayLong: 5642.0,
     },
   },
   {
@@ -98,6 +120,10 @@ export const RATE_SCHEDULES: RateScheduleEntry[] = [
       coordFlatWeekly: 7379.0,
       coordDailyDaily: 1452.0,
       coordDailyWeekly: 5415.0,
+      threeDayShort: 3555.0,
+      threeDayLong: 4181.0,
+      coordFlatThreeDayShort: 5202.0,
+      coordFlatThreeDayLong: 5811.0,
     },
   },
 ];
@@ -171,6 +197,39 @@ export function ratesForDate(workDate?: string | null): RateTable {
     if (RATE_SCHEDULES[i].effectiveFrom <= d) pick = i;
   }
   return BUILT[pick];
+}
+
+/** Which 3-day figure applies: the show's format decides. */
+export type ThreeDayLength = "short" | "long";
+
+/**
+ * The TV 3-day player figures in force on a date. The ½ & 1-hour ladder
+ * (3,157 → 3,252 on 07/01/26) sits beside the day performer rate in the
+ * published tables; the 1½ & 2-hour ladder (3,715 → 3,826) carries the
+ * long-form premium; the coordinator flat-deal 3-day pairs (4,621/5,163
+ * → 4,760/5,318) are quoted in the same tables.
+ */
+export function threeDayRatesForDate(workDate?: string | null): {
+  performerShort: number;
+  performerLong: number;
+  coordFlatShort: number;
+  coordFlatLong: number;
+} {
+  const d =
+    workDate && /^\d{4}-\d{2}-\d{2}/.test(workDate)
+      ? workDate.slice(0, 10)
+      : new Date().toISOString().slice(0, 10);
+  let pick = 0;
+  for (let i = 0; i < RATE_SCHEDULES.length; i++) {
+    if (RATE_SCHEDULES[i].effectiveFrom <= d) pick = i;
+  }
+  const cells = RATE_SCHEDULES[pick].cells;
+  return {
+    performerShort: cells.threeDayShort,
+    performerLong: cells.threeDayLong,
+    coordFlatShort: cells.coordFlatThreeDayShort,
+    coordFlatLong: cells.coordFlatThreeDayLong,
+  };
 }
 
 /**

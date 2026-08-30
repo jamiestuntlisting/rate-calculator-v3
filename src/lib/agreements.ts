@@ -1,4 +1,10 @@
-import { RATES, ratesForDate, type RateSchedule } from "@/lib/rate-constants";
+import {
+  RATES,
+  ratesForDate,
+  threeDayRatesForDate,
+  type RateSchedule,
+  type ThreeDayLength,
+} from "@/lib/rate-constants";
 
 /**
  * The agreements a performer can pick, in the order they are offered.
@@ -44,6 +50,49 @@ export const AGREEMENTS: ReadonlyArray<{
     note: "Day rate, and overtime like anyone else",
   },
 ];
+
+/**
+ * What a 3-day (TV) contract offers: the player rates split by the
+ * show's format, and the coordinator flat-deal 3-day the same way. Low
+ * budget tiers have no 3-day rates — they are theatrical agreements —
+ * so the 3-day picker offers exactly these.
+ */
+export const THREE_DAY_OPTIONS: ReadonlyArray<{
+  workStatus: RateSchedule;
+  length: ThreeDayLength;
+  name: string;
+}> = [
+  { workStatus: "theatrical_basic", length: "short", name: "TV 3-day · ½ & 1-hr show" },
+  { workStatus: "theatrical_basic", length: "long", name: "TV 3-day · 1½ & 2-hr show" },
+  { workStatus: "stunt_coordinator", length: "short", name: "Coordinator flat 3-day · ½ & 1-hr" },
+  { workStatus: "stunt_coordinator", length: "long", name: "Coordinator flat 3-day · 1½ & 2-hr" },
+];
+
+/** The 3-day contract figure for an agreement + show format, by date. */
+export function threeDayContractRate(
+  workStatus: string | null | undefined,
+  length: ThreeDayLength | null | undefined,
+  workDate?: string | null
+): number {
+  const t = threeDayRatesForDate(workDate);
+  const coordinator = workStatus === "stunt_coordinator";
+  return (length ?? "short") === "long"
+    ? coordinator
+      ? t.coordFlatLong
+      : t.performerLong
+    : coordinator
+      ? t.coordFlatShort
+      : t.performerShort;
+}
+
+/** "TV 3-day · ½ & 1-hr show ($3,252 / 3 days)". */
+export function threeDayLabel(
+  option: (typeof THREE_DAY_OPTIONS)[number],
+  workDate?: string | null
+): string {
+  const rate = threeDayContractRate(option.workStatus, option.length, workDate);
+  return `${option.name} ($${rate.toLocaleString("en-US")} / 3 days)`;
+}
 
 /**
  * Deals whose flatness comes from the contract itself: the picker offers

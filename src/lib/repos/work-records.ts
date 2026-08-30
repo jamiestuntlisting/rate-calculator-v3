@@ -20,6 +20,7 @@ interface WorkRecordRow {
   secondMealFinish: string | null;
   stuntAdjustment: number;
   flatDayRate: number | null;
+  threeDayLength: string | null;
   weeklyContract: number;
   contractLength: string;
   weeklyId: string | null;
@@ -65,6 +66,7 @@ export interface WorkRecordDoc {
   secondMealFinish: string | null;
   stuntAdjustment: number;
   flatDayRate: number | null;
+  threeDayLength: string | null;
   weeklyContract: boolean;
   /** daily | three_day | weekly — how long the deal runs. */
   contractLength: string;
@@ -112,6 +114,7 @@ function toDoc(row: WorkRecordRow): WorkRecordDoc {
     secondMealFinish: row.secondMealFinish,
     stuntAdjustment: row.stuntAdjustment,
     flatDayRate: row.flatDayRate ?? null,
+    threeDayLength: row.threeDayLength ?? null,
     weeklyContract: i2b(row.weeklyContract),
     contractLength: row.contractLength || "daily",
     weeklyId: row.weeklyId ?? null,
@@ -160,6 +163,7 @@ const FIELD_SERIALIZERS: Record<string, (v: unknown) => unknown> = {
   stuntAdjustment: (v) => Number(v) || 0,
   // Null rather than zero: a flat deal either names a rate or does not exist.
   flatDayRate: (v) => (Number(v) > 0 ? Number(v) : null),
+  threeDayLength: (v) => (v === "short" || v === "long" ? v : null),
   weeklyContract: (v) => b2i(v),
   contractLength: (v) =>
     v === "three_day" || v === "weekly" ? v : "daily",

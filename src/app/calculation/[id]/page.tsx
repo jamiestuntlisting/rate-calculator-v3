@@ -172,10 +172,12 @@ export default function CalculationDetailPage() {
       <RateBreakdown
         breakdown={data.breakdown}
         input={data.input}
-        weeklyApproximation={
+        approximation={
           data.input.dayRateOverride != null &&
           data.input.dayRateOverride > 0 &&
           !data.input.flatDayRate
+            ? "weekly"
+            : null
         }
       />
 

@@ -113,6 +113,8 @@ export interface WorkRecord {
   weeklyContract?: boolean;
   /** daily | three_day | weekly — how long the deal runs. */
   contractLength?: "daily" | "three_day" | "weekly";
+  /** Which 3-day figure the show's format pays: "short" (½ & 1-hr) or "long". */
+  threeDayLength?: "short" | "long" | null;
   /** The saved weekly this day is grouped under in the tracker. */
   weeklyId?: string | null;
   characterName: string;

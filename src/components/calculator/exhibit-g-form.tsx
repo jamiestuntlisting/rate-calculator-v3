@@ -29,16 +29,19 @@ import { TimeSelect } from "@/components/calculator/time-select";
 import {
   AGREEMENTS,
   FLAT_AGREEMENTS,
+  THREE_DAY_OPTIONS,
   agreementLabel,
   dayRate,
   dayRateFor,
   isFlatAgreement,
+  threeDayContractRate,
+  threeDayLabel,
   weeklyAgreementLabel,
   weeklyEquivalentDayRate,
 } from "@/lib/agreements";
 import { toast } from "sonner";
 import type { ExhibitGInput, WorkDocument, CalculationBreakdown } from "@/types";
-import { RATES } from "@/lib/rate-constants";
+import { ratesForDate } from "@/lib/rate-constants";
 import { Save } from "lucide-react";
 import { snapToSixMinutes, formatCurrency } from "@/lib/time-utils";
 import { addMinutes, MEAL_MINUTES } from "@/components/calculator/time-select";
@@ -155,6 +158,9 @@ export function ExhibitGForm() {
     "daily" | "three_day" | "weekly"
   >("daily");
   const weeklyContract = contractLength === "weekly";
+  const threeDayContract = contractLength === "three_day";
+  /** Which 3-day figure the show's format pays. */
+  const [threeDayLength, setThreeDayLength] = useState<"short" | "long">("short");
   const [contractsTouched, setContractsTouched] = useState(false);
   const [multipleEpisodeWeekly, setMultipleEpisodeWeekly] = useState(false);
   const [showNdMeal, setShowNdMeal] = useState(false);
@@ -256,20 +262,38 @@ export function ExhibitGForm() {
    * approximation, marked with an asterisk wherever the result shows.
    * A flat deal still wins: the flat number is the whole deal.
    */
-  const calcInput: ExhibitGInput = useMemo(
-    () =>
-      weeklyContract
-        ? {
-            ...input,
-            dayRateOverride: weeklyEquivalentDayRate(
-              input.workStatus,
-              input.workDate
-            ),
-          }
-        : input,
-    [input, weeklyContract]
-  );
-  const weeklyApprox = weeklyContract && !input.flatDayRate;
+  const calcInput: ExhibitGInput = useMemo(() => {
+    if (weeklyContract) {
+      return {
+        ...input,
+        dayRateOverride: weeklyEquivalentDayRate(
+          input.workStatus,
+          input.workDate
+        ),
+      };
+    }
+    if (threeDayContract) {
+      const contract = threeDayContractRate(
+        input.workStatus,
+        threeDayLength,
+        input.workDate
+      );
+      return {
+        ...input,
+        dayRateOverride: Math.round((contract / 3) * 100) / 100,
+      };
+    }
+    return input;
+  }, [input, weeklyContract, threeDayContract, threeDayLength]);
+  /** Which contract the day's figure approximates, if any. */
+  const contractApprox = input.flatDayRate
+    ? null
+    : weeklyContract
+      ? ("weekly" as const)
+      : threeDayContract
+        ? ("three_day" as const)
+        : null;
+  const weeklyApprox = contractApprox != null;
 
   const liveBreakdown: CalculationBreakdown | null = useMemo(() => {
     if (isStuntCoordinator) return null;
@@ -349,7 +373,17 @@ export function ExhibitGForm() {
 
       // Stunt coordinator is a flat deal — no time-based calculation
       if (isStuntCoordinator) {
-        const flatRate = dayRateFor(input.workStatus, input.flatDayRate);
+        const flatRate = threeDayContract
+          ? Math.round(
+              (threeDayContractRate(
+                input.workStatus,
+                threeDayLength,
+                input.workDate
+              ) /
+                3) *
+                100
+            ) / 100
+          : dayRateFor(input.workStatus, input.flatDayRate, input.workDate);
         const res = await fetch("/api/work-records", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -378,6 +412,7 @@ export function ExhibitGForm() {
             documents: allDocuments,
             weeklyContract,
             contractLength,
+            threeDayLength: threeDayContract ? threeDayLength : null,
             expectedAmount: flatRate,
             paymentStatus: "unpaid",
             paidAmount: 0,
@@ -435,6 +470,7 @@ export function ExhibitGForm() {
           multipleEpisodeWeekly,
           weeklyContract,
           contractLength,
+          threeDayLength: threeDayContract ? threeDayLength : null,
           paymentStatus: "unpaid",
           paidAmount: 0,
         }),
@@ -626,9 +662,15 @@ export function ExhibitGForm() {
                 input.characterName,
                 input.flatDayRate
                   ? `${input.workStatus === "commercial" ? "Commercial" : "Flat"} ${dayRate(input.flatDayRate)}`
-                  : weeklyContract
-                    ? weeklyAgreementLabel(input.workStatus)
-                    : agreementLabel(input.workStatus),
+                  : threeDayContract
+                    ? THREE_DAY_OPTIONS.filter(
+                        (o) =>
+                          o.workStatus === input.workStatus &&
+                          o.length === threeDayLength
+                      ).map((o) => threeDayLabel(o, input.workDate))[0]
+                    : weeklyContract
+                      ? weeklyAgreementLabel(input.workStatus)
+                      : agreementLabel(input.workStatus),
               ]
                 .filter(Boolean)
                 .join(" · ") || "Show title, date, character, agreement"
@@ -678,9 +720,23 @@ export function ExhibitGForm() {
                 </Label>
                 <Select
                   value={contractLength}
-                  onValueChange={(v) =>
-                    setContractLength(v as "daily" | "three_day" | "weekly")
-                  }
+                  onValueChange={(v) => {
+                    const next = v as "daily" | "three_day" | "weekly";
+                    setContractLength(next);
+                    // The 3-day schedule covers players and flat-deal
+                    // coordinators; anything else snaps to the player rate.
+                    if (
+                      next === "three_day" &&
+                      input.workStatus !== "theatrical_basic" &&
+                      input.workStatus !== "stunt_coordinator"
+                    ) {
+                      setInput((prev) => ({
+                        ...prev,
+                        workStatus: "theatrical_basic",
+                        flatDayRate: null,
+                      }));
+                    }
+                  }}
                 >
                   <SelectTrigger id="contractLength" className="text-lg h-12 w-full min-w-0">
                     <SelectValue />
@@ -692,50 +748,72 @@ export function ExhibitGForm() {
                   </SelectContent>
                 </Select>
               </div>
-              {contractLength === "three_day" && (
-                <p className="text-xs text-muted-foreground -mt-1">
-                  A television 3-day player. The day still logs normally;
-                  the 3-day schedule rates are coming.
-                </p>
-              )}
               <div className="space-y-1 min-w-0">
                 <Label htmlFor="workStatus" className="text-base">Agreement Type</Label>
                 <Select
-                  value={input.workStatus}
-                  onValueChange={(v) =>
+                  value={
+                    threeDayContract
+                      ? `${input.workStatus}|${threeDayLength}`
+                      : input.workStatus
+                  }
+                  onValueChange={(v) => {
+                    if (threeDayContract) {
+                      const [ws, len] = v.split("|");
+                      setThreeDayLength(len === "long" ? "long" : "short");
+                      setInput((prev) => ({
+                        ...prev,
+                        workStatus: ws,
+                        flatDayRate: null,
+                      }));
+                      return;
+                    }
                     setInput((prev) => ({
                       ...prev,
                       workStatus: v,
                       // The typed rate belongs to the flat agreements; a
                       // schedule takes over pricing the moment it is picked.
                       flatDayRate: isFlatAgreement(v) ? prev.flatDayRate : null,
-                    }))
-                  }
+                    }));
+                  }}
                 >
                   <SelectTrigger id="workStatus" className="text-lg h-12 w-full min-w-0">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    {AGREEMENTS.map((agreement) => (
-                      <SelectItem
-                        key={agreement.id}
-                        value={agreement.id}
-                        className="text-base"
-                      >
-                        {weeklyContract
-                          ? weeklyAgreementLabel(agreement.id)
-                          : agreementLabel(agreement.id)}
-                      </SelectItem>
-                    ))}
-                    {FLAT_AGREEMENTS.map((agreement) => (
-                      <SelectItem
-                        key={agreement.id}
-                        value={agreement.id}
-                        className="text-base"
-                      >
-                        {agreement.name} — type the rate
-                      </SelectItem>
-                    ))}
+                    {threeDayContract ? (
+                      THREE_DAY_OPTIONS.map((option) => (
+                        <SelectItem
+                          key={`${option.workStatus}|${option.length}`}
+                          value={`${option.workStatus}|${option.length}`}
+                          className="text-base"
+                        >
+                          {threeDayLabel(option, input.workDate)}
+                        </SelectItem>
+                      ))
+                    ) : (
+                      <>
+                        {AGREEMENTS.map((agreement) => (
+                          <SelectItem
+                            key={agreement.id}
+                            value={agreement.id}
+                            className="text-base"
+                          >
+                            {weeklyContract
+                              ? weeklyAgreementLabel(agreement.id)
+                              : agreementLabel(agreement.id)}
+                          </SelectItem>
+                        ))}
+                        {FLAT_AGREEMENTS.map((agreement) => (
+                          <SelectItem
+                            key={agreement.id}
+                            value={agreement.id}
+                            className="text-base"
+                          >
+                            {agreement.name} — type the rate
+                          </SelectItem>
+                        ))}
+                      </>
+                    )}
                   </SelectContent>
                 </Select>
               </div>
@@ -778,12 +856,36 @@ export function ExhibitGForm() {
           {isStuntCoordinator && (
             <div className="rounded-lg border-2 border-primary bg-primary/5 p-4">
               <div className="text-center">
-                <p className="text-sm text-muted-foreground">Flat Daily Rate</p>
+                <p className="text-sm text-muted-foreground">
+                  {threeDayContract ? "Flat 3-Day — per day" : "Flat Daily Rate"}
+                </p>
                 <p className="text-3xl font-bold tracking-tight">
-                  {formatCurrency(RATES.stunt_coordinator.daily)}
+                  {threeDayContract
+                    ? `${formatCurrency(
+                        Math.round(
+                          (threeDayContractRate(
+                            input.workStatus,
+                            threeDayLength,
+                            input.workDate
+                          ) /
+                            3) *
+                            100
+                        ) / 100
+                      )}*`
+                    : formatCurrency(
+                        ratesForDate(input.workDate).stunt_coordinator.daily
+                      )}
                 </p>
                 <p className="text-xs text-muted-foreground mt-1">
-                  Stunt Coordinator — no overtime calculation
+                  {threeDayContract
+                    ? `* A third of the ${formatCurrency(
+                        threeDayContractRate(
+                          input.workStatus,
+                          threeDayLength,
+                          input.workDate
+                        )
+                      )} 3-day flat deal — paid as one check`
+                    : "Stunt Coordinator — no overtime calculation"}
                 </p>
               </div>
             </div>
@@ -948,8 +1050,9 @@ export function ExhibitGForm() {
                     </p>
                     {weeklyApprox && (
                       <p className="text-xs text-muted-foreground mt-1">
-                        * Approximated at the weekly rate over five days — the
-                        week is paid as one check.
+                        {contractApprox === "three_day"
+                          ? "* Approximated at the 3-day contract over three days — the contract is paid as one check."
+                          : "* Approximated at the weekly rate over five days — the week is paid as one check."}
                       </p>
                     )}
                     <div className="flex justify-center gap-4 mt-2 text-xs text-muted-foreground">
@@ -1062,9 +1165,9 @@ export function ExhibitGForm() {
                 </p>
                 {weeklyApprox && (
                   <p className="text-xs text-muted-foreground mt-1">
-                    * Approximated at the weekly rate over five days. The week
-                    is paid as one check and worked out exactly on the Weekly
-                    page.
+                    {contractApprox === "three_day"
+                      ? "* Approximated at the 3-day contract over three days. The contract is paid as one check and grouped on the Weekly page's 3 Day tab."
+                      : "* Approximated at the weekly rate over five days. The week is paid as one check and worked out exactly on the Weekly page."}
                   </p>
                 )}
                 {extraContracts.pay > 0 && (

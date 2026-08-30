@@ -9,9 +9,12 @@ import { TimeSelect, toDisplay } from "@/components/calculator/time-select";
 import {
   AGREEMENTS,
   FLAT_AGREEMENTS,
+  THREE_DAY_OPTIONS,
   agreementLabel,
   dayRate,
   isFlatAgreement,
+  threeDayContractRate,
+  threeDayLabel,
   weeklyAgreementLabel,
   weeklyEquivalentDayRate,
 } from "@/lib/agreements";
@@ -109,6 +112,7 @@ export default function WorkDetailPage() {
   const [editing, setEditing] = useState(false);
   const [editData, setEditData] = useState({
     contractLength: "daily" as "daily" | "three_day" | "weekly",
+    threeDayLength: "short" as "short" | "long",
     showName: "",
     workDate: "",
     characterName: "",
@@ -283,6 +287,7 @@ export default function WorkDetailPage() {
         contractLength:
           (record.contractLength as "daily" | "three_day" | "weekly") ||
           (record.weeklyContract ? "weekly" : "daily"),
+        threeDayLength: record.threeDayLength === "long" ? "long" : "short",
         ndMealIn: record.ndMealIn || "",
         ndMealOut: record.ndMealOut || "",
         firstMealStart: record.firstMealStart || "",
@@ -462,8 +467,22 @@ export default function WorkDetailPage() {
         dayRateOverride:
           editData.contractLength === "weekly"
             ? weeklyEquivalentDayRate(editData.workStatus, editData.workDate)
-            : null,
+            : editData.contractLength === "three_day"
+              ? Math.round(
+                  (threeDayContractRate(
+                    editData.workStatus,
+                    editData.threeDayLength,
+                    editData.workDate
+                  ) /
+                    3) *
+                    100
+                ) / 100
+              : null,
         contractLength: editData.contractLength,
+        threeDayLength:
+          editData.contractLength === "three_day"
+            ? editData.threeDayLength
+            : null,
         weeklyContract: editData.contractLength === "weekly",
         characterName: editData.characterName,
         notes: record?.notes || "",
@@ -1014,33 +1033,63 @@ export default function WorkDetailPage() {
                       <div className="space-y-1 min-w-0">
                         <Label htmlFor="edit-workStatus" className="text-base">Agreement Type</Label>
                         <Select
-                          value={editData.workStatus}
-                          onValueChange={(v) => setEditData(d => ({ ...d, workStatus: v }))}
+                          value={
+                            editData.contractLength === "three_day"
+                              ? `${editData.workStatus}|${editData.threeDayLength}`
+                              : editData.workStatus
+                          }
+                          onValueChange={(v) =>
+                            setEditData((d) => {
+                              if (d.contractLength === "three_day") {
+                                const [ws, len] = v.split("|");
+                                return {
+                                  ...d,
+                                  workStatus: ws,
+                                  threeDayLength: len === "long" ? "long" : "short",
+                                };
+                              }
+                              return { ...d, workStatus: v };
+                            })
+                          }
                         >
                           <SelectTrigger id="edit-workStatus" className="text-lg h-12 w-full min-w-0">
                             <SelectValue />
                           </SelectTrigger>
                           <SelectContent>
-                            {AGREEMENTS.map((agreement) => (
-                              <SelectItem
-                                key={agreement.id}
-                                value={agreement.id}
-                                className="text-base"
-                              >
-                                {editData.contractLength === "weekly"
-                                  ? weeklyAgreementLabel(agreement.id)
-                                  : agreementLabel(agreement.id)}
-                              </SelectItem>
-                            ))}
-                            {FLAT_AGREEMENTS.map((agreement) => (
-                              <SelectItem
-                                key={agreement.id}
-                                value={agreement.id}
-                                className="text-base"
-                              >
-                                {agreement.name} — the record&rsquo;s own rate
-                              </SelectItem>
-                            ))}
+                            {editData.contractLength === "three_day" ? (
+                              THREE_DAY_OPTIONS.map((option) => (
+                                <SelectItem
+                                  key={`${option.workStatus}|${option.length}`}
+                                  value={`${option.workStatus}|${option.length}`}
+                                  className="text-base"
+                                >
+                                  {threeDayLabel(option, editData.workDate)}
+                                </SelectItem>
+                              ))
+                            ) : (
+                              <>
+                                {AGREEMENTS.map((agreement) => (
+                                  <SelectItem
+                                    key={agreement.id}
+                                    value={agreement.id}
+                                    className="text-base"
+                                  >
+                                    {editData.contractLength === "weekly"
+                                      ? weeklyAgreementLabel(agreement.id)
+                                      : agreementLabel(agreement.id)}
+                                  </SelectItem>
+                                ))}
+                                {FLAT_AGREEMENTS.map((agreement) => (
+                                  <SelectItem
+                                    key={agreement.id}
+                                    value={agreement.id}
+                                    className="text-base"
+                                  >
+                                    {agreement.name} — the record&rsquo;s own rate
+                                  </SelectItem>
+                                ))}
+                              </>
+                            )}
                           </SelectContent>
                         </Select>
                       </div>
@@ -1384,9 +1433,19 @@ export default function WorkDetailPage() {
                       <p className="font-semibold">
                         {record.flatDayRate
                           ? `${record.workStatus === "commercial" ? "Commercial" : "Flat"} ${dayRate(record.flatDayRate)}`
-                          : record.weeklyContract
-                            ? weeklyAgreementLabel(record.workStatus || "")
-                            : agreementLabel(record.workStatus || "")}
+                          : record.contractLength === "three_day"
+                            ? THREE_DAY_OPTIONS.filter(
+                                (o) =>
+                                  o.workStatus === record.workStatus &&
+                                  o.length ===
+                                    (record.threeDayLength === "long"
+                                      ? "long"
+                                      : "short")
+                              ).map((o) => threeDayLabel(o, record.workDate))[0] ??
+                              agreementLabel(record.workStatus || "")
+                            : record.weeklyContract
+                              ? weeklyAgreementLabel(record.workStatus || "")
+                              : agreementLabel(record.workStatus || "")}
                       </p>
                     </div>
                   )}
@@ -1420,7 +1479,15 @@ export default function WorkDetailPage() {
           <RateBreakdown
             breakdown={record.calculation}
             compact
-            weeklyApproximation={Boolean(record.weeklyContract) && !record.flatDayRate}
+            approximation={
+              record.flatDayRate
+                ? null
+                : record.contractLength === "three_day"
+                  ? "three_day"
+                  : record.weeklyContract
+                    ? "weekly"
+                    : null
+            }
           />
         )}
 

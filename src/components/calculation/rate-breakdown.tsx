@@ -25,19 +25,20 @@ interface RateBreakdownProps {
   input?: ExhibitGInput;
   compact?: boolean;
   /**
-   * The day belongs to a weekly contract, so its rate is the weekly scale
-   * spread over five days — an approximation, marked with an asterisk.
-   * The week itself is worked out for real on /weekly.
+   * The day belongs to a weekly or 3-day contract, so its rate is the
+   * contract spread over its days — an approximation, marked with an
+   * asterisk. The contract itself is worked out for real on /weekly.
    */
-  weeklyApproximation?: boolean;
+  approximation?: "weekly" | "three_day" | null;
 }
 
 export function RateBreakdown({
   breakdown,
   input,
   compact = false,
-  weeklyApproximation = false,
+  approximation = null,
 }: RateBreakdownProps) {
+  const weeklyApproximation = approximation != null;
   const {
     baseRate,
     adjustedBaseRate,
@@ -72,8 +73,9 @@ export function RateBreakdown({
             )}
             {weeklyApproximation && (
               <p className="text-xs text-muted-foreground mt-2">
-                * Approximated at the weekly rate over five days. The week is
-                paid as one check and worked out exactly on the Weekly page.
+                {approximation === "three_day"
+                  ? "* Approximated at the 3-day contract over three days. The contract is paid as one check and grouped on the Weekly page's 3 Day tab."
+                  : "* Approximated at the weekly rate over five days. The week is paid as one check and worked out exactly on the Weekly page."}
               </p>
             )}
           </div>
@@ -89,7 +91,11 @@ export function RateBreakdown({
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
             <div>
               <p className="text-muted-foreground">
-                {weeklyApproximation ? "Weekly Day Rate" : "Base Daily Rate"}
+                {approximation === "three_day"
+                  ? "3-Day Day Rate"
+                  : approximation === "weekly"
+                    ? "Weekly Day Rate"
+                    : "Base Daily Rate"}
               </p>
               <p className="font-semibold">
                 {formatCurrency(baseRate)}

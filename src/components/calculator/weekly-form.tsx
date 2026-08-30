@@ -9,7 +9,14 @@ import { toast } from "sonner";
 import { ChevronDown, ChevronRight, Info, Loader2 } from "lucide-react";
 import { formatCurrency } from "@/lib/time-utils";
 import { RATES, ratesForDate, type RateSchedule } from "@/lib/rate-constants";
-import { AGREEMENTS, weekRate, weeklyAgreementLabel } from "@/lib/agreements";
+import {
+  AGREEMENTS,
+  THREE_DAY_OPTIONS,
+  threeDayContractRate,
+  threeDayLabel,
+  weekRate,
+  weeklyAgreementLabel,
+} from "@/lib/agreements";
 
 /**
  * The picker's own short names — the full agreement names clip on a phone,
@@ -133,6 +140,8 @@ export function WeeklyForm() {
    */
   const [mode, setMode] = useState<"weekly" | "three_day">("weekly");
   const [threeDayRate, setThreeDayRate] = useState(0);
+  /** "ws|length" for a schedule figure, or "other" for a typed deal. */
+  const [threeDaySel, setThreeDaySel] = useState("other");
   const [records, setRecords] = useState<WorkRecord[] | null>(null);
   /** The weeklies already saved — proof they persist, and a way back in. */
   const [weeklies, setWeeklies] = useState<
@@ -228,7 +237,10 @@ export function WeeklyForm() {
   /** Reopen a saved weekly: its deal in the questionnaire, its days picked. */
   const openWeekly = (w: (typeof weeklies)[number]) => {
     setMode(w.kind === "three_day" ? "three_day" : "weekly");
-    if (w.kind === "three_day") setThreeDayRate(w.weeklyRate || 0);
+    if (w.kind === "three_day") {
+      setThreeDayRate(w.weeklyRate || 0);
+      setThreeDaySel("other");
+    }
     setTitle(w.title);
     setWeekStartsOn(
       (Math.min(6, Math.max(0, w.weekStartsOn)) as WeekStartDay) ??
@@ -436,7 +448,12 @@ export function WeeklyForm() {
           title: title.trim(),
           weekStart: start,
           weekStartsOn,
-          agreement: mode === "three_day" ? "three_day" : agreement,
+          agreement:
+            mode === "three_day"
+              ? threeDaySel === "other"
+                ? "three_day"
+                : threeDaySel.split("|")[0]
+              : agreement,
           weeklyRate: mode === "three_day" ? threeDayRate : weeklyRate,
           distantLocation: mode === "weekly" && distantLocation,
           expectedAmount,
@@ -646,6 +663,33 @@ export function WeeklyForm() {
 
           {mode === "three_day" && (
             <div className="flex items-center justify-between gap-4">
+              <Label htmlFor="threeDaySel" className="text-base shrink-0">
+                Contract
+              </Label>
+              <FieldSelect
+                id="threeDaySel"
+                value={threeDaySel}
+                onChange={(v) => {
+                  setThreeDaySel(v);
+                  if (v !== "other") {
+                    const [ws, len] = v.split("|");
+                    setThreeDayRate(
+                      threeDayContractRate(ws, len === "long" ? "long" : "short")
+                    );
+                  }
+                }}
+                options={[
+                  ...THREE_DAY_OPTIONS.map((o) => ({
+                    value: `${o.workStatus}|${o.length}`,
+                    label: threeDayLabel(o),
+                  })),
+                  { value: "other", label: "Other · type the rate" },
+                ]}
+              />
+            </div>
+          )}
+          {mode === "three_day" && threeDaySel === "other" && (
+            <div className="flex items-center justify-between gap-4">
               <Label htmlFor="threeDayRate" className="text-base shrink-0">
                 3-day contract rate
               </Label>
@@ -658,8 +702,8 @@ export function WeeklyForm() {
           )}
           {mode === "three_day" && (
             <p className="text-xs text-muted-foreground">
-              The number on the 3-day deal you signed. It buys three days;
-              days past three are prorated at a third each.
+              The contract buys three days; days past three are prorated at
+              a third each.
             </p>
           )}
 
