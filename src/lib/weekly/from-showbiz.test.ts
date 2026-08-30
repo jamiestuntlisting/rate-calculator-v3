@@ -24,8 +24,8 @@ function row(values: Record<number, string>): string {
 /** A Distant six-day week: adjustments, double time, penalty OT, allowance. */
 const S934 = row({
   12: "S934",
-  54: "Derric",
-  57: "Stotts",
+  54: "Sam",
+  57: "Sample",
   182: "Weekly Player",
   185: "48.00",
   188: "$5,500.00",
@@ -67,7 +67,7 @@ describe("ShowBiz card → weekly input", () => {
     const [card] = parseShowbizCsv(S934);
 
     expect(card.cardId).toBe("S934");
-    expect(card.performer).toBe("Derric Stotts");
+    expect(card.performer).toBe("Sam Sample");
     expect(card.employmentType).toBe("Weekly Player");
     expect(card.location).toBe("Distant");
     expect(card.baseScaleRate).toBe(3936);

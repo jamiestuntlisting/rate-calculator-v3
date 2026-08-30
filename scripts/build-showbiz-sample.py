@@ -31,9 +31,12 @@ HEADER = '''/**
  * having to go and find an export first: it should read 132 of 133 matching
  * payroll, the one miss being the malformed card S1234.
  *
- * The names and figures in it are placeholders. It is gzipped and base64'd
- * because the raw file is a 1.9 MB UTF-16 CSV; this is 49 KB and decodes
- * back to it byte for byte.
+ * The figures are real payroll to the cent — that is the whole point —
+ * but the people and productions are not identifiable: performer names,
+ * studios and role lines are blanked and every real production title
+ * reads "Real Life Example NN" (the crafted rows were built as "Weekly
+ * Timecard Sample NN" from the start). It is gzipped and base64'd; the
+ * bundle decodes back to the anonymized CSV byte for byte.
  *
  * Generated, not hand-edited — see scripts/build-showbiz-sample.py. An
  * admin can override it from the bench, which stores the replacement in D1

@@ -1,7 +1,10 @@
 # ShowBiz "SAG Cards Export" CSV format
 
-Notes from `ShowBiz_SAG_Cards_Export_042826.csv` (414 cards), used by the
-weekly-contract test bench.
+Notes from `ShowBiz_SAG_Cards_Anonymized_042826.csv` (414 cards), used by
+the weekly-contract test bench. The bundled copy is anonymized: performer
+names, studios and role lines are blank and production titles read "Real
+Life Example NN" — the figures are untouched. Examples below use fictional
+values in those columns.
 
 - **Encoding**: UTF-16 (LE, with BOM). Convert before parsing.
 - **Rows**: one SAG card per line, `\n` separated, **280 columns, no header row**.
@@ -16,12 +19,12 @@ weekly-contract test bench.
 | --- | --- | --- |
 | 9 | Card sequence number | `1` |
 | 12 | Card id | `S770` |
-| 54 / 57 | Performer first / last name | `Derric` / `Stotts` |
+| 54 / 57 | Performer first / last name | `Sam` / `Sample` |
 | 100–103 | Payroll co., production co., project | `Media Services`, `Surfer's Paradise` |
 | 142 | Contract category | `A: Daily Performer`, `B: TV` |
 | 157 | Week-ending / card date | `February 26, 2021` |
-| 158 | Studio | `ABC Studios New York` |
-| 159 | Production title | `Law & Order: Special Victims Unit` |
+| 158 | Studio | `Example Studios New York` |
+| 159 | Production title | `Real Life Example 03` |
 | 182 | **Employment type** | `Day Player`, `3 Day Player`, `Weekly Player` |
 | 183 | Weekly-overtime hours (1.5x) | `6.00` |
 | 184 | Contract type | `TV`, `Theatrical` |
@@ -31,7 +34,7 @@ weekly-contract test bench.
 | 190 | Adjustment amount, added **after** the subtotal | `$260.00` |
 | 191 / 192 | 6th / 7th day flags | `6th Day`, `7th Day` |
 | 194 | Extra items | `Covid Test`, `Fitting`, `Loc Allowance` |
-| 196 | Role description | `Stunt Double: Baltimore` |
+| 196 | Role description | `Stunt Double: Lead` |
 | 200 | SAG category | `H: Stunt Performer`, `K: Stunt Coordinator` |
 | 201 | Studio / Distant | `Studio` |
 | 202 | **Per-day stunt adjustments** (multi-day) | `100.00` — the week's figure is their sum |
