@@ -5,7 +5,6 @@ import Link from "next/link";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
-import { toast } from "sonner";
 import { ChevronDown, ChevronRight, Info, Loader2 } from "lucide-react";
 import { formatCurrency } from "@/lib/time-utils";
 import { RATES, ratesForDate, type RateSchedule } from "@/lib/rate-constants";
@@ -159,8 +158,19 @@ export function WeeklyForm() {
   const [picked, setPicked] = useState<Set<string>>(new Set());
   const [overrides, setOverrides] = useState<Record<string, WeekOverride>>({});
   const [openWeek, setOpenWeek] = useState<string | null>(null);
-  const [savingWeek, setSavingWeek] = useState<string | null>(null);
-  const [savedWeeks, setSavedWeeks] = useState<Set<string>>(new Set());
+  /**
+   * The page saves as it goes — there is no Save button. Whenever the
+   * picked days settle into weeks (or the 3-day group) under a titled
+   * deal, each changed week is written out after a short debounce, the
+   * same call the old button made, so days are stamped and grouped
+   * identically. A per-week signature keeps identical saves from
+   * repeating; a week whose days were all unpicked is saved once more
+   * with no days, which detaches them.
+   */
+  const [weekSaveState, setWeekSaveState] = useState<
+    "idle" | "saving" | "saved" | "error"
+  >("idle");
+  const lastSavedRef = useRef<Record<string, { sig: string; kind: string }>>({});
   /** The day whose Exhibit G is open in the popup viewer, if any. */
   const [viewing, setViewing] = useState<WorkRecord | null>(null);
   const load = useCallback(async () => {
@@ -485,50 +495,227 @@ export function WeeklyForm() {
   const dayLabel = (record: WorkRecord, index: number) =>
     isUnnamed(record, title) ? `Day ${index + 1}` : record.showName;
 
-  const saveWeek = async (start: string, expectedAmount: number, ids: string[]) => {
-    if (!title.trim()) {
-      toast.error("Give the weekly a show title first — it names the group in your tracker");
-      return;
-    }
-    setSavingWeek(start);
-    try {
-      const res = await fetch("/api/weeklies", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          kind: mode,
-          title: title.trim(),
-          weekStart: start,
-          weekStartsOn,
-          agreement:
-            mode === "three_day"
-              ? threeDaySel === "other"
-                ? "three_day"
-                : threeDaySel.split("|")[0]
-              : agreement,
-          weeklyRate: mode === "three_day" ? threeDayRate : weeklyRate,
-          distantLocation: mode === "weekly" && distantLocation,
-          expectedAmount,
-          recordIds: ids,
-        }),
-      });
-      if (!res.ok) {
-        const err = await res.json().catch(() => ({}));
-        throw new Error(err.error || "Couldn't save the weekly");
+  const postWeek = useCallback(
+    async (
+      kind: string,
+      start: string,
+      expectedAmount: number,
+      ids: string[]
+    ): Promise<boolean> => {
+      try {
+        const res = await fetch("/api/weeklies", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            kind,
+            title: title.trim(),
+            weekStart: start,
+            weekStartsOn,
+            agreement:
+              kind === "three_day"
+                ? threeDaySel === "other"
+                  ? "three_day"
+                  : threeDaySel.split("|")[0]
+                : agreement,
+            weeklyRate: kind === "three_day" ? threeDayRate : weeklyRate,
+            distantLocation: kind === "weekly" && distantLocation,
+            expectedAmount,
+            recordIds: ids,
+          }),
+        });
+        return res.ok;
+      } catch {
+        return false;
       }
-      setSavedWeeks((prev) => new Set(prev).add(start));
-      toast.success(
-        mode === "three_day"
-          ? "Saved — the 3-day contract is grouped in your tracker"
-          : `Saved — ${weekLabel(start)} is grouped in your tracker`
-      );
-      load();
-    } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Couldn't save the weekly");
-    } finally {
-      setSavingWeek(null);
+    },
+    [
+      title,
+      weekStartsOn,
+      agreement,
+      threeDaySel,
+      threeDayRate,
+      weeklyRate,
+      distantLocation,
+    ]
+  );
+
+  useEffect(() => {
+    if (!ready || records === null || !title.trim()) return;
+    const terms = JSON.stringify([
+      mode,
+      title.trim(),
+      agreement,
+      threeDaySel,
+      threeDayRate,
+      weeklyRate,
+      weekStartsOn,
+      distantLocation,
+    ]);
+    const groups = new Map<
+      string,
+      { ids: string[]; expected: number; sig: string }
+    >();
+    if (mode === "three_day") {
+      if (threeDay?.breakdown) {
+        const ids = threeDay.records.map((r) => r._id);
+        groups.set(threeDay.firstDay, {
+          ids,
+          expected: threeDay.breakdown.total,
+          sig: JSON.stringify([ids, threeDay.breakdown.total, terms]),
+        });
+      }
+    } else {
+      for (const { week, breakdown } of calculated) {
+        if (!breakdown) continue;
+        const ids = week.records.map((r) => r._id);
+        const firstDay = (week.records[0]?.workDate ?? week.start).slice(0, 10);
+        groups.set(firstDay, {
+          ids,
+          expected: breakdown.grandTotal,
+          sig: JSON.stringify([ids, breakdown.grandTotal, terms]),
+        });
+      }
     }
-  };
+    const dirty = [...groups.entries()].filter(
+      ([start, g]) => lastSavedRef.current[start]?.sig !== g.sig
+    );
+    // A start that was saved but no longer forms a group lost its days —
+    // saving it empty detaches them. Its stored kind rides along so a
+    // weekly bucket is never rewritten as a 3-day on a mode switch.
+    const vanished = Object.keys(lastSavedRef.current).filter(
+      (start) => !groups.has(start)
+    );
+    if (dirty.length === 0 && vanished.length === 0) return;
+    const t = setTimeout(async () => {
+      setWeekSaveState("saving");
+      let allOk = true;
+      for (const [start, g] of dirty) {
+        if (await postWeek(mode, start, g.expected, g.ids)) {
+          lastSavedRef.current[start] = { sig: g.sig, kind: mode };
+        } else {
+          allOk = false;
+        }
+      }
+      for (const start of vanished) {
+        if (await postWeek(lastSavedRef.current[start].kind, start, 0, [])) {
+          delete lastSavedRef.current[start];
+        } else {
+          allOk = false;
+        }
+      }
+      setWeekSaveState(allOk ? "saved" : "error");
+      if (allOk) load();
+    }, 1200);
+    return () => clearTimeout(t);
+  }, [
+    calculated,
+    threeDay,
+    ready,
+    records,
+    title,
+    mode,
+    agreement,
+    threeDaySel,
+    threeDayRate,
+    weeklyRate,
+    weekStartsOn,
+    distantLocation,
+    postWeek,
+    load,
+  ]);
+
+  /**
+   * The questionnaire and the picked days survive leaving the page: a
+   * per-account draft in this browser, restored on return. The money
+   * itself is already in D1 by then — this is just the working state,
+   * so coming back looks like never having left.
+   */
+  const draftKey = user?.email ? `weekly-draft:${user.email}` : null;
+  const draftRestored = useRef(false);
+  useEffect(() => {
+    if (!draftKey || draftRestored.current) return;
+    draftRestored.current = true;
+    try {
+      const raw = localStorage.getItem(draftKey);
+      if (!raw) return;
+      const d = JSON.parse(raw) as Record<string, unknown>;
+      if (typeof d.title === "string" && d.title) setTitle(d.title);
+      if (d.mode === "weekly" || d.mode === "three_day") setMode(d.mode);
+      if (
+        typeof d.agreement === "string" &&
+        (d.agreement === "other" || d.agreement in RATES)
+      ) {
+        setAgreement(d.agreement as RateSchedule | "other");
+      }
+      if (typeof d.weeklyRate === "number" && d.weeklyRate > 0) {
+        setWeeklyRate(d.weeklyRate);
+      }
+      if (typeof d.threeDayRate === "number" && d.threeDayRate > 0) {
+        setThreeDayRate(d.threeDayRate);
+      }
+      if (typeof d.threeDaySel === "string") setThreeDaySel(d.threeDaySel);
+      if (typeof d.distantLocation === "boolean") {
+        setDistantLocation(d.distantLocation);
+      }
+      if (
+        typeof d.weekStartsOn === "number" &&
+        d.weekStartsOn >= 0 &&
+        d.weekStartsOn <= 6
+      ) {
+        setWeekStartsOn(d.weekStartsOn as WeekStartDay);
+      }
+      if (Array.isArray(d.picked)) {
+        setPicked(
+          new Set(d.picked.filter((x): x is string => typeof x === "string"))
+        );
+      }
+    } catch {
+      // A malformed draft is just a missing one.
+    }
+  }, [draftKey]);
+  useEffect(() => {
+    if (!draftKey || !draftRestored.current) return;
+    try {
+      localStorage.setItem(
+        draftKey,
+        JSON.stringify({
+          title,
+          mode,
+          agreement,
+          weeklyRate,
+          threeDayRate,
+          threeDaySel,
+          distantLocation,
+          weekStartsOn,
+          picked: [...picked],
+        })
+      );
+    } catch {
+      // Storage full or blocked — the weeks themselves are still saved.
+    }
+  }, [
+    draftKey,
+    title,
+    mode,
+    agreement,
+    weeklyRate,
+    threeDayRate,
+    threeDaySel,
+    distantLocation,
+    weekStartsOn,
+    picked,
+  ]);
+
+  /** The one line that says where saving stands, shown on every card. */
+  const weekSaveLine = !title.trim()
+    ? "Needs the show title above to save"
+    : weekSaveState === "saving"
+      ? "Saving…"
+      : weekSaveState === "error"
+        ? "Couldn't save — check the connection; the next change retries"
+        : weekSaveState === "saved"
+          ? "Saved — grouped in your tracker"
+          : "Saves as you go — grouped in your tracker";
 
   const viewingDoc = viewing ? gDocOf(viewing) : null;
 
@@ -1031,29 +1218,12 @@ export function WeeklyForm() {
           )}
 
           {threeDay.breakdown && (
-            <div className="flex items-center gap-2 pt-1">
-              <button
-                type="button"
-                disabled={savingWeek === threeDay.firstDay}
-                onClick={() =>
-                  saveWeek(
-                    threeDay.firstDay,
-                    threeDay.breakdown!.total,
-                    threeDay.records.map((r) => r._id)
-                  )
-                }
-                className="rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground disabled:opacity-50"
-              >
-                {savingWeek === threeDay.firstDay
-                  ? "Saving…"
-                  : savedWeeks.has(threeDay.firstDay)
-                    ? "Saved — save again"
-                    : "Save 3-day contract"}
-              </button>
-            </div>
+            <p className="text-xs text-muted-foreground pt-1" aria-live="polite">
+              {weekSaveLine}
+            </p>
           )}
 
-          {threeDay.breakdown && savedWeeks.has(threeDay.firstDay) && (
+          {threeDay.breakdown && (
             <div className="border-t border-border/60 pt-3">
               <PayStubSection
                 scope="week"
@@ -1075,7 +1245,6 @@ export function WeeklyForm() {
 
       {calculated.map(({ week, breakdown, override, turnarounds, rules }) => {
         const open = openWeek === week.start;
-        const saved = savedWeeks.has(week.start);
         // The weekly is defined by the first day actually worked — the
         // calendar boundary only decides which days belong together.
         const firstDay = (week.records[0]?.workDate ?? week.start).slice(0, 10);
@@ -1099,7 +1268,7 @@ export function WeeklyForm() {
                 <span className="block text-xs text-muted-foreground">
                   {week.records.length} day
                   {week.records.length === 1 ? "" : "s"}
-                  {saved ? " · saved" : ""}
+                  {lastSavedRef.current[firstDay] ? " · saved" : ""}
                 </span>
               </span>
               <span className="text-lg font-semibold tabular-nums shrink-0">
@@ -1202,29 +1371,9 @@ export function WeeklyForm() {
                   </p>
                 )}
 
-                <button
-                  type="button"
-                  disabled={savingWeek === week.start}
-                  onClick={() =>
-                    saveWeek(
-                      firstDay,
-                      breakdown?.grandTotal ?? 0,
-                      week.records.map((r) => r._id)
-                    )
-                  }
-                  className="w-full rounded-lg bg-primary text-primary-foreground py-2.5 text-sm font-medium hover:opacity-90 disabled:opacity-50"
-                >
-                  {savingWeek === week.start
-                    ? "Saving…"
-                    : saved
-                      ? "Update this weekly"
-                      : "Save weekly to tracker"}
-                </button>
-                <p className="text-xs text-muted-foreground -mt-2">
-                  Groups these days under one weekly in your tracker
-                  {title.trim() ? "" : " — needs the show title above"}.
-                  Unnamed Exhibit Gs take the show title, labelled Day 1,
-                  Day 2… until they are transcribed.
+                <p className="text-xs text-muted-foreground" aria-live="polite">
+                  {weekSaveLine} Unnamed Exhibit Gs take the show title,
+                  labelled Day 1, Day 2… until they are transcribed.
                 </p>
 
                 {breakdown && (
@@ -1326,6 +1475,14 @@ export function WeeklyForm() {
           </div>
         );
       })}
+
+      {/* The saving status lives where it is always on screen, not only
+          inside an expanded week card. */}
+      {(calculated.length > 0 || (mode === "three_day" && threeDay?.breakdown)) && (
+        <p className="text-xs text-muted-foreground text-center" aria-live="polite">
+          {weekSaveLine}
+        </p>
+      )}
 
       {calculated.length > 1 && (
         <div className="rounded-lg border-2 border-primary bg-primary/5 p-4 flex items-center justify-between gap-4">
