@@ -154,6 +154,49 @@ export function WeeklyForm() {
   const [savedWeeks, setSavedWeeks] = useState<Set<string>>(new Set());
   /** The day whose Exhibit G is open in the popup viewer, if any. */
   const [viewing, setViewing] = useState<WorkRecord | null>(null);
+  /**
+   * The two facts a G photo usually gives away at a glance — the show and
+   * the date — editable in the popup itself, so naming a day does not
+   * mean leaving the week being built. Times still live on the record.
+   */
+  const [viewEdit, setViewEdit] = useState({ showName: "", workDate: "" });
+  const [savingView, setSavingView] = useState(false);
+  const openViewer = (record: WorkRecord) => {
+    setViewing(record);
+    setViewEdit({
+      showName: record.showName?.trim() && !isUnnamed(record, "")
+        ? record.showName
+        : "",
+      workDate: (record.workDate || "").slice(0, 10),
+    });
+  };
+  const saveViewEdit = async () => {
+    if (!viewing) return;
+    if (!viewEdit.showName.trim() || !/^\d{4}-\d{2}-\d{2}$/.test(viewEdit.workDate)) {
+      toast.error("A show and a date name the day");
+      return;
+    }
+    setSavingView(true);
+    try {
+      const res = await fetch(`/api/work-records/${viewing._id}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          showName: viewEdit.showName.trim(),
+          workDate: viewEdit.workDate,
+        }),
+      });
+      if (!res.ok) throw new Error();
+      const updated = (await res.json()) as WorkRecord;
+      setViewing(updated);
+      toast.success("Named — times still fill in on the record");
+      load();
+    } catch {
+      toast.error("Couldn't save");
+    } finally {
+      setSavingView(false);
+    }
+  };
 
   const guarantee = distantLocation ? ("distant" as const) : ("studio" as const);
   const guaranteeHours =
@@ -467,14 +510,54 @@ export function WeeklyForm() {
                 src={`/api/uploads/${viewingDoc.filename}`}
                 alt={viewingDoc.originalName}
                 isPdf={/\.pdf$/i.test(viewingDoc.filename)}
-                height="55vh"
+                height="45vh"
                 initialRotation={viewingDoc.rotation ?? 0}
               />
+              {/* Name the day right here — show and date are what the
+                  photo gives away at a glance; times go on the record. */}
+              <div className="grid grid-cols-1 sm:grid-cols-[1fr_auto_auto] gap-2 items-end">
+                <div className="space-y-1 min-w-0">
+                  <Label htmlFor="viewShow" className="text-xs text-muted-foreground">
+                    Show
+                  </Label>
+                  <ShowCombobox
+                    id="viewShow"
+                    value={viewEdit.showName}
+                    onChange={(v) =>
+                      setViewEdit((prev) => ({ ...prev, showName: v }))
+                    }
+                    options={knownShows}
+                    placeholder="Which show is this?"
+                  />
+                </div>
+                <div className="space-y-1 min-w-0">
+                  <Label htmlFor="viewDate" className="text-xs text-muted-foreground">
+                    Date
+                  </Label>
+                  <Input
+                    id="viewDate"
+                    type="date"
+                    value={viewEdit.workDate}
+                    onChange={(e) =>
+                      setViewEdit((prev) => ({ ...prev, workDate: e.target.value }))
+                    }
+                    className="w-full max-w-full"
+                  />
+                </div>
+                <button
+                  type="button"
+                  onClick={saveViewEdit}
+                  disabled={savingView}
+                  className="h-9 rounded-md bg-primary px-4 text-sm font-medium text-primary-foreground disabled:opacity-50"
+                >
+                  {savingView ? "Saving…" : "Save"}
+                </button>
+              </div>
               <Link
                 href={`/work/${viewing._id}`}
                 className="text-sm underline underline-offset-4 text-center"
               >
-                Open the full record to fill it in
+                Open the full record to fill in the times
               </Link>
             </>
           )}
@@ -717,9 +800,9 @@ export function WeeklyForm() {
                     <span
                       role="button"
                       tabIndex={0}
-                      onClick={() => setViewing(record)}
+                      onClick={() => openViewer(record)}
                       onKeyDown={(e) => {
-                        if (e.key === "Enter" || e.key === " ") setViewing(record);
+                        if (e.key === "Enter" || e.key === " ") openViewer(record);
                       }}
                       className="flex-1 min-w-0 cursor-pointer"
                     >
