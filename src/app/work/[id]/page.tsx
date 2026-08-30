@@ -1360,7 +1360,6 @@ export default function WorkDetailPage() {
                                 id="edit-dismissMakeupWardrobe"
                                 value={editData.dismissMakeupWardrobe || ""}
                                 onChange={(v) => setEditData(d => ({ ...d, dismissMakeupWardrobe: v || null }))}
-                                clearable
                               />
                             </div>
                           </div>

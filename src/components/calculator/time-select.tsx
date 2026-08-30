@@ -1,6 +1,7 @@
 "use client";
 
 import { Label } from "@/components/ui/label";
+import { X } from "lucide-react";
 
 /**
  * Six minutes — a tenth of an hour, which is how a call sheet reads and how
@@ -55,7 +56,6 @@ interface TimeSelectProps {
   /** "HH:MM" on a 24-hour clock, or "" when unset. */
   value: string;
   onChange: (value: string) => void;
-  clearable?: boolean;
   compact?: boolean;
 }
 
@@ -72,6 +72,7 @@ export function TimeSelect({
   onChange,
   compact = false,
 }: TimeSelectProps) {
+  const filled = toFieldValue(value) !== "";
   return (
     <div className="space-y-1 w-full min-w-0">
       {label && (
@@ -79,6 +80,12 @@ export function TimeSelect({
           {label}
         </Label>
       )}
+      {/* A set time can be unset: the clock affordance gives way to a ✕
+          that clears the field back to empty — the platform's own picker
+          has a Reset that only snaps to the current value, never blank.
+          An offered time cleared this way is re-offered the next time
+          its anchor moves. */}
+      <div className="relative w-full min-w-0">
       <input
         id={id}
         type="time"
@@ -104,9 +111,23 @@ export function TimeSelect({
         className={
           "w-full min-w-0 rounded-md border border-input bg-background " +
           "focus:outline-none focus:ring-2 focus:ring-ring " +
-          (compact ? "h-11 px-2 text-base" : "h-12 px-3 text-lg")
+          (compact ? "h-11 px-2 text-base" : "h-12 px-3 text-lg") +
+          (filled
+            ? " pr-9 [&::-webkit-calendar-picker-indicator]:hidden"
+            : "")
         }
       />
+      {filled && (
+        <button
+          type="button"
+          aria-label="Clear time"
+          onClick={() => onChange("")}
+          className="absolute right-1 top-1/2 -translate-y-1/2 rounded p-1.5 text-muted-foreground hover:text-foreground"
+        >
+          <X className="h-4 w-4" />
+        </button>
+      )}
+      </div>
     </div>
   );
 }
