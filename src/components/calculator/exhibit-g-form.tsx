@@ -187,6 +187,8 @@ export function ExhibitGForm() {
   const [showLiveRate, setShowLiveRate] = useState(false);
   /** The paycheck-shaped working under the total, opened by tapping it. */
   const [showLiveLines, setShowLiveLines] = useState(false);
+
+
   const [sixMinIntervals, setSixMinIntervals] = useState(false);
   // Tick counter to trigger recalc for live rate
   const [liveTick, setLiveTick] = useState(0);
@@ -362,6 +364,40 @@ export function ExhibitGForm() {
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [calcInput, isStuntCoordinator, liveRate, sixMinIntervals, liveTick]);
+
+  /**
+   * What the next minute pays, at the tier running right now. Honest
+   * zeros included: inside the 8-hour guarantee the total is pinned at
+   * the day minimum, so a minute adds nothing yet, and a flat deal
+   * bought the day outright.
+   */
+  const perMinuteNow = useMemo(() => {
+    if (!liveBreakdown) return null;
+    const segs = liveBreakdown.segments;
+    const last = segs[segs.length - 1];
+    if (!last) return { amount: 0, label: "no time on the clock yet" };
+    if (last.label.includes("Flat deal")) {
+      return { amount: 0, label: "the flat deal bought the day" };
+    }
+    const wages =
+      liveBreakdown.grandTotal - liveBreakdown.penalties.totalPenalties;
+    const pinnedMinimum =
+      Math.round(
+        liveBreakdown.adjustedBaseRate *
+          liveBreakdown.dayMultiplier.multiplier *
+          100
+      ) / 100;
+    if (wages <= pinnedMinimum && liveBreakdown.netWorkHours < 8) {
+      return {
+        amount: 0,
+        label: "the 8-hour guarantee is still covering this stretch",
+      };
+    }
+    return {
+      amount: (last.rate * last.multiplier) / 60,
+      label: last.label.replace(/ \(.*\)$/, "").toLowerCase(),
+    };
+  }, [liveBreakdown]);
 
   // Live meal penalty summary from the breakdown
   const liveMealPenaltySummary = useMemo(() => {
@@ -1111,11 +1147,22 @@ export function ExhibitGForm() {
                 </button>
               )}
               {liveRate && liveBreakdown && showLiveLines && (
-                <RateBreakdown
-                  breakdown={liveBreakdown}
-                  linesOnly
-                  approximation={contractApprox}
-                />
+                <>
+                  <RateBreakdown
+                    breakdown={liveBreakdown}
+                    linesOnly
+                    approximation={contractApprox}
+                  />
+                  {perMinuteNow && (
+                    <p className="text-center text-sm text-muted-foreground">
+                      Earning{" "}
+                      <span className="font-semibold text-foreground tabular-nums">
+                        {formatCurrency(perMinuteNow.amount)}
+                      </span>{" "}
+                      a minute — {perMinuteNow.label}
+                    </p>
+                  )}
+                </>
               )}
               {liveRate && (
                 <div className="flex items-center space-x-2">
