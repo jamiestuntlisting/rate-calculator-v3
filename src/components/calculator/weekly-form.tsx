@@ -347,24 +347,31 @@ export function WeeklyForm() {
     // already decided — offering it here just invites mixing contracts.
     // But most days never decided anything: a length that was never
     // stated (null) is a daily only by default, so the day is offered,
-    // and picking it into a contract is what decides it. What belongs to
-    // the current mode: days marked with its contract length or already
-    // in a group of its kind, days with no stated length, and unnamed
-    // Exhibit Gs, which could be anything until transcribed.
+    // and picking it into a contract is what decides it. And a day
+    // cannot belong to two weeklies: one already attached to a saved
+    // contract is hidden — except while it is picked in THIS build,
+    // since the autosave attaches picked days immediately and hiding
+    // them would make a week vanish as it was being assembled. To move
+    // a taken day, reopen its contract from Saved contracts (which
+    // picks its days again) or set it back on its record page.
     const kindById = new Map(weeklies.map((w) => [w._id, w.kind]));
     const wanted = mode === "three_day" ? "three_day" : "weekly";
-    const all = (records ?? []).filter(
-      (r) =>
+    const all = (records ?? []).filter((r) => {
+      const takenElsewhere =
+        r.weeklyId != null && kindById.has(r.weeklyId) && !picked.has(r._id);
+      if (takenElsewhere) return false;
+      return (
         isUnnamed(r, title) ||
         r.contractLength == null ||
         r.contractLength === wanted ||
         (r.weeklyId != null && kindById.get(r.weeklyId) === wanted)
-    );
+      );
+    });
     if (!title.trim()) return all;
     return all.filter(
       (r) => r.showName?.trim() === title.trim() || isUnnamed(r, title)
     );
-  }, [records, title, mode, weeklies]);
+  }, [records, title, mode, weeklies, picked]);
 
   useEffect(() => {
     const el = dayListRef.current;
