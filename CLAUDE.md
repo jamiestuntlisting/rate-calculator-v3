@@ -226,6 +226,12 @@ state stays in step.
   refuses one that *ends* late, and throws rather than explaining, so
   `src/lib/nd-meal.ts` carries the whole rule and the form shows it. The
   start check belongs upstream.
+- A SAG check is due by the **Wednesday of the second week after the work
+  week** (`src/lib/payment-due.ts`) — a Friday is paid on the second
+  Wednesday after it, the Monday of that same week on its third, one due
+  date per work week. "Late" on /analytics derives from this and is never
+  hand-marked; `paymentFlag` holds only the human 'done' mark (the 'late'
+  value is legacy, unused by the UI).
 - Sum money at full precision and round once. Rounding per line is a cent
   out on roughly one weekly card in twenty.
 - Vitest needs `vitest.config.ts` for the `@/` alias. `npm test` runs 59

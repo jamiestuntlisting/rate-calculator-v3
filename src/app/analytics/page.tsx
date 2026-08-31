@@ -3,6 +3,7 @@
 import React, { useEffect, useState, useMemo } from "react";
 import { formatCurrency } from "@/lib/time-utils";
 import { shortDay } from "@/lib/format-date";
+import { isPaymentLate, paymentDueDate } from "@/lib/payment-due";
 import {
   Card,
   CardContent,
@@ -216,7 +217,7 @@ export default function AnalyticsPage() {
     };
     const stages = { gOnly: 0, logged: 0, received: 0, correct: 0, done: 0 };
     for (const r of records) stages[stageOf(r)]++;
-    const lateFlagged = records.filter((r) => r.paymentFlag === "late").length;
+    const lateCount = records.filter((r) => isPaymentLate(r)).length;
     const missingGCount = records.filter((r) => r.missingExhibitG).length;
 
     // By show — with the days themselves, oldest first, because this is
@@ -289,7 +290,7 @@ export default function AnalyticsPage() {
       totalOwed,
       totalDays,
       stages,
-      lateFlagged,
+      lateCount,
       missingGCount,
       byShow,
       byMonth,
@@ -337,13 +338,13 @@ export default function AnalyticsPage() {
             ]}
             format={(n) => String(n)}
           />
-          {(stats.missingGCount > 0 || stats.lateFlagged > 0) && (
+          {(stats.missingGCount > 0 || stats.lateCount > 0) && (
             <p className="text-xs text-muted-foreground">
               {stats.missingGCount > 0 &&
                 `${stats.missingGCount} day${stats.missingGCount === 1 ? "" : "s"} still missing an Exhibit G.`}
-              {stats.missingGCount > 0 && stats.lateFlagged > 0 && " "}
-              {stats.lateFlagged > 0 &&
-                `${stats.lateFlagged} marked late and being chased.`}
+              {stats.missingGCount > 0 && stats.lateCount > 0 && " "}
+              {stats.lateCount > 0 &&
+                `${stats.lateCount} late — no check by the second Wednesday after the work week.`}
             </p>
           )}
         </CardContent>
@@ -379,10 +380,13 @@ export default function AnalyticsPage() {
                     // a human marks the row (Late while chasing, Done when
                     // closed whatever the amounts say), or an amount was
                     // actually entered — then the arithmetic verdict shows.
+                    // Late is derived, never hand-marked: no check by the
+                    // second Wednesday after the work week. Done still
+                    // beats it — closed is closed.
                     const verdict =
                       record.paymentFlag === "done"
                         ? { label: "Done", tone: "bg-green-900/40 text-green-300 border-green-700/50" }
-                        : record.paymentFlag === "late"
+                        : isPaymentLate(record)
                           ? VERDICTS.late
                           : (record.paidAmount || 0) > 0
                             ? VERDICTS[record.paymentStatus] ?? null
@@ -495,6 +499,16 @@ export default function AnalyticsPage() {
                                 </Link>
                               </p>
                             )}
+                            {record.workType !== "other" && (
+                              <p className="text-xs text-muted-foreground">
+                                {(record.paidAmount || 0) > 0 ||
+                                record.paymentFlag === "done"
+                                  ? `Payment was due by ${shortDay(paymentDueDate(record.workDate) ?? "")}.`
+                                  : isPaymentLate(record)
+                                    ? `Late — payment was due by ${shortDay(paymentDueDate(record.workDate) ?? "")}, the second Wednesday after the work week.`
+                                    : `Payment due by ${shortDay(paymentDueDate(record.workDate) ?? "")} — the second Wednesday after the work week.`}
+                              </p>
+                            )}
                             <div className="flex flex-wrap items-center gap-2">
                               <span className="text-xs text-muted-foreground">
                                 Mark it:
@@ -515,22 +529,7 @@ export default function AnalyticsPage() {
                               >
                                 Done — not chasing this
                               </button>
-                              <button
-                                type="button"
-                                onClick={() =>
-                                  saveFlag(
-                                    record,
-                                    record.paymentFlag === "late" ? null : "late"
-                                  )
-                                }
-                                className={`rounded border px-2 py-1 text-xs ${
-                                  record.paymentFlag === "late"
-                                    ? "border-purple-700/60 bg-purple-900/40 text-purple-300"
-                                    : "border-border text-muted-foreground hover:bg-accent"
-                                }`}
-                              >
-                                Late
-                              </button>
+
                             </div>
                           </div>
                         )}
