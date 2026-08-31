@@ -156,6 +156,15 @@ export function WeeklyForm() {
     }>
   >([]);
   const [picked, setPicked] = useState<Set<string>>(new Set());
+  /**
+   * The offered-days list scrolls past ~288px, but a cut that lands
+   * exactly between rows looks like the end of the list. The cap is
+   * measured off the real rows so the cut always lands mid-row — half a
+   * day showing is the signal that there is more to scroll — and is
+   * dropped entirely when everything fits.
+   */
+  const dayListRef = useRef<HTMLDivElement | null>(null);
+  const [dayListMaxH, setDayListMaxH] = useState<number | null>(288);
   const [overrides, setOverrides] = useState<Record<string, WeekOverride>>({});
   const [openWeek, setOpenWeek] = useState<string | null>(null);
   /**
@@ -365,6 +374,32 @@ export function WeeklyForm() {
       (r) => r.showName?.trim() === title.trim() || isUnnamed(r, title)
     );
   }, [records, title, mode, weeklies]);
+
+  useEffect(() => {
+    const el = dayListRef.current;
+    if (!el) return;
+    const measure = () => {
+      const NOMINAL = 288;
+      if (el.scrollHeight <= NOMINAL + 8) {
+        setDayListMaxH(null);
+        return;
+      }
+      const listTop = el.getBoundingClientRect().top - el.scrollTop;
+      for (const child of Array.from(el.children) as HTMLElement[]) {
+        const rect = child.getBoundingClientRect();
+        const top = rect.top - listTop;
+        if (top + rect.height > NOMINAL) {
+          setDayListMaxH(Math.round(top + rect.height * 0.55));
+          return;
+        }
+      }
+      setDayListMaxH(NOMINAL);
+    };
+    measure();
+    const observer = new ResizeObserver(measure);
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, [offered]);
 
   const toggle = (id: string) =>
     setPicked((prev) => {
@@ -1079,7 +1114,11 @@ export function WeeklyForm() {
               .
             </p>
           ) : (
-            <div className="max-h-72 overflow-y-auto -mx-1 px-1 space-y-1">
+            <div
+              ref={dayListRef}
+              className="overflow-y-auto -mx-1 px-1 space-y-1"
+              style={dayListMaxH != null ? { maxHeight: dayListMaxH } : undefined}
+            >
               {offered.map((record) => (
                 <div
                   key={record._id}
