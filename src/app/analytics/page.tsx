@@ -199,12 +199,24 @@ export default function AnalyticsPage() {
     const totalOwed = totalExpected - totalPaid;
     const totalDays = records.length;
 
-    const lateCount = records.filter((r) => r.paymentStatus === "late").length;
-    const unpaidCount = records.filter((r) => r.paymentStatus === "unpaid").length;
-    const paidCount = records.filter(
-      (r) => r.paymentStatus === "paid_correctly" || r.paymentStatus === "overpaid"
-    ).length;
-    const underpaidCount = records.filter((r) => r.paymentStatus === "underpaid").length;
+    // The page's whole job is moving a day along this pipeline:
+    // Exhibit G only -> Logged -> Payment received -> Paid correctly ->
+    // Done. Done is the human mark and beats everything; the rest are
+    // read off what the record has.
+    const stageOf = (r: WorkRecord) => {
+      if (r.paymentFlag === "done") return "done";
+      const expected = r.expectedAmount || 0;
+      const paid = r.paidAmount || 0;
+      if (paid > 0 && expected > 0 && Math.abs(paid - expected) < 0.005) {
+        return "correct";
+      }
+      if (paid > 0) return "received";
+      if (expected > 0) return "logged";
+      return "gOnly";
+    };
+    const stages = { gOnly: 0, logged: 0, received: 0, correct: 0, done: 0 };
+    for (const r of records) stages[stageOf(r)]++;
+    const lateFlagged = records.filter((r) => r.paymentFlag === "late").length;
     const missingGCount = records.filter((r) => r.missingExhibitG).length;
 
     // By show — with the days themselves, oldest first, because this is
@@ -276,10 +288,8 @@ export default function AnalyticsPage() {
       totalPaid,
       totalOwed,
       totalDays,
-      lateCount,
-      unpaidCount,
-      paidCount,
-      underpaidCount,
+      stages,
+      lateFlagged,
       missingGCount,
       byShow,
       byMonth,
@@ -308,52 +318,36 @@ export default function AnalyticsPage() {
     <div className="space-y-6">
       <h1 className="text-2xl font-bold">Resolve</h1>
 
-      {/* Two questions, answered as a number and its split: how much money,
-          and how many days — each with a bar of where things stand. Colored
-          segments never stand alone: the legend names each with its count. */}
-      <div className="grid gap-4 md:grid-cols-2">
-        <Card>
-          <CardContent className="pt-4 space-y-3">
-            <div className="flex items-baseline justify-between gap-3">
-              <p className="text-sm text-muted-foreground">Total expected</p>
-              <p className="text-2xl font-bold tabular-nums">
-                {formatCurrency(stats.totalExpected)}
-              </p>
-            </div>
-            <Meter
-              segments={[
-                { label: "Paid", value: stats.totalPaid, className: "bg-green-500" },
-                { label: "Outstanding", value: Math.max(0, stats.totalOwed), className: "bg-red-400" },
-              ]}
-              format={formatCurrency}
-            />
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardContent className="pt-4 space-y-3">
-            <div className="flex items-baseline justify-between gap-3">
-              <p className="text-sm text-muted-foreground">Work days</p>
-              <p className="text-2xl font-bold tabular-nums">{stats.totalDays}</p>
-            </div>
-            <Meter
-              segments={[
-                { label: "Paid", value: stats.paidCount, className: "bg-green-500" },
-                { label: "Underpaid", value: stats.underpaidCount, className: "bg-yellow-400" },
-                { label: "Late", value: stats.lateCount, className: "bg-purple-400" },
-                { label: "Unpaid", value: stats.unpaidCount, className: "bg-red-400" },
-              ]}
-              format={(n) => String(n)}
-            />
-            {stats.missingGCount > 0 && (
-              <p className="text-xs text-muted-foreground">
-                {stats.missingGCount} day{stats.missingGCount === 1 ? "" : "s"}{" "}
-                still missing an Exhibit G.
-              </p>
-            )}
-          </CardContent>
-        </Card>
-      </div>
+      {/* One question: where does each day stand on its way from an
+          Exhibit G photo to money resolved. The bar is the pipeline; the
+          legend names each stage with its count. */}
+      <Card>
+        <CardContent className="pt-4 space-y-3">
+          <div className="flex items-baseline justify-between gap-3">
+            <p className="text-sm text-muted-foreground">Work days</p>
+            <p className="text-2xl font-bold tabular-nums">{stats.totalDays}</p>
+          </div>
+          <Meter
+            segments={[
+              { label: "Exhibit G only", value: stats.stages.gOnly, className: "bg-zinc-500" },
+              { label: "Logged", value: stats.stages.logged, className: "bg-blue-400" },
+              { label: "Payment received", value: stats.stages.received, className: "bg-yellow-400" },
+              { label: "Paid correctly", value: stats.stages.correct, className: "bg-green-500" },
+              { label: "Done", value: stats.stages.done, className: "bg-primary" },
+            ]}
+            format={(n) => String(n)}
+          />
+          {(stats.missingGCount > 0 || stats.lateFlagged > 0) && (
+            <p className="text-xs text-muted-foreground">
+              {stats.missingGCount > 0 &&
+                `${stats.missingGCount} day${stats.missingGCount === 1 ? "" : "s"} still missing an Exhibit G.`}
+              {stats.missingGCount > 0 && stats.lateFlagged > 0 && " "}
+              {stats.lateFlagged > 0 &&
+                `${stats.lateFlagged} marked late and being chased.`}
+            </p>
+          )}
+        </CardContent>
+      </Card>
 
       {/* Work Days */}
       <Card>
@@ -365,7 +359,7 @@ export default function AnalyticsPage() {
             <p className="text-muted-foreground text-sm">No data</p>
           ) : (
             <div className="space-y-1">
-              <div className="flex items-center gap-3 pb-1 border-b border-border text-[11px] uppercase tracking-wide text-muted-foreground">
+              <div className="hidden sm:flex items-center gap-3 pb-1 border-b border-border text-[11px] uppercase tracking-wide text-muted-foreground">
                 <span className="w-5 shrink-0" aria-hidden />
                 <span className="flex-1 min-w-0">Show · date</span>
                 <span className="w-24 text-right shrink-0">Calculated</span>
@@ -395,7 +389,7 @@ export default function AnalyticsPage() {
                             : null;
                     return (
                       <React.Fragment key={record._id}>
-                        <div className="flex items-center gap-3 py-2 border-b border-border/30">
+                        <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5 py-2 border-b border-border/30">
                           <button
                             type="button"
                             aria-expanded={rowOpen}
@@ -408,7 +402,7 @@ export default function AnalyticsPage() {
                                 return next;
                               })
                             }
-                            className="w-5 shrink-0 text-muted-foreground hover:text-foreground"
+                            className="order-1 w-5 shrink-0 text-muted-foreground hover:text-foreground"
                           >
                             {rowOpen ? (
                               <ChevronDown className="h-4 w-4" />
@@ -418,55 +412,60 @@ export default function AnalyticsPage() {
                           </button>
                           <Link
                             href={`/work/${record._id}`}
-                            className="flex-1 min-w-0"
+                            className="order-2 min-w-0 flex-1 truncate"
                           >
-                            <span className="block text-sm font-medium truncate">
+                            <span className="text-sm font-medium">
                               {show.name}
                             </span>
-                            <span className="block text-xs text-muted-foreground">
-                              {shortDay(ymd)}
+                            <span className="text-xs text-muted-foreground">
+                              {" "}· {shortDay(ymd)}
                             </span>
                           </Link>
-                          {record.expectedAmount ? (
-                            <span className="text-sm tabular-nums shrink-0 w-24 text-right">
-                              {fmtAmount(record.expectedAmount)}
-                            </span>
-                          ) : (
-                            <span className="text-sm shrink-0 w-24 text-right text-muted-foreground">
-                              —
-                            </span>
-                          )}
-                          <div className="w-28 shrink-0">
-                            <Input
-                              type="number"
-                              inputMode="decimal"
-                              min="0"
-                              value={edit ?? (record.paidAmount || "")}
-                              onChange={(e) =>
-                                setPaidEdits((prev) => ({
-                                  ...prev,
-                                  [record._id]: e.target.value,
-                                }))
-                              }
-                              onBlur={() => saveDayEdit(record)}
-                              onKeyDown={(e) => {
-                                if (e.key === "Enter") e.currentTarget.blur();
-                              }}
-                              placeholder="0.00"
-                              className="h-9 text-sm text-right tabular-nums"
-                            />
-                          </div>
                           {verdict ? (
                             <span
-                              className={`shrink-0 w-14 text-center rounded px-1 py-0.5 text-[10px] font-semibold border ${verdict.tone}`}
+                              className={`order-3 sm:order-5 shrink-0 w-14 text-center rounded px-1 py-0.5 text-[10px] font-semibold border ${verdict.tone}`}
                             >
                               {verdict.label}
                             </span>
                           ) : (
-                            <span className="shrink-0 w-14 text-center text-xs text-muted-foreground">
+                            <span className="order-3 sm:order-5 shrink-0 w-14 text-center text-xs text-muted-foreground">
                               —
                             </span>
                           )}
+                          <div className="order-4 flex w-full items-center gap-3 pl-8 sm:w-auto sm:pl-0">
+                            <span className="mr-auto whitespace-nowrap text-[11px] text-muted-foreground sm:hidden">
+                              calculated → paid
+                            </span>
+                            {record.expectedAmount ? (
+                              <span className="text-sm tabular-nums shrink-0 w-24 text-right">
+                                {fmtAmount(record.expectedAmount)}
+                              </span>
+                            ) : (
+                              <span className="text-sm shrink-0 w-24 text-right text-muted-foreground">
+                                —
+                              </span>
+                            )}
+                            <div className="w-28 shrink-0">
+                              <Input
+                                type="number"
+                                inputMode="decimal"
+                                min="0"
+                                value={edit ?? (record.paidAmount || "")}
+                                onChange={(e) =>
+                                  setPaidEdits((prev) => ({
+                                    ...prev,
+                                    [record._id]: e.target.value,
+                                  }))
+                                }
+                                onBlur={() => saveDayEdit(record)}
+                                onKeyDown={(e) => {
+                                  if (e.key === "Enter") e.currentTarget.blur();
+                                }}
+                                placeholder="0.00"
+                                className="h-9 text-sm text-right tabular-nums"
+                              />
+                            </div>
+                          </div>
                         </div>
                         {rowOpen && (
                           <div className="border-b border-border/30 py-3 pl-8 pr-1 space-y-3">
@@ -540,7 +539,7 @@ export default function AnalyticsPage() {
                   })}
 
                   <div className="flex items-center gap-3 py-1.5">
-                    <span className="w-5 shrink-0" aria-hidden />
+                    <span className="hidden w-5 shrink-0 sm:block" aria-hidden />
                     <span className="flex-1 min-w-0 text-xs font-medium">
                       Total
                     </span>
