@@ -180,6 +180,54 @@ function buildRates(cells: ScheduleCells): RateTable {
   };
 }
 
+/**
+ * The Commercials Contract runs on its own calendar — raises land on
+ * April 1, not July 1 — so its session fee is a separate ladder rather
+ * than a column in the schedules above. The session fee buys an 8-hour
+ * day for every performer classification including stunt performers,
+ * per SAG-AFTRA's own rate sheets. Verified figures: $822.30 from the
+ * 2025 Commercials Contract Year 1 rate sheet (+5.0% on the prior
+ * $783.10), $855.20 from the union's 2026-27 member cheat sheet, whose
+ * printed overtime rates ($160.35 at 1.5x, $213.80 at 2x) are exactly
+ * 855.20/8 scaled — the arithmetic locks all three. Dates before the
+ * earliest entry use it, the same convention as the schedules above.
+ */
+export const COMMERCIAL_SCHEDULES: Array<{
+  effectiveFrom: string;
+  sessionFee: number;
+  source: string;
+}> = [
+  {
+    effectiveFrom: "2022-04-01",
+    sessionFee: 783.1,
+    source: "2022 contract figure, in force through 03/31/2025",
+  },
+  {
+    effectiveFrom: "2025-04-01",
+    sessionFee: 822.3,
+    source: "2025 Commercials Contract rate sheet, year 1",
+  },
+  {
+    effectiveFrom: "2026-04-01",
+    sessionFee: 855.2,
+    source: "2025 Commercials Contract rate sheet, year 2",
+  },
+];
+
+/** The commercial session fee in force on a work day. */
+export function commercialSessionFee(workDate?: string | null): number {
+  const d = (workDate || "").slice(0, 10);
+  let pick = COMMERCIAL_SCHEDULES[0];
+  if (/^\d{4}-\d{2}-\d{2}$/.test(d)) {
+    for (const row of COMMERCIAL_SCHEDULES) {
+      if (row.effectiveFrom <= d) pick = row;
+    }
+  } else {
+    pick = COMMERCIAL_SCHEDULES[COMMERCIAL_SCHEDULES.length - 1];
+  }
+  return pick.sessionFee;
+}
+
 const BUILT: RateTable[] = RATE_SCHEDULES.map((s) => buildRates(s.cells));
 
 /**

@@ -41,7 +41,7 @@ import {
 } from "@/lib/agreements";
 import { toast } from "sonner";
 import type { ExhibitGInput, WorkDocument, CalculationBreakdown } from "@/types";
-import { MEAL_PENALTIES, ratesForDate } from "@/lib/rate-constants";
+import { MEAL_PENALTIES, commercialSessionFee, ratesForDate } from "@/lib/rate-constants";
 import { Save } from "lucide-react";
 import { snapToSixMinutes, formatCurrency } from "@/lib/time-utils";
 import { MEAL_MINUTES } from "@/components/calculator/time-select";
@@ -951,7 +951,14 @@ export function ExhibitGForm() {
                       workStatus: v,
                       // The typed rate belongs to the flat agreements; a
                       // schedule takes over pricing the moment it is picked.
-                      flatDayRate: isFlatAgreement(v) ? prev.flatDayRate : null,
+                      // Commercial opens at the Commercials Contract scale
+                      // for the day's date — the minimum, typed over freely.
+                      flatDayRate: isFlatAgreement(v)
+                        ? prev.flatDayRate ||
+                          (v === "commercial"
+                            ? commercialSessionFee(prev.workDate)
+                            : null)
+                        : null,
                     }));
                   }}
                 >
@@ -988,7 +995,9 @@ export function ExhibitGForm() {
                             value={agreement.id}
                             className="text-base"
                           >
-                            {agreement.name} — type the rate
+                            {agreement.id === "commercial"
+                              ? `Commercial — scale ${dayRate(commercialSessionFee(input.workDate))}, type if over`
+                              : `${agreement.name} — type the rate`}
                           </SelectItem>
                         ))}
                       </>

@@ -9,7 +9,7 @@ import {
 } from "@/components/ui/card";
 import { useAuth } from "@/context/auth-context";
 import { isAdminEmail } from "@/lib/admin-emails";
-import { RATE_SCHEDULES } from "@/lib/rate-constants";
+import { COMMERCIAL_SCHEDULES, RATE_SCHEDULES } from "@/lib/rate-constants";
 
 const fmt = (n: number) =>
   `$${n.toLocaleString("en-US", {
@@ -149,6 +149,44 @@ export default function AdminRatesPage() {
             exception to the July 1 rhythm — it matters once pre-2025
             schedules are loaded.
           </p>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Commercials Contract session fee</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-3">
+          <p className="text-sm text-muted-foreground">
+            The Commercials Contract runs on its own calendar — raises land
+            April 1, not July 1 — and its session fee buys an 8-hour day for
+            every classification, stunt performers included. The Commercial
+            pick on Log Work opens at this figure for the day&rsquo;s date;
+            an over-scale deal is typed over it. Dates before the earliest
+            row use it until older tables are loaded.
+          </p>
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="border-b border-border text-left">
+                  <th className="py-2 pr-4">In force from</th>
+                  <th className="py-2 pr-4 text-right">Session fee</th>
+                  <th className="py-2">Source</th>
+                </tr>
+              </thead>
+              <tbody>
+                {COMMERCIAL_SCHEDULES.map((row) => (
+                  <tr key={row.effectiveFrom} className="border-b border-border/50">
+                    <td className="py-2 pr-4 tabular-nums">{row.effectiveFrom}</td>
+                    <td className="py-2 pr-4 text-right tabular-nums">
+                      ${row.sessionFee.toFixed(2)}
+                    </td>
+                    <td className="py-2 text-xs text-muted-foreground">{row.source}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         </CardContent>
       </Card>
     </div>

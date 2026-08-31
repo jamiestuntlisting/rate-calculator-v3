@@ -58,6 +58,12 @@ Two further changes are local and also need carrying upstream:
   the one in force, and `rate-engine.ts` prices each day by its own date.
   `RATES` remains as today's table for callers that don't pass a date.
   Dates before the earliest schedule use it rather than a guess.
+- `rate-constants.ts` also carries `COMMERCIAL_SCHEDULES` and
+  `commercialSessionFee(workDate)` — the Commercials Contract session fee
+  on its own April-1 calendar ($783.10 through 03/2025, $822.30 from
+  04/01/2025, $855.20 from 04/01/2026, verified against the union's own
+  rate sheets). The app uses it to prefill and label the Commercial pick;
+  the engine itself does not read it.
 - `rate-engine.ts` measures the no-meal-recorded penalty to the **set
   dismissal** rather than the wrap. SAG-AFTRA's 15-minute rule (April 2022
   contract bulletin): makeup/wardrobe removal is paid work time and

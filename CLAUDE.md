@@ -76,7 +76,13 @@ state stays in step.
   A deal that is none of the schedules is picked as **Commercial** or
   **Flat deal** in the same pulldown (`FLAT_AGREEMENTS`) — the performer
   types the contract's number, `flatDayRate` rides the record, and the
-  old separate flat-rate checkbox is gone.
+  old separate flat-rate checkbox is gone. Commercial opens prefilled at
+  the Commercials Contract session fee for the day's date
+  (`COMMERCIAL_SCHEDULES`/`commercialSessionFee` — April-1 calendar:
+  783.10 → 822.30 on 04/01/25 → 855.20 on 04/01/26, union rate sheets),
+  shown on `/admin/rates`; note the union's cheat sheet says commercial
+  days DO earn 1.5×/2× overtime past 8 hours, so the flat treatment
+  understates long days — flagged to James, not yet changed.
   **A flat deal earns no overtime**: the number buys the day, so the engine
   returns it as one segment however long the day ran, and a sixteen-hour
   day pays what an eight-hour day pays. Meal penalties are not wages and

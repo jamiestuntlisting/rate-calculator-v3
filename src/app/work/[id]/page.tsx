@@ -49,7 +49,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Separator } from "@/components/ui/separator";
 import { RateBreakdown } from "@/components/calculation/rate-breakdown";
 import { formatCurrency } from "@/lib/time-utils";
-import { MEAL_PENALTIES, RATES, type RateSchedule } from "@/lib/rate-constants";
+import { MEAL_PENALTIES, RATES, type RateSchedule, commercialSessionFee } from "@/lib/rate-constants";
 import { additionalContractPay } from "@/lib/multi-contract";
 import { PayStubSection } from "@/components/shared/pay-stub-section";
 import { useAuth } from "@/context/auth-context";
@@ -1134,7 +1134,9 @@ export default function WorkDetailPage() {
                                     value={agreement.id}
                                     className="text-base"
                                   >
-                                    {agreement.name} — the record&rsquo;s own rate
+                                    {agreement.id === "commercial"
+                                      ? `Commercial — scale ${dayRate(commercialSessionFee(editData.workDate))}, type if over`
+                                      : `${agreement.name} — the record's own rate`}
                                   </SelectItem>
                                 ))}
                               </>
