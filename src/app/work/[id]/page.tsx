@@ -287,6 +287,23 @@ export default function WorkDetailPage() {
     );
   })();
 
+  /**
+   * ?edit=1 opens the form the moment the record loads — the Resolve
+   * page links an unlogged day here so "log this day" lands in the
+   * time fields, not on a read-only view.
+   */
+  const autoEditDone = useRef(false);
+  useEffect(() => {
+    if (autoEditDone.current || !record || editing) return;
+    autoEditDone.current = true;
+    // Read the query directly: useSearchParams would demand a Suspense
+    // boundary at build time for no benefit on a fully client page.
+    if (new URLSearchParams(window.location.search).get("edit") === "1") {
+      startEditing();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [record, editing]);
+
   const startEditing = () => {
     if (!record) return;
     if (isOtherWorkType) {

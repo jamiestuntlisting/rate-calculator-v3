@@ -489,13 +489,13 @@ export default function AnalyticsPage() {
                               />
                             ) : (
                               <p className="text-sm text-muted-foreground">
-                                No worked-out breakdown yet — the day is
-                                missing its times.{" "}
+                                This day hasn’t been logged yet — no
+                                times, so nothing to compare a check against.{" "}
                                 <Link
-                                  href={`/work/${record._id}`}
+                                  href={`/work/${record._id}?edit=1`}
                                   className="underline underline-offset-2"
                                 >
-                                  Open the record
+                                  Log this day’s times
                                 </Link>
                               </p>
                             )}
