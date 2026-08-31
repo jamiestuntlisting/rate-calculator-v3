@@ -2,6 +2,7 @@
 
 import { useState, useCallback } from "react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -136,6 +137,12 @@ export default function OtherWorkPage() {
 
   return (
     <div className="max-w-3xl mx-auto space-y-6">
+      <Link
+        href="/"
+        className="inline-block text-sm text-muted-foreground hover:text-foreground"
+      >
+        ← Log Work
+      </Link>
       <Card>
         <CardHeader>
           <CardTitle className="text-2xl">Other Work</CardTitle>

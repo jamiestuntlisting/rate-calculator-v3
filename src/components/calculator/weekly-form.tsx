@@ -7,6 +7,7 @@ import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
 import { ChevronDown, ChevronRight, Info, Loader2 } from "lucide-react";
 import { formatCurrency } from "@/lib/time-utils";
+import { shortDay } from "@/lib/format-date";
 import { RATES, ratesForDate, type RateSchedule } from "@/lib/rate-constants";
 import {
   AGREEMENTS,
@@ -77,18 +78,7 @@ const EXTRAS: Array<{ value: WeeklyExtra; label: string }> = [
   { value: "holiday", label: "Holiday" },
 ];
 
-const shortDate = (workDate: string) => {
-  const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(workDate || "");
-  if (!m) return workDate;
-  return new Date(
-    Date.UTC(Number(m[1]), Number(m[2]) - 1, Number(m[3]))
-  ).toLocaleDateString("en-US", {
-    weekday: "short",
-    day: "numeric",
-    month: "short",
-    timeZone: "UTC",
-  });
-};
+const shortDate = (workDate: string) => shortDay(workDate);
 
 /** A placeholder name from a bulk upload, or no name at all. */
 const isUnnamed = (record: WorkRecord, title: string) =>

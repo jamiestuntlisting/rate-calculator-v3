@@ -54,3 +54,27 @@ export function precedingTime(
   const mm = String(total % 60).padStart(2, "0");
   return `${hh}:${mm}`;
 }
+
+/**
+ * The dismissal/wrap rule, stated as a function so the form and the
+ * time bench run the same code: an offer only ever fills an EMPTY
+ * companion. A time someone already set never moves, however the
+ * anchor changes — "if those have already been set, ignore the rules
+ * of setting things."
+ */
+export function offerAfterIfEmpty(
+  anchor: string,
+  existing: string | null | undefined,
+  minutes: number
+): string | null {
+  return existing ? existing : followedTime(anchor, null, minutes);
+}
+
+/** The same rule pointing backwards: a wrap offers the dismissal. */
+export function offerBeforeIfEmpty(
+  anchor: string,
+  existing: string | null | undefined,
+  minutes: number
+): string | null {
+  return existing ? existing : precedingTime(anchor, null, minutes);
+}

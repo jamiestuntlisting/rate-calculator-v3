@@ -8,7 +8,8 @@ import {
   type SuggestionKind,
   type SuggestionStatus,
 } from "@/lib/repos/name-suggestions";
-import { requireAuth } from "@/lib/api-auth";
+import { getEffectiveUserId, requireAuth } from "@/lib/api-auth";
+import { recentShowNames } from "@/lib/repos/work-records";
 import { isAdminEmail } from "@/lib/auth";
 
 const KINDS: SuggestionKind[] = ["show", "character"];
@@ -42,6 +43,14 @@ export async function GET(request: Request) {
       );
     }
 
+    // Shows are personal and current: the member's own jobs from the
+    // last sixty days, most recently worked first — not an alphabetical
+    // catalogue of everything ever logged. Characters stay the approved
+    // role list, which is standard and timeless.
+    if (kind === "show") {
+      const userId = await getEffectiveUserId(auth.session);
+      return NextResponse.json({ names: await recentShowNames(userId) });
+    }
     return NextResponse.json({ names: await listSuggestions(kind) });
   } catch (error) {
     console.error("suggestions GET error:", error);

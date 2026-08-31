@@ -1,5 +1,6 @@
 "use client";
 
+import { shortDay } from "@/lib/format-date";
 import React, { useEffect, useState, useCallback } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -337,11 +338,7 @@ export default function TrackerPage() {
                       onClick={() => router.push(`/work/${record._id}`)}
                     >
                       <TableCell className={`font-medium ${inWeekly ? "pl-8" : ""}`}>
-                        {(() => {
-                          const ymd = record.workDate.split("T")[0];
-                          const [y, m, d] = ymd.split("-").map(Number);
-                          return `${m}/${d}/${y}`;
-                        })()}
+                        {shortDay(record.workDate)}
                       </TableCell>
                       <TableCell>{record.showName}</TableCell>
                       <TableCell className="hidden md:table-cell">

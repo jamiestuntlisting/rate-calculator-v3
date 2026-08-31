@@ -1,0 +1,22 @@
+# The suite runs on every push and again every Monday morning — the
+# weekly run is the standing check that the time rules, the rate math
+# and the ShowBiz bench still hold even when nothing has changed.
+name: tests
+on:
+  push:
+    branches: [main]
+  pull_request:
+  schedule:
+    - cron: "0 14 * * 1" # Mondays 14:00 UTC ≈ Monday morning US
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npx tsc --noEmit
+      - run: npm test

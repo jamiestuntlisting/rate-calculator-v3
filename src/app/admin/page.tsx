@@ -64,6 +64,12 @@ const ADMIN_PAGES = [
     icon: FlaskConical,
   },
   {
+    href: "/admin/time-bench",
+    title: "Time bench",
+    detail: "The Log Work time rules in words, each checked live.",
+    icon: FlaskConical,
+  },
+  {
     href: "/admin/tasks",
     title: "Tasks",
     detail: "What still needs doing, and who it is waiting on.",

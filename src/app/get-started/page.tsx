@@ -5,7 +5,7 @@ import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 import { toUploadableImage } from "@/lib/heic-to-jpeg";
-import { Camera, Check, Loader2, Upload } from "lucide-react";
+import { Check, Loader2, Upload } from "lucide-react";
 
 /**
  * The first-visit page: get the backlog in.
@@ -34,7 +34,6 @@ export default function GetStartedPage() {
   const [requested, setRequested] = useState(false);
   const [summary, setSummary] = useState<Summary | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
-  const cameraRef = useRef<HTMLInputElement>(null);
 
   const refresh = useCallback(async () => {
     try {
@@ -143,35 +142,22 @@ export default function GetStartedPage() {
           </p>
           <h2 className="text-lg font-semibold">Upload everything</h2>
         </div>
-        <div className="flex gap-3">
-          <Button
-            className="flex-1"
-            size="lg"
-            disabled={uploading}
-            onClick={() => cameraRef.current?.click()}
-          >
-            {uploading ? (
-              <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-            ) : (
-              <Camera className="h-4 w-4 mr-2" />
-            )}
-            Camera
-          </Button>
-          <Button
-            className="flex-1"
-            size="lg"
-            variant="outline"
-            disabled={uploading}
-            onClick={() => fileRef.current?.click()}
-          >
-            {uploading ? (
-              <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-            ) : (
-              <Upload className="h-4 w-4 mr-2" />
-            )}
-            Upload
-          </Button>
-        </div>
+        {/* One button, straight to the photo library / file picker.
+            The camera path is gone: nobody photographs a season of Gs
+            one frame at a time from inside a web page. */}
+        <Button
+          className="w-full"
+          size="lg"
+          disabled={uploading}
+          onClick={() => fileRef.current?.click()}
+        >
+          {uploading ? (
+            <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+          ) : (
+            <Upload className="h-4 w-4 mr-2" />
+          )}
+          Upload
+        </Button>
         <p className="text-xs text-muted-foreground">
           Pick as many as you like — photos or PDFs. Duplicates are detected
           and skipped, so uploading twice costs nothing.
@@ -190,13 +176,13 @@ export default function GetStartedPage() {
         )}
       </div>
 
-      {/* Step two: who does the typing. */}
+      {/* Step two: transcription help. */}
       <div className="rounded-lg border border-border p-5 space-y-4">
         <div>
           <p className="text-xs uppercase tracking-wide text-muted-foreground">
             Then
           </p>
-          <h2 className="text-lg font-semibold">Who does the typing?</h2>
+          <h2 className="text-lg font-semibold">Want help transcribing the Gs?</h2>
           <p className="text-sm text-muted-foreground mt-1">
             If you want us to transcribe all of these, tap the button and
             we&rsquo;ll get started right away.
@@ -246,18 +232,6 @@ export default function GetStartedPage() {
         ref={fileRef}
         type="file"
         accept="image/*,application/pdf,.heic,.heif"
-        multiple
-        className="hidden"
-        onChange={(e) => {
-          uploadFiles(Array.from(e.target.files ?? []));
-          e.target.value = "";
-        }}
-      />
-      <input
-        ref={cameraRef}
-        type="file"
-        accept="image/*"
-        capture="environment"
         multiple
         className="hidden"
         onChange={(e) => {

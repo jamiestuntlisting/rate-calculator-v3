@@ -130,8 +130,11 @@ export function agreementName(id: string): string {
 }
 
 /** "Low Budget ($833.95/day)" — the name plus what it pays. */
-export function agreementLabel(id: string): string {
-  const rates = RATES[id as RateSchedule] ?? RATES.theatrical_basic;
+export function agreementLabel(id: string, workDate?: string | null): string {
+  // Labeled at the schedule in force on the day being logged — a 2025
+  // day offers 2025 figures, matching what the engine will pay.
+  const table = ratesForDate(workDate);
+  const rates = table[id as RateSchedule] ?? table.theatrical_basic;
   return `${agreementName(id)} (${dayRate(rates.daily)})`;
 }
 
@@ -150,8 +153,9 @@ export function weekRate(amount: number): string {
  * weekliness lives on the record, and the days are added into a week on
  * /weekly.
  */
-export function weeklyAgreementLabel(id: string): string {
-  const rates = RATES[id as RateSchedule] ?? RATES.theatrical_basic;
+export function weeklyAgreementLabel(id: string, workDate?: string | null): string {
+  const table = ratesForDate(workDate);
+  const rates = table[id as RateSchedule] ?? table.theatrical_basic;
   return `${agreementName(id)} (${weekRate(rates.weekly)})`;
 }
 

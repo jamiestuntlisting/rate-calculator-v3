@@ -8,7 +8,8 @@
  */
 
 import type { PlanId } from "@/lib/membership-plans";
-import { PER_G_BREAK_EVEN, PLAN_PRICES } from "@/lib/membership-plans";
+import {
+  BOOKKEEPER_PLUS_CREDITS, PER_G_BREAK_EVEN, PLAN_PRICES } from "@/lib/membership-plans";
 
 export type QuizStepId =
   | "favorite"
@@ -124,10 +125,9 @@ export const QUIZ_STEPS: QuizStep[] = [
     id: "volume",
     question: "How many Exhibit Gs do you get in a typical month?",
     note:
-      `$${PLAN_PRICES.perExhibitG} an Exhibit G, or ` +
-      `$${PLAN_PRICES.transcriptionAddOn} a month for as many as you like — ` +
-      `so ${PER_G_BREAK_EVEN} is where the monthly one starts paying for ` +
-      `itself.`,
+      `Bookkeeper Plus includes ${BOOKKEEPER_PLUS_CREDITS} a month, then ` +
+      `$${PLAN_PRICES.perExhibitG} each; Max ($${PLAN_PRICES.max}) is ` +
+      `unlimited — past ${PER_G_BREAK_EVEN} a month it pays for itself.`,
     options: [
       {
         value: "few",
@@ -206,6 +206,6 @@ export function runQuiz(
 export const PLAN_REASONS: Record<PlanId, string> = {
   free: "You are not sold yet, which is fair. Look around — the calculators and the tracker are behind Plus when you want them.",
   plus: "You want the math done but you are happy to type your own Exhibit Gs in. That is Plus, and nothing per-G on top.",
-  plus_per_g: `You want us to read your Gs, but only a few land in a month. Pay the $${PLAN_PRICES.perExhibitG} on the ones you actually send and skip the months you send none.`,
-  plus_transcription: `You get enough Exhibit Gs that paying per one adds up. At ${PER_G_BREAK_EVEN} a month the flat $${PLAN_PRICES.transcriptionAddOn} is already cheaper, and it stops you counting.`,
+  plus_per_g: `You want us to read your Gs and a normal month fits inside Bookkeeper Plus\u2019s ${BOOKKEEPER_PLUS_CREDITS} included credits \u2014 anything over is $${PLAN_PRICES.perExhibitG} each.`,
+  plus_transcription: `You get enough Exhibit Gs that counting them is the chore. At ${PER_G_BREAK_EVEN} a month Max\u2019s flat $${PLAN_PRICES.max} is already cheaper, and it never meters you.`,
 };

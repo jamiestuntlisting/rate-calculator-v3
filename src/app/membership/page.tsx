@@ -26,6 +26,8 @@ export default function MembershipPage() {
   const [membership, setMembership] = useState<MembershipState | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState<PlanId | null>(null);
+  /** Price display only — billing itself is not wired yet. */
+  const [cadence, setCadence] = useState<"monthly" | "yearly">("monthly");
 
   useEffect(() => {
     (async () => {
@@ -100,6 +102,27 @@ export default function MembershipPage() {
         </Link>
       </div>
 
+      {/* Monthly / yearly is a lens on the same plans — yearly is ten
+          months for the price of twelve. */}
+      <div className="flex justify-center mb-4">
+        <div className="inline-flex rounded-lg border border-border p-0.5">
+          {(["monthly", "yearly"] as const).map((option) => (
+            <button
+              key={option}
+              type="button"
+              onClick={() => setCadence(option)}
+              className={`rounded-md px-4 py-1.5 text-sm font-medium capitalize ${
+                cadence === option
+                  ? "bg-primary text-primary-foreground"
+                  : "text-muted-foreground"
+              }`}
+            >
+              {option}
+            </button>
+          ))}
+        </div>
+      </div>
+
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4 mb-6">
         {PLANS.map((plan) => {
           const isCurrent = membership?.planId === plan.id;
@@ -118,10 +141,22 @@ export default function MembershipPage() {
 
               <p className="mt-2">
                 <span className="text-3xl font-bold">
-                  <Editable k={`plan.${plan.id}.price`} d={`$${plan.price}`} />
+                  {cadence === "yearly" ? (
+                    `$${plan.yearlyPrice}`
+                  ) : (
+                    <Editable k={`plan.${plan.id}.price`} d={`$${plan.price}`} />
+                  )}
                 </span>
-                <span className="text-muted-foreground text-sm">/month</span>
+                <span className="text-muted-foreground text-sm">
+                  {cadence === "yearly" ? "/year" : "/month"}
+                </span>
               </p>
+              {cadence === "yearly" && plan.yearlyPrice > 0 && (
+                <p className="text-xs text-muted-foreground mt-1">
+                  Ten months for the price of twelve — ${plan.price}/mo billed
+                  yearly at ${plan.yearlyPrice}.
+                </p>
+              )}
               {plan.perGPrice !== undefined && (
                 <p className="text-sm font-medium mt-1">
                   <Editable
@@ -172,8 +207,8 @@ export default function MembershipPage() {
           </div>
           {membership.transcribedThisMonth >= PER_G_BREAK_EVEN && (
             <p className="text-sm text-muted-foreground">
-              At {PER_G_BREAK_EVEN}+ Gs a month, Plus + Transcription (
-              ${PLAN_PRICES.transcriptionAddOn}/mo, unlimited) costs less.
+              At {PER_G_BREAK_EVEN}+ Gs a month, Max (${PLAN_PRICES.max}
+              /mo, unlimited) costs less.
             </p>
           )}
         </div>

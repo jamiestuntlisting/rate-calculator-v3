@@ -1,19 +1,35 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Input } from "@/components/ui/input";
+import { ShowCombobox } from "@/components/shared/show-combobox";
 
 /**
- * A text field that offers the names already in use, so the same production
- * or role is not spelled three different ways. Typing something new is
- * still allowed — it simply joins the list, unless an admin has blocked it.
+ * A text field that offers the names already in use, so the same
+ * production or role is not spelled three different ways. Typing
+ * something new is still allowed — it simply joins the list, unless an
+ * admin has blocked it.
+ *
+ * This used to be a <datalist>, which iOS never draws on the page — the
+ * suggestions hide in the keyboard strip and read as nothing. It now
+ * renders the same real dropdown the weekly page uses, so "ND Stu"
+ * visibly offers "ND Stunt" on every platform.
  */
 export function SuggestInput({
   kind,
-  ...props
-}: { kind: "show" | "character" } & React.ComponentProps<typeof Input>) {
+  id,
+  value,
+  onChange,
+  placeholder,
+  className,
+}: {
+  kind: "show" | "character";
+  id?: string;
+  value: string;
+  onChange: (value: string) => void;
+  placeholder?: string;
+  className?: string;
+}) {
   const [names, setNames] = useState<string[]>([]);
-  const listId = `${kind}-suggestions`;
 
   useEffect(() => {
     let cancelled = false;
@@ -31,13 +47,13 @@ export function SuggestInput({
   }, [kind]);
 
   return (
-    <>
-      <Input {...props} list={listId} autoComplete="off" />
-      <datalist id={listId}>
-        {names.map((name) => (
-          <option key={name} value={name} />
-        ))}
-      </datalist>
-    </>
+    <ShowCombobox
+      id={id}
+      value={value}
+      onChange={onChange}
+      options={names}
+      placeholder={placeholder}
+      className={className}
+    />
   );
 }

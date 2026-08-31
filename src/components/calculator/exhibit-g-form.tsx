@@ -45,9 +45,10 @@ import { MEAL_PENALTIES, ratesForDate } from "@/lib/rate-constants";
 import { Save } from "lucide-react";
 import { snapToSixMinutes, formatCurrency } from "@/lib/time-utils";
 import { MEAL_MINUTES } from "@/components/calculator/time-select";
-import { followedTime, precedingTime } from "@/lib/follow-time";
+import { followedTime, offerAfterIfEmpty, offerBeforeIfEmpty } from "@/lib/follow-time";
 import { calculateRate } from "@/lib/rate-engine";
-import { checkNdMeal, ND_MEAL_WINDOW_HOURS } from "@/lib/nd-meal";
+import { checkNdMeal, ND_MEAL_MINUTES, ND_MEAL_WINDOW_HOURS } from "@/lib/nd-meal";
+import { shortDay } from "@/lib/format-date";
 import { RateBreakdown } from "@/components/calculation/rate-breakdown";
 import { clampMealFinish, mealLengthWarning, secondMealOrderWarning } from "@/lib/meal-length";
 import { WRAP_MINUTES, wrapOrderWarning } from "@/lib/wrap-check";
@@ -186,6 +187,51 @@ export function ExhibitGForm() {
   const firstMealTouched = useRef(false);
 
   /**
+   * When the show, a Weekly contract length and a date that falls in an
+   * existing weekly's week all line up, the form says so under the
+   * agreement and asks — the day will join that weekly on save (that is
+   * what saving a weekly day does), and "no" simply puts the length
+   * back to undecided.
+   */
+  const [knownWeeklies, setKnownWeeklies] = useState<
+    Array<{ _id: string; kind: string; title: string; weekStart: string; weekStartsOn: number }>
+  >([]);
+  useEffect(() => {
+    let cancelled = false;
+    fetch("/api/weeklies")
+      .then((r) => (r.ok ? r.json() : { weeklies: [] }))
+      .then((data: { weeklies?: typeof knownWeeklies }) => {
+        if (!cancelled) setKnownWeeklies(data.weeklies ?? []);
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+  const [joinAcknowledged, setJoinAcknowledged] = useState<Record<string, boolean>>({});
+  const weeklyJoinOffer = useMemo(() => {
+    if (!weeklyContract) return null;
+    const wanted = input.showName.trim().toLowerCase();
+    if (!wanted || !input.workDate) return null;
+    for (const weekly of knownWeeklies) {
+      if (weekly.kind !== "weekly") continue;
+      if (weekly.title.trim().toLowerCase() !== wanted) continue;
+      const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(weekly.weekStart);
+      if (!m) continue;
+      const utc = Date.UTC(+m[1], +m[2] - 1, +m[3]);
+      const shift = (new Date(utc).getUTCDay() - weekly.weekStartsOn + 7) % 7;
+      const iso = (ms: number) => new Date(ms).toISOString().slice(0, 10);
+      const start = utc - shift * 86400000;
+      const window = { start: iso(start), end: iso(start + 6 * 86400000) };
+      if (input.workDate >= window.start && input.workDate <= window.end) {
+        return { ...weekly, ...window };
+      }
+    }
+    return null;
+  }, [weeklyContract, input.showName, input.workDate, knownWeeklies]);
+
+  /**
    * The whole day cascades from its anchors: lunch defaults six hours
    * after call (or after the ND meal's end, which resets the meal
    * clock), the 2nd meal six hours after lunch, and the offers keep
@@ -300,12 +346,16 @@ export function ExhibitGForm() {
       setInput((prev) => {
         const counting =
           showLiveRate && isToday(prev.workDate) && !prev.dismissMakeupWardrobe;
+        // The +15 offer only ever fills an EMPTY wrap. A wrap already on
+        // the form was set for a reason — editing the dismissal must not
+        // move it — and while the live counter runs, nothing is offered
+        // at all.
         return {
           ...prev,
           dismissOnSet: value,
           dismissMakeupWardrobe: counting
             ? prev.dismissMakeupWardrobe
-            : followedTime(value, prev.dismissMakeupWardrobe, WRAP_MINUTES),
+            : offerAfterIfEmpty(value, prev.dismissMakeupWardrobe, WRAP_MINUTES),
         };
       });
     },
@@ -797,8 +847,8 @@ export function ExhibitGForm() {
                           o.length === threeDayLength
                       ).map((o) => threeDayLabel(o, input.workDate))[0]
                     : weeklyContract
-                      ? weeklyAgreementLabel(input.workStatus)
-                      : agreementLabel(input.workStatus),
+                      ? weeklyAgreementLabel(input.workStatus, input.workDate)
+                      : agreementLabel(input.workStatus, input.workDate),
               ]
                 .filter(Boolean)
                 .join(" · ") || "Show title, date, character, agreement"
@@ -811,7 +861,7 @@ export function ExhibitGForm() {
                   kind="show"
                   id="showName"
                   value={input.showName}
-                  onChange={(e) => update("showName", e.target.value)}
+                  onChange={(v) => update("showName", v)}
                   placeholder="e.g., Action Movie 3"
                   className="text-lg h-12"
                 />
@@ -836,7 +886,7 @@ export function ExhibitGForm() {
                     kind="character"
                     id="characterName"
                     value={input.characterName}
-                    onChange={(e) => update("characterName", e.target.value)}
+                    onChange={(v) => update("characterName", v)}
                     placeholder="e.g., Stunt Double - Lead"
                     className="text-lg h-12"
                   />
@@ -866,7 +916,7 @@ export function ExhibitGForm() {
                     }
                   }}
                 >
-                  <SelectTrigger id="contractLength" className="text-lg h-12 w-full min-w-0">
+                  <SelectTrigger id="contractLength" className="text-lg h-12 data-[size=default]:h-12 w-full min-w-0">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
@@ -905,7 +955,7 @@ export function ExhibitGForm() {
                     }));
                   }}
                 >
-                  <SelectTrigger id="workStatus" className="text-lg h-12 w-full min-w-0">
+                  <SelectTrigger id="workStatus" className="text-lg h-12 data-[size=default]:h-12 w-full min-w-0">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
@@ -928,8 +978,8 @@ export function ExhibitGForm() {
                             className="text-base"
                           >
                             {weeklyContract
-                              ? weeklyAgreementLabel(agreement.id)
-                              : agreementLabel(agreement.id)}
+                              ? weeklyAgreementLabel(agreement.id, input.workDate)
+                              : agreementLabel(agreement.id, input.workDate)}
                           </SelectItem>
                         ))}
                         {FLAT_AGREEMENTS.map((agreement) => (
@@ -946,6 +996,37 @@ export function ExhibitGForm() {
                   </SelectContent>
                 </Select>
               </div>
+              {weeklyJoinOffer && !joinAcknowledged[weeklyJoinOffer._id] && (
+                <div className="md:col-span-2 rounded-md border border-primary/40 bg-primary/5 p-3 text-sm space-y-2">
+                  <p>
+                    Add this day to the{" "}
+                    <span className="font-semibold">{weeklyJoinOffer.title}</span>{" "}
+                    weekly? It runs {shortDay(weeklyJoinOffer.start)} –{" "}
+                    {shortDay(weeklyJoinOffer.end)}.
+                  </p>
+                  <div className="flex flex-wrap gap-2">
+                    <button
+                      type="button"
+                      onClick={() =>
+                        setJoinAcknowledged((prev) => ({
+                          ...prev,
+                          [weeklyJoinOffer._id]: true,
+                        }))
+                      }
+                      className="rounded-md bg-primary px-3 py-1.5 text-xs font-medium text-primary-foreground"
+                    >
+                      Yes — it joins when I save
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setContractLength("unset")}
+                      className="rounded-md border border-border px-3 py-1.5 text-xs"
+                    >
+                      No — keep it a daily
+                    </button>
+                  </div>
+                </div>
+              )}
 
               {flatAgreement && (
                 <div className="space-y-2 min-w-0">
@@ -1048,11 +1129,17 @@ export function ExhibitGForm() {
                     <div className="grid grid-cols-2 gap-2 px-2 pb-2">
                       <div>
                         <Label htmlFor="ndMealIn" className="text-sm text-muted-foreground">In</Label>
-                        <TimeSelect id="ndMealIn" value={input.ndMealIn || ""} onChange={(v) => update("ndMealIn", v || null)} compact />
+                        {/* The Out is not asked: an ND meal is 15 minutes,
+                            so it is derived, and the lunch clock re-anchors
+                            to the ND end. */}
+                        <TimeSelect id="ndMealIn" value={input.ndMealIn || ""} onChange={(v) => setInput((prev) => { const out = v ? followedTime(v, null, ND_MEAL_MINUTES) : null; return { ...prev, ndMealIn: v || null, ndMealOut: out, ...reofferMeals(prev, out || prev.callTime || null) }; })} compact />
                       </div>
                       <div>
-                        <Label htmlFor="ndMealOut" className="text-sm text-muted-foreground">Out</Label>
-                        <TimeSelect id="ndMealOut" value={input.ndMealOut || ""} onChange={(v) => setInput((prev) => ({ ...prev, ndMealOut: v || null, ...reofferMeals(prev, v || prev.callTime || null) }))} compact />
+                        <Label className="text-sm text-muted-foreground">Out</Label>
+                        <p className="flex h-10 items-center text-base tabular-nums">
+                          {input.ndMealOut ? toDisplay(input.ndMealOut) : "\u2014"}
+                          <span className="ml-2 text-xs text-muted-foreground">always 15 min</span>
+                        </p>
                       </div>
                     </div>
                   )}
@@ -1134,7 +1221,7 @@ export function ExhibitGForm() {
               </div>
               <div className="flex items-center justify-between gap-4 p-2 rounded bg-muted/50">
                 <Label htmlFor="dismissMakeupWardrobe" className="text-base shrink-0">Wrapped</Label>
-                <div className="flex-1 min-w-0 max-w-[15rem]"><TimeSelect id="dismissMakeupWardrobe" value={input.dismissMakeupWardrobe || ""} onChange={(v) => setInput((prev) => ({ ...prev, dismissMakeupWardrobe: v || null, dismissOnSet: v ? precedingTime(v, prev.dismissOnSet, WRAP_MINUTES) ?? prev.dismissOnSet : prev.dismissOnSet }))} /></div>
+                <div className="flex-1 min-w-0 max-w-[15rem]"><TimeSelect id="dismissMakeupWardrobe" value={input.dismissMakeupWardrobe || ""} onChange={(v) => setInput((prev) => ({ ...prev, dismissMakeupWardrobe: v || null, dismissOnSet: v ? offerBeforeIfEmpty(v, prev.dismissOnSet, WRAP_MINUTES) ?? prev.dismissOnSet : prev.dismissOnSet }))} /></div>
               </div>
               {wrapOrderWarning(input.dismissOnSet, input.dismissMakeupWardrobe) && (
                 <p className="px-2 pb-1 text-xs text-amber-400">

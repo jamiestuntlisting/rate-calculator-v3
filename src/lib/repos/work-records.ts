@@ -288,6 +288,34 @@ export async function findWorkRecord(
  * transcribed and takes its real show name. The max rather than the count,
  * so a number is never reissued while an older placeholder still holds it.
  */
+/**
+ * The shows this member actually worked in the last `days` days, most
+ * recently worked first. This feeds the Show autocomplete: the job
+ * being logged is almost always one of the last few jobs, and a
+ * ten-year alphabetical catalogue buried it. Placeholder titles stay
+ * out; typing an older show still works — this is only what is offered.
+ */
+export async function recentShowNames(
+  userId: string,
+  days = 60
+): Promise<string[]> {
+  const db = await getDb();
+  const cutoff = new Date(Date.now() - days * 86400000)
+    .toISOString()
+    .slice(0, 10);
+  const { results } = await db
+    .prepare(
+      `SELECT showName, MAX(workDate) AS latest FROM work_records
+       WHERE userId = ?1 AND workDate >= ?2 AND TRIM(showName) != ''
+         AND showName NOT LIKE 'Untranscribed Exhibit G %'
+         AND showName NOT LIKE '% \u2014 Day %'
+       GROUP BY showName ORDER BY latest DESC`
+    )
+    .bind(userId, cutoff)
+    .all<{ showName: string }>();
+  return results.map((r) => r.showName);
+}
+
 export async function maxUntranscribedTitle(userId: string): Promise<number> {
   const db = await getDb();
   const { results } = await db

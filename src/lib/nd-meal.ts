@@ -17,6 +17,12 @@ import { parseTimeToMinutes } from "@/lib/time-utils";
 /** How long after call an ND meal has to be done. */
 export const ND_MEAL_WINDOW_HOURS = 2;
 
+/**
+ * An ND meal is fifteen minutes — that is the deal, not a choice — so
+ * the forms derive the Out from the In instead of asking for it.
+ */
+export const ND_MEAL_MINUTES = 15;
+
 const DAY = 24 * 60;
 
 export type NdMealProblem = "outside_window" | "ends_before_it_starts";

@@ -20,13 +20,15 @@ import {
 } from "@/lib/agreements";
 import { GapLine } from "@/components/calculator/gap-line";
 import { CollapsibleSection } from "@/components/calculator/collapsible-section";
-import { checkNdMeal, ND_MEAL_WINDOW_HOURS } from "@/lib/nd-meal";
+import { checkNdMeal, ND_MEAL_WINDOW_HOURS, ND_MEAL_MINUTES } from "@/lib/nd-meal";
+import { shortDay } from "@/lib/format-date";
+import { SuggestInput } from "@/components/shared/suggest-input";
 import { clampMealFinish, mealLengthWarning, secondMealOrderWarning } from "@/lib/meal-length";
 import { WRAP_MINUTES, wrapOrderWarning } from "@/lib/wrap-check";
 import { ShowCombobox } from "@/components/shared/show-combobox";
 import { effectiveHourlyRate, workHoursFor } from "@/lib/work-hours";
 import { MEAL_MINUTES } from "@/components/calculator/time-select";
-import { followedTime, precedingTime } from "@/lib/follow-time";
+import { followedTime, offerAfterIfEmpty, offerBeforeIfEmpty } from "@/lib/follow-time";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import {
@@ -940,7 +942,7 @@ export default function WorkDetailPage() {
                   <div>
                     <p className="text-muted-foreground">Date</p>
                     <p className="font-semibold">
-                      {formatDateSafe(record.workDate)}
+                      {shortDay(record.workDate)}
                     </p>
                   </div>
                   {record.otherWorkCategory && (
@@ -1035,10 +1037,11 @@ export default function WorkDetailPage() {
                       {editData.workStatus !== "stunt_coordinator" && (
                         <div className="space-y-1 min-w-0">
                           <Label htmlFor="edit-characterName" className="text-base">Character Name</Label>
-                          <Input
+                          <SuggestInput
+                            kind="character"
                             id="edit-characterName"
                             value={editData.characterName}
-                            onChange={(e) => setEditData(d => ({ ...d, characterName: e.target.value }))}
+                            onChange={(v) => setEditData(d => ({ ...d, characterName: v }))}
                             placeholder="e.g., Stunt Double - Lead"
                             className="text-lg h-12"
                           />
@@ -1059,7 +1062,7 @@ export default function WorkDetailPage() {
                             }))
                           }
                         >
-                          <SelectTrigger id="edit-contractLength" className="text-lg h-12 w-full min-w-0">
+                          <SelectTrigger id="edit-contractLength" className="text-lg h-12 data-[size=default]:h-12 w-full min-w-0">
                             <SelectValue />
                           </SelectTrigger>
                           <SelectContent>
@@ -1098,7 +1101,7 @@ export default function WorkDetailPage() {
                             })
                           }
                         >
-                          <SelectTrigger id="edit-workStatus" className="text-lg h-12 w-full min-w-0">
+                          <SelectTrigger id="edit-workStatus" className="text-lg h-12 data-[size=default]:h-12 w-full min-w-0">
                             <SelectValue />
                           </SelectTrigger>
                           <SelectContent>
@@ -1198,11 +1201,11 @@ export default function WorkDetailPage() {
                                 <div className="grid grid-cols-2 gap-2 px-2 pb-2">
                                   <div>
                                     <Label htmlFor="edit-ndMealIn" className="text-sm text-muted-foreground">In</Label>
-                                    <TimeSelect id="edit-ndMealIn" value={editData.ndMealIn || ""} onChange={(v) => setEditData(d => ({ ...d, ndMealIn: v || null }))} compact />
+                                    <TimeSelect id="edit-ndMealIn" value={editData.ndMealIn || ""} onChange={(v) => setEditData(d => { const out = v ? followedTime(v, null, ND_MEAL_MINUTES) : null; return { ...d, ndMealIn: v || null, ndMealOut: out, ...reofferEditMeals(d, out || d.callTime || null) }; })} compact />
                                   </div>
                                   <div>
-                                    <Label htmlFor="edit-ndMealOut" className="text-sm text-muted-foreground">Out</Label>
-                                    <TimeSelect id="edit-ndMealOut" value={editData.ndMealOut || ""} onChange={(v) => setEditData(d => ({ ...d, ndMealOut: v || null, ...reofferEditMeals(d, v || d.callTime || null) }))} compact />
+                                    <Label className="text-sm text-muted-foreground">Out</Label>
+                                    <p className="flex h-10 items-center text-base tabular-nums">{editData.ndMealOut ? toDisplay(editData.ndMealOut) : "\u2014"}<span className="ml-2 text-xs text-muted-foreground">always 15 min</span></p>
                                   </div>
                                 </div>
                               )}
@@ -1407,9 +1410,9 @@ export default function WorkDetailPage() {
                                   setEditData((d) => ({
                                     ...d,
                                     dismissOnSet: v,
-                                    // The wrap follows the dismissal the same
-                                    // way a meal's Out follows its In.
-                                    dismissMakeupWardrobe: followedTime(
+                                    // The +15 offer only fills an EMPTY wrap
+                                    // — a time already set never moves.
+                                    dismissMakeupWardrobe: offerAfterIfEmpty(
                                       v,
                                       d.dismissMakeupWardrobe,
                                       WRAP_MINUTES
@@ -1429,11 +1432,10 @@ export default function WorkDetailPage() {
                                   setEditData((d) => ({
                                     ...d,
                                     dismissMakeupWardrobe: v || null,
-                                    // Whichever end is set first drives the
-                                    // other: a wrap at 10:00 offers the
-                                    // dismissal at 9:45.
+                                    // Whichever end is set first offers the
+                                    // other — and only fills it when empty.
                                     dismissOnSet: v
-                                      ? precedingTime(v, d.dismissOnSet, WRAP_MINUTES) ?? d.dismissOnSet
+                                      ? offerBeforeIfEmpty(v, d.dismissOnSet, WRAP_MINUTES) ?? d.dismissOnSet
                                       : d.dismissOnSet,
                                   }))
                                 }
@@ -1533,7 +1535,7 @@ export default function WorkDetailPage() {
                   <div>
                     <p className="text-muted-foreground">Date</p>
                     <p className="font-semibold">
-                      {formatDateSafe(record.workDate)}
+                      {shortDay(record.workDate)}
                     </p>
                   </div>
                   {!isStuntCoordinator && (
