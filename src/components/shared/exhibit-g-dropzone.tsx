@@ -3,6 +3,7 @@
 import { useRef, useState } from "react";
 import { FileText, Loader2, Plus, RotateCw, Upload, X } from "lucide-react";
 import { toast } from "sonner";
+import { toUploadableImage } from "@/lib/heic-to-jpeg";
 import type { WorkDocument } from "@/types";
 import { isUploadable, UPLOAD_ACCEPT } from "@/lib/uploadable";
 
@@ -52,8 +53,10 @@ export function ExhibitGDropzone({
 
     setUploading(usable.length);
     let done = 0;
-    for (const file of usable) {
+    for (const original of usable) {
       try {
+        // An iPhone HEIC becomes a JPEG here, so the preview can draw it.
+        const file = await toUploadableImage(original);
         const body = new FormData();
         body.append("file", file);
         const res = await fetch("/api/uploads", { method: "POST", body });
@@ -67,7 +70,7 @@ export function ExhibitGDropzone({
         });
         done++;
       } catch {
-        toast.error(`Couldn't upload ${file.name}`);
+        toast.error(`Couldn't upload ${original.name}`);
       } finally {
         setUploading((n) => n - 1);
       }

@@ -5,6 +5,7 @@ import { useParams, useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { RateBreakdown } from "@/components/calculation/rate-breakdown";
 import { toast } from "sonner";
+import { toUploadableImage } from "@/lib/heic-to-jpeg";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { Input } from "@/components/ui/input";
@@ -82,8 +83,9 @@ export default function CalculationDetailPage() {
   const handleUploadPhoto = async (e: React.ChangeEvent<HTMLInputElement>) => {
     if (!savedId || !e.target.files?.[0]) return;
 
+    const file = await toUploadableImage(e.target.files[0]);
     const formData = new FormData();
-    formData.append("file", e.target.files[0]);
+    formData.append("file", file);
 
     try {
       const uploadRes = await fetch("/api/uploads", {

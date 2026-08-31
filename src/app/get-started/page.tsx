@@ -4,6 +4,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
+import { toUploadableImage } from "@/lib/heic-to-jpeg";
 import { Camera, Check, Loader2, Upload } from "lucide-react";
 
 /**
@@ -72,7 +73,9 @@ export default function GetStartedPage() {
     setUploading(true);
     try {
       const form = new FormData();
-      for (const file of usable) form.append("file", file);
+      // iPhone HEICs become JPEGs on the way in, one at a time — the
+      // decoder is heavy and a bulk drop can be a whole season of Gs.
+      for (const file of usable) form.append("file", await toUploadableImage(file));
       const res = await fetch("/api/g-uploads", { method: "POST", body: form });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Upload failed");

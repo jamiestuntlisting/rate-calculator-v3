@@ -3,6 +3,7 @@
 import { useState, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
+import { toUploadableImage } from "@/lib/heic-to-jpeg";
 import type { WorkDocument, DocumentType } from "@/types";
 import { DOCUMENT_TYPE_LABELS } from "@/types";
 import { isUploadable, UPLOAD_ACCEPT } from "@/lib/uploadable";
@@ -58,8 +59,10 @@ export function DocumentUpload({
     setUploadingType(docType);
     let done = 0;
     // One at a time, so one bad file does not lose the rest.
-    for (const file of files) {
+    for (const original of files) {
       try {
+        // An iPhone HEIC becomes a JPEG here, so the preview can draw it.
+        const file = await toUploadableImage(original);
         const formData = new FormData();
         formData.append("file", file);
 
@@ -78,7 +81,7 @@ export function DocumentUpload({
         });
         done++;
       } catch {
-        toast.error(`Couldn't upload ${file.name}`);
+        toast.error(`Couldn't upload ${original.name}`);
       }
     }
     setUploadingType(null);

@@ -53,6 +53,7 @@ import { PayStubSection } from "@/components/shared/pay-stub-section";
 import { useAuth } from "@/context/auth-context";
 import type { PayStubLine } from "@/lib/pay-stub";
 import { toast } from "sonner";
+import { toUploadableImage } from "@/lib/heic-to-jpeg";
 import type { WorkDocument, WorkRecord } from "@/types";
 import { DOCUMENT_TYPE_LABELS } from "@/types";
 import { ExhibitGViewer } from "@/components/shared/exhibit-g-viewer";
@@ -665,9 +666,11 @@ export default function WorkDetailPage() {
   };
 
   const attachDocument = async (
-    file: File,
+    original: File,
     documentType: WorkDocument["documentType"]
   ) => {
+    // An iPhone HEIC becomes a JPEG here, so the preview can draw it.
+    const file = await toUploadableImage(original);
     const formData = new FormData();
     formData.append("file", file);
 
