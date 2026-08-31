@@ -4,9 +4,9 @@ import type { Tier } from "@/lib/tier";
  * What each membership costs and unlocks.
  *
  * Prices are monthly USD except `perExhibitG`, which is charged per Exhibit
- * G we transcribe past a plan's included credits. Yearly prices are ten
- * months for the price of twelve, stated per plan rather than derived so a
- * price is never a surprise multiplication. Nothing here charges anyone yet
+ * G we transcribe past a plan's included credits. Yearly prices are
+ * stated per plan, not derived: roughly ten months for the price of
+ * twelve, with Max at a flat $999. Nothing here charges anyone yet
  * — members pick a plan and it applies immediately; Stripe billing comes
  * later, at which point these become the display side of the Stripe prices.
  */
@@ -25,7 +25,7 @@ export const YEARLY_PRICES = {
   free: 0,
   plus: 250,
   bookkeeperPlus: 400,
-  max: 1000,
+  max: 999,
 } as const;
 
 /** Gs transcribed each month inside Bookkeeper Plus before per-G pricing. */

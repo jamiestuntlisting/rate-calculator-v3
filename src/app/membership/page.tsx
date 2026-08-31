@@ -153,8 +153,7 @@ export default function MembershipPage() {
               </p>
               {cadence === "yearly" && plan.yearlyPrice > 0 && (
                 <p className="text-xs text-muted-foreground mt-1">
-                  Ten months for the price of twelve — ${plan.price}/mo billed
-                  yearly at ${plan.yearlyPrice}.
+                  ${plan.price}/mo, billed yearly at ${plan.yearlyPrice}.
                 </p>
               )}
               {plan.perGPrice !== undefined && (

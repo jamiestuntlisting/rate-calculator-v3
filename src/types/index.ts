@@ -114,6 +114,8 @@ export interface WorkRecord {
   /** daily | three_day | weekly — how long the deal runs. */
   /** Null/absent = never stated (calculates daily, may join a weekly). */
   contractLength?: "daily" | "three_day" | "weekly" | null;
+  /** A human mark on the money: chasing it (late) or closed (done). */
+  paymentFlag?: "late" | "done" | null;
   /** Which 3-day figure the show's format pays: "short" (½ & 1-hr) or "long". */
   threeDayLength?: "short" | "long" | null;
   /** The saved weekly this day is grouped under in the tracker. */

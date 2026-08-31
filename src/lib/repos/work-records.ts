@@ -21,6 +21,7 @@ interface WorkRecordRow {
   stuntAdjustment: number;
   flatDayRate: number | null;
   threeDayLength: string | null;
+  paymentFlag: string | null;
   weeklyContract: number;
   contractLength: string | null;
   weeklyId: string | null;
@@ -67,6 +68,7 @@ export interface WorkRecordDoc {
   stuntAdjustment: number;
   flatDayRate: number | null;
   threeDayLength: string | null;
+  paymentFlag: "late" | "done" | null;
   weeklyContract: boolean;
   /** daily | three_day | weekly — how long the deal runs. */
   contractLength: string | null;
@@ -115,6 +117,10 @@ function toDoc(row: WorkRecordRow): WorkRecordDoc {
     stuntAdjustment: row.stuntAdjustment,
     flatDayRate: row.flatDayRate ?? null,
     threeDayLength: row.threeDayLength ?? null,
+    paymentFlag:
+      row.paymentFlag === "late" || row.paymentFlag === "done"
+        ? row.paymentFlag
+        : null,
     weeklyContract: i2b(row.weeklyContract),
     // NULL means the length was never stated — such a day calculates as
     // a daily but may still be pulled into a weekly. 'daily' is a choice.
@@ -171,6 +177,8 @@ const FIELD_SERIALIZERS: Record<string, (v: unknown) => unknown> = {
   // Null rather than zero: a flat deal either names a rate or does not exist.
   flatDayRate: (v) => (Number(v) > 0 ? Number(v) : null),
   threeDayLength: (v) => (v === "short" || v === "long" ? v : null),
+  // A human mark, never derived: 'late' is being chased, 'done' is closed.
+  paymentFlag: (v) => (v === "late" || v === "done" ? v : null),
   weeklyContract: (v) => b2i(v),
   // 'daily' only when actually chosen; anything else stores as unset.
   contractLength: (v) =>

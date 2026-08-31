@@ -1,7 +1,8 @@
 "use client";
 
-import { useEffect, useState, useMemo } from "react";
+import React, { useEffect, useState, useMemo } from "react";
 import { formatCurrency } from "@/lib/time-utils";
+import { shortDay } from "@/lib/format-date";
 import {
   Card,
   CardContent,
@@ -11,7 +12,9 @@ import {
 import { Badge } from "@/components/ui/badge";
 import Link from "next/link";
 import { toast } from "sonner";
+import { ChevronDown, ChevronRight } from "lucide-react";
 import { Input } from "@/components/ui/input";
+import { RateBreakdown } from "@/components/calculation/rate-breakdown";
 import { Button } from "@/components/ui/button";
 import type { WorkRecord } from "@/types";
 
@@ -68,6 +71,35 @@ export default function AnalyticsPage() {
   const [checks, setChecks] = useState<Record<string, string>>({});
   const [busyShow, setBusyShow] = useState<string | null>(null);
   const [checkOpenFor, setCheckOpenFor] = useState<string | null>(null);
+  /** Rows opened to their paycheck breakdown. */
+  const [openRows, setOpenRows] = useState<Set<string>>(new Set());
+
+  /**
+   * The resolution mark is a human decision, never derived: 'late' is
+   * money being chased, 'done' closes the row whatever the amounts say,
+   * null is nobody has said anything — shown as a dash, never as an
+   * automatic "Unpaid".
+   */
+  const saveFlag = async (
+    record: WorkRecord,
+    flag: "late" | "done" | null
+  ) => {
+    try {
+      const res = await fetch(`/api/work-records/${record._id}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ paymentFlag: flag }),
+      });
+      if (!res.ok) throw new Error();
+      setRecords((prev) =>
+        prev.map((r) =>
+          r._id === record._id ? { ...r, paymentFlag: flag } : r
+        )
+      );
+    } catch {
+      toast.error("Couldn't save the mark");
+    }
+  };
 
   /** Write one day's payment and mirror it locally. */
   const savePaid = async (record: WorkRecord, amount: number) => {
@@ -323,22 +355,21 @@ export default function AnalyticsPage() {
         </Card>
       </div>
 
-      {/* Earnings by Show */}
+      {/* Work Days */}
       <Card>
         <CardHeader>
-          <CardTitle className="text-lg">Earnings by Show</CardTitle>
+          <CardTitle className="text-lg">Work Days</CardTitle>
         </CardHeader>
         <CardContent>
           {stats.byShow.length === 0 ? (
             <p className="text-muted-foreground text-sm">No data</p>
           ) : (
             <div className="space-y-1">
-              <div className="flex items-center gap-2 pb-1 border-b border-border text-[11px] uppercase tracking-wide text-muted-foreground">
+              <div className="flex items-center gap-3 pb-1 border-b border-border text-[11px] uppercase tracking-wide text-muted-foreground">
+                <span className="w-5 shrink-0" aria-hidden />
                 <span className="flex-1 min-w-0">Show · date</span>
-                <span className="w-20 text-right shrink-0">Calculated</span>
-                <span className="w-24 text-right shrink-0 border-l border-border/40 pl-2">
-                  Paid
-                </span>
+                <span className="w-24 text-right shrink-0">Calculated</span>
+                <span className="w-28 text-right shrink-0">Paid</span>
                 <span className="w-14 shrink-0" aria-hidden />
               </div>
               {/* One row per day: show, date, what we calculated, what they
@@ -349,80 +380,174 @@ export default function AnalyticsPage() {
                   {show.records.map((record) => {
                     const ymd = record.workDate.split("T")[0];
                     const edit = paidEdits[record._id];
+                    const rowOpen = openRows.has(record._id);
+                    // The chip never says "Unpaid" on its own: a dash until
+                    // a human marks the row (Late while chasing, Done when
+                    // closed whatever the amounts say), or an amount was
+                    // actually entered — then the arithmetic verdict shows.
+                    const verdict =
+                      record.paymentFlag === "done"
+                        ? { label: "Done", tone: "bg-green-900/40 text-green-300 border-green-700/50" }
+                        : record.paymentFlag === "late"
+                          ? VERDICTS.late
+                          : (record.paidAmount || 0) > 0
+                            ? VERDICTS[record.paymentStatus] ?? null
+                            : null;
                     return (
-                      <div
-                        key={record._id}
-                        className="flex items-center gap-2 py-2 border-b border-border/30"
-                      >
-                        <Link
-                          href={`/work/${record._id}`}
-                          className="flex-1 min-w-0"
-                        >
-                          <span className="block text-sm font-medium truncate">
-                            {show.name}
-                          </span>
-                          <span className="block text-xs text-muted-foreground">
-                            {ymd}
-                          </span>
-                        </Link>
-                        {record.expectedAmount ? (
-                          <span className="text-sm tabular-nums shrink-0 w-20 text-right">
-                            {fmtAmount(record.expectedAmount)}
-                          </span>
-                        ) : (
-                          <span className="text-sm shrink-0 w-20 text-right text-muted-foreground">
-                            —
-                          </span>
-                        )}
-                        <div className="w-24 shrink-0 border-l border-border/40 pl-2">
-                          <Input
-                            type="number"
-                            inputMode="decimal"
-                            min="0"
-                            value={edit ?? (record.paidAmount || "")}
-                            onChange={(e) =>
-                              setPaidEdits((prev) => ({
-                                ...prev,
-                                [record._id]: e.target.value,
-                              }))
+                      <React.Fragment key={record._id}>
+                        <div className="flex items-center gap-3 py-2 border-b border-border/30">
+                          <button
+                            type="button"
+                            aria-expanded={rowOpen}
+                            aria-label="Show the paycheck breakdown"
+                            onClick={() =>
+                              setOpenRows((prev) => {
+                                const next = new Set(prev);
+                                if (next.has(record._id)) next.delete(record._id);
+                                else next.add(record._id);
+                                return next;
+                              })
                             }
-                            onBlur={() => saveDayEdit(record)}
-                            onKeyDown={(e) => {
-                              if (e.key === "Enter") e.currentTarget.blur();
-                            }}
-                            placeholder="0.00"
-                            className="h-9 text-sm text-right tabular-nums"
-                          />
-                        </div>
-                        {(record.expectedAmount || 0) > 0 ||
-                        (record.paidAmount || 0) > 0 ? (
-                          <span
-                            className={`shrink-0 w-14 text-center rounded px-1 py-0.5 text-[10px] font-semibold border ${
-                              VERDICTS[record.paymentStatus]?.tone ??
-                              VERDICTS.unpaid.tone
-                            }`}
+                            className="w-5 shrink-0 text-muted-foreground hover:text-foreground"
                           >
-                            {VERDICTS[record.paymentStatus]?.label ?? "Unpaid"}
-                          </span>
-                        ) : (
-                          /* Nothing calculated and nothing paid: an Unpaid
-                             chip on a day with no figure is just noise. */
-                          <span className="shrink-0 w-14 text-center text-xs text-muted-foreground">
-                            —
-                          </span>
+                            {rowOpen ? (
+                              <ChevronDown className="h-4 w-4" />
+                            ) : (
+                              <ChevronRight className="h-4 w-4" />
+                            )}
+                          </button>
+                          <Link
+                            href={`/work/${record._id}`}
+                            className="flex-1 min-w-0"
+                          >
+                            <span className="block text-sm font-medium truncate">
+                              {show.name}
+                            </span>
+                            <span className="block text-xs text-muted-foreground">
+                              {shortDay(ymd)}
+                            </span>
+                          </Link>
+                          {record.expectedAmount ? (
+                            <span className="text-sm tabular-nums shrink-0 w-24 text-right">
+                              {fmtAmount(record.expectedAmount)}
+                            </span>
+                          ) : (
+                            <span className="text-sm shrink-0 w-24 text-right text-muted-foreground">
+                              —
+                            </span>
+                          )}
+                          <div className="w-28 shrink-0">
+                            <Input
+                              type="number"
+                              inputMode="decimal"
+                              min="0"
+                              value={edit ?? (record.paidAmount || "")}
+                              onChange={(e) =>
+                                setPaidEdits((prev) => ({
+                                  ...prev,
+                                  [record._id]: e.target.value,
+                                }))
+                              }
+                              onBlur={() => saveDayEdit(record)}
+                              onKeyDown={(e) => {
+                                if (e.key === "Enter") e.currentTarget.blur();
+                              }}
+                              placeholder="0.00"
+                              className="h-9 text-sm text-right tabular-nums"
+                            />
+                          </div>
+                          {verdict ? (
+                            <span
+                              className={`shrink-0 w-14 text-center rounded px-1 py-0.5 text-[10px] font-semibold border ${verdict.tone}`}
+                            >
+                              {verdict.label}
+                            </span>
+                          ) : (
+                            <span className="shrink-0 w-14 text-center text-xs text-muted-foreground">
+                              —
+                            </span>
+                          )}
+                        </div>
+                        {rowOpen && (
+                          <div className="border-b border-border/30 py-3 pl-8 pr-1 space-y-3">
+                            {record.calculation ? (
+                              <RateBreakdown
+                                breakdown={record.calculation}
+                                linesOnly
+                                approximation={
+                                  record.flatDayRate
+                                    ? null
+                                    : record.contractLength === "three_day"
+                                      ? "three_day"
+                                      : record.weeklyContract
+                                        ? "weekly"
+                                        : null
+                                }
+                              />
+                            ) : (
+                              <p className="text-sm text-muted-foreground">
+                                No worked-out breakdown yet — the day is
+                                missing its times.{" "}
+                                <Link
+                                  href={`/work/${record._id}`}
+                                  className="underline underline-offset-2"
+                                >
+                                  Open the record
+                                </Link>
+                              </p>
+                            )}
+                            <div className="flex flex-wrap items-center gap-2">
+                              <span className="text-xs text-muted-foreground">
+                                Mark it:
+                              </span>
+                              <button
+                                type="button"
+                                onClick={() =>
+                                  saveFlag(
+                                    record,
+                                    record.paymentFlag === "done" ? null : "done"
+                                  )
+                                }
+                                className={`rounded border px-2 py-1 text-xs ${
+                                  record.paymentFlag === "done"
+                                    ? "border-green-700/60 bg-green-900/40 text-green-300"
+                                    : "border-border text-muted-foreground hover:bg-accent"
+                                }`}
+                              >
+                                Done — not chasing this
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() =>
+                                  saveFlag(
+                                    record,
+                                    record.paymentFlag === "late" ? null : "late"
+                                  )
+                                }
+                                className={`rounded border px-2 py-1 text-xs ${
+                                  record.paymentFlag === "late"
+                                    ? "border-purple-700/60 bg-purple-900/40 text-purple-300"
+                                    : "border-border text-muted-foreground hover:bg-accent"
+                                }`}
+                              >
+                                Late
+                              </button>
+                            </div>
+                          </div>
                         )}
-                      </div>
+                      </React.Fragment>
                     );
                   })}
 
-                  <div className="flex items-center gap-2 py-1.5">
+                  <div className="flex items-center gap-3 py-1.5">
+                    <span className="w-5 shrink-0" aria-hidden />
                     <span className="flex-1 min-w-0 text-xs font-medium">
                       Total
                     </span>
-                    <span className="text-sm font-semibold tabular-nums shrink-0 w-20 text-right">
+                    <span className="text-sm font-semibold tabular-nums shrink-0 w-24 text-right">
                       {formatCurrency(show.expected)}
                     </span>
-                    <span className="text-sm font-semibold tabular-nums shrink-0 w-24 text-right border-l border-border/40 pl-2">
+                    <span className="text-sm font-semibold tabular-nums shrink-0 w-28 text-right">
                       {formatCurrency(show.paid)}
                     </span>
                     <span className="w-14 shrink-0 text-center">
