@@ -46,7 +46,7 @@ const NAV_SECTIONS: NavSection[] = [
       { href: "/tracker", label: "Tracker" },
       { href: "/weekly", label: "Weekly" },
       { href: "/upload-g", label: "Transcriptions" },
-      { href: "/analytics", label: "Summary" },
+      { href: "/analytics", label: "Resolve" },
     ],
   },
   {

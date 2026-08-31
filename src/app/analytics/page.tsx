@@ -266,7 +266,7 @@ export default function AnalyticsPage() {
   if (!stats || records.length === 0) {
     return (
       <div className="space-y-6">
-        <h1 className="text-2xl font-bold">Summary</h1>
+        <h1 className="text-2xl font-bold">Resolve</h1>
         <p className="text-muted-foreground">No work records yet. Start recording work days to see analytics.</p>
       </div>
     );
@@ -274,7 +274,7 @@ export default function AnalyticsPage() {
 
   return (
     <div className="space-y-6">
-      <h1 className="text-2xl font-bold">Summary</h1>
+      <h1 className="text-2xl font-bold">Resolve</h1>
 
       {/* Two questions, answered as a number and its split: how much money,
           and how many days — each with a bar of where things stand. Colored
