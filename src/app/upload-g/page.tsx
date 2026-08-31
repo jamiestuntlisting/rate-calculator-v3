@@ -8,7 +8,6 @@ import {
   RotateCw,
   Trash2,
   Upload,
-  Camera,
   Loader2,
   FileText,
 } from "lucide-react";
@@ -52,7 +51,6 @@ export default function UploadGPage() {
   const [editingTitle, setEditingTitle] = useState("");
 
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const cameraInputRef = useRef<HTMLInputElement>(null);
 
   // Remember the user's last view choice.
   useEffect(() => {
@@ -220,22 +218,17 @@ export default function UploadGPage() {
             </button>
           </div>
 
-          {/* Touch devices only — pointer:coarse covers phones and tablets. */}
-          <Button
-            variant="outline"
-            onClick={() => cameraInputRef.current?.click()}
-            disabled={uploading}
-            className="hidden pointer-coarse:inline-flex"
-          >
-            <Camera className="h-4 w-4 mr-2" />
-            Camera
-          </Button>
-          <Button asChild variant="outline">
-            {/* Straight to the page that can actually request the help —
-                it asks us to transcribe and explains what it costs. */}
+          <Button asChild>
+            {/* The green action: straight to the page that can actually
+                request the help — it asks us to transcribe and explains
+                what it costs. */}
             <Link href="/get-started">Need help transcribing?</Link>
           </Button>
+          {/* One Upload, straight to the photo library / file picker —
+              the separate camera path photographed one frame at a time
+              and nobody wants that. */}
           <Button
+            variant="outline"
             onClick={() => fileInputRef.current?.click()}
             disabled={uploading}
           >
@@ -253,18 +246,6 @@ export default function UploadGPage() {
         ref={fileInputRef}
         type="file"
         accept="image/*,application/pdf,.heic,.heif"
-        multiple
-        className="hidden"
-        onChange={(e) => {
-          uploadFiles(Array.from(e.target.files ?? []));
-          e.target.value = "";
-        }}
-      />
-      <input
-        ref={cameraInputRef}
-        type="file"
-        accept="image/*"
-        capture="environment"
         multiple
         className="hidden"
         onChange={(e) => {
