@@ -1,6 +1,7 @@
 "use client";
 
 import { shortDay } from "@/lib/format-date";
+import { priorWeekStart, weekStartOf, type WeekStartDay } from "@/lib/weekly/weeks";
 import React, { useEffect, useState, useCallback } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -67,6 +68,7 @@ interface WeeklyGroup {
   kind?: string;
   title: string;
   weekStart: string;
+  weekStartsOn?: number;
   weeklyRate: number;
   expectedAmount: number;
 }
@@ -302,7 +304,32 @@ export default function TrackerPage() {
                             </span>
                           </TableCell>
                           <TableCell className="hidden md:table-cell text-muted-foreground text-xs">
-                            {weekly.kind === "three_day" ? "3-day contract" : "Weekly contract"}
+                            {weekly.kind === "three_day"
+                              ? "3-day contract"
+                              : (() => {
+                                  // A weekly's stored start is its first day
+                                  // worked; the continuation test compares
+                                  // calendar weeks, so align both first.
+                                  const thisWeek = weekStartOf(
+                                    weekly.weekStart,
+                                    (weekly.weekStartsOn ?? 1) as WeekStartDay
+                                  );
+                                  const prorated =
+                                    !!thisWeek &&
+                                    weeklies.some(
+                                      (other) =>
+                                        other._id !== weekly._id &&
+                                        other.kind === "weekly" &&
+                                        other.title === weekly.title &&
+                                        weekStartOf(
+                                          other.weekStart,
+                                          (other.weekStartsOn ?? 1) as WeekStartDay
+                                        ) === priorWeekStart(thisWeek)
+                                    );
+                                  return prorated
+                                    ? "Prorated weekly"
+                                    : "Weekly contract";
+                                })()}
                           </TableCell>
                           <TableCell className="text-right font-semibold">
                             {weekly.expectedAmount

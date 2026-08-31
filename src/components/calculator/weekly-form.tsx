@@ -43,6 +43,7 @@ import {
   DEFAULT_WEEK_STARTS_ON,
   WEEK_DAY_NAMES,
   groupIntoWeeks,
+  isContinuationWeek,
   weekLabel,
   type WeekStartDay,
 } from "@/lib/weekly/weeks";
@@ -468,6 +469,14 @@ export function WeeklyForm() {
         const weeklyOvertimeHours =
           Math.round(Math.max(0, derivation.workHours - guaranteeHours) * 10) /
           10;
+        // A week the same engagement worked into from the week before
+        // is a prorated weekly: its days are additional days on the
+        // original week, a fifth of the weekly each, so the full-week
+        // minimum belongs to the first week only.
+        const continuation = isContinuationWeek(
+          week.start,
+          weeks.map((w) => w.start)
+        );
         let breakdown: WeeklyBreakdown | null = null;
         if (ready) {
           try {
@@ -478,7 +487,10 @@ export function WeeklyForm() {
               // A signed weekly pays at least the full week: fewer days
               // just means the guarantee line makes up the difference,
               // and a week that works out over it keeps the larger figure.
-              minimumWeekly: input.contractWeeklyRate,
+              // A continuation week deliberately has no floor.
+              minimumWeekly: continuation
+                ? undefined
+                : input.contractWeeklyRate,
             });
           } catch {
             breakdown = null;
@@ -491,7 +503,7 @@ export function WeeklyForm() {
           turnaroundHours,
           guarantee,
         });
-        return { week, derivation, breakdown, override, turnarounds, rules };
+        return { week, derivation, breakdown, override, turnarounds, rules, continuation };
       }),
     [
       weeks,
@@ -1272,7 +1284,7 @@ export function WeeklyForm() {
         </div>
       )}
 
-      {calculated.map(({ week, breakdown, override, turnarounds, rules }) => {
+      {calculated.map(({ week, breakdown, override, turnarounds, rules, continuation }) => {
         const open = openWeek === week.start;
         // The weekly is defined by the first day actually worked — the
         // calendar boundary only decides which days belong together.
@@ -1297,6 +1309,7 @@ export function WeeklyForm() {
                 <span className="block text-xs text-muted-foreground">
                   {week.records.length} day
                   {week.records.length === 1 ? "" : "s"}
+                  {continuation ? " · prorated weekly" : ""}
                   {lastSavedRef.current[firstDay] ? " · saved" : ""}
                 </span>
               </span>
@@ -1307,6 +1320,13 @@ export function WeeklyForm() {
 
             {open && (
               <div className="border-t border-border p-4 space-y-4">
+                {continuation && (
+                  <p className="text-xs text-muted-foreground">
+                    Prorated weekly — this engagement worked the week before,
+                    so these days are additional days on that weekly, a fifth
+                    of the weekly rate each, with no fresh full-week minimum.
+                  </p>
+                )}
                 {/* The days inside this week, unnamed ones as Day N until
                     transcription gives them their real date and show. */}
                 <div className="space-y-1">

@@ -75,7 +75,10 @@ export interface WeeklyInput {
    * wages and land after the floor. The ShowBiz bench never passes this:
    * a payroll card mid-run legitimately prorates a partial week (the
    * engagement's other cards carry the rest), and the bench's job is to
-   * reproduce the card, not the contract.
+   * reproduce the card, not the contract. A continuation week — the same
+   * engagement running on from the week before — deliberately passes
+   * nothing here either: its days are additional days on the original
+   * weekly, a fifth each, which is exactly the bare proration.
    */
   minimumWeekly?: number;
 }

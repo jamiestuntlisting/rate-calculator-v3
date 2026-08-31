@@ -95,3 +95,27 @@ export function weekLabel(start: string): string {
     timeZone: "UTC",
   })}`;
 }
+
+/** The start of the calendar week immediately before this one. */
+export function priorWeekStart(start: string): string | null {
+  const date = toUtc(start);
+  return date ? iso(new Date(date.getTime() - 7 * DAY_MS)) : null;
+}
+
+/**
+ * A weekly engagement that runs on into the next calendar week does not
+ * start a fresh weekly: the spill-over days are additional days on the
+ * original week, a fifth of the weekly each — a prorated weekly. A week
+ * is a continuation when the same engagement worked the week immediately
+ * before it; the engagement's first week is the one the full weekly
+ * minimum belongs to.
+ */
+export function isContinuationWeek(
+  start: string,
+  allStarts: Iterable<string>
+): boolean {
+  const prior = priorWeekStart(start);
+  if (!prior) return false;
+  for (const other of allStarts) if (other === prior) return true;
+  return false;
+}
