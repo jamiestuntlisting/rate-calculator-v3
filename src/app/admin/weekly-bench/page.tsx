@@ -22,6 +22,8 @@ import {
   type WeeklyCardCheck,
   type WeeklyCheckSummary,
 } from "@/lib/weekly/from-showbiz";
+import { calculateWeekly } from "@/lib/weekly/weekly-engine";
+import { isContinuationWeek } from "@/lib/weekly/weeks";
 
 const money = new Intl.NumberFormat("en-US", {
   style: "currency",
@@ -41,6 +43,95 @@ interface RunResult extends WeeklyCheckSummary {
   /** The bundled reference export rather than one the admin picked. */
   isSample: boolean;
 }
+
+/**
+ * The contract-side weekly rules, run live against the same functions
+ * /weekly calls — the card results above prove the engine against
+ * payroll, and these prove the rules the app layers on top: the
+ * full-week floor, and the prorated continuation week. The vitest
+ * suite pins the same rules and CI runs it on every push and every
+ * Monday.
+ */
+const WEEKLY_RULES: Array<{
+  rule: string;
+  example: string;
+  expected: string;
+  got: () => string;
+}> = [
+  {
+    rule: "A signed weekly pays at least the full week, however few of its days were worked — the shortfall shows as a Weekly guarantee line.",
+    example: "1 day at $4,785/wk, with the floor",
+    expected: "$4,785 with guarantee line",
+    got: () => {
+      const week = calculateWeekly({
+        scaleWeeklyRate: 4785,
+        contractWeeklyRate: 4785,
+        daysWorked: 1,
+        minimumWeekly: 4785,
+      });
+      const line = week.lineItems.some((l) => l.label === "Weekly guarantee");
+      return `$${week.grandTotal.toLocaleString()} ${line ? "with" : "without"} guarantee line`;
+    },
+  },
+  {
+    rule: "A week that works out over the minimum keeps the larger figure — the floor never caps anything.",
+    example: "Full week plus 6 hours of weekly overtime",
+    expected: "over $4,785, no guarantee line",
+    got: () => {
+      const week = calculateWeekly({
+        scaleWeeklyRate: 4785,
+        contractWeeklyRate: 4785,
+        daysWorked: 5,
+        weeklyOvertimeHours: 6,
+        minimumWeekly: 4785,
+      });
+      const line = week.lineItems.some((l) => l.label === "Weekly guarantee");
+      return week.grandTotal > 4785 && !line
+        ? "over $4,785, no guarantee line"
+        : `$${week.grandTotal.toLocaleString()}${line ? " with guarantee line" : ""}`;
+    },
+  },
+  {
+    rule: "A continuation week — the same engagement worked the week before — is a prorated weekly: additional days at a fifth of the weekly each, no fresh full-week minimum. Payroll cards show the same bare proration.",
+    example: "2 spill-over days at $4,785/wk, no floor",
+    expected: "$1,914, no guarantee line",
+    got: () => {
+      const week = calculateWeekly({
+        scaleWeeklyRate: 4785,
+        contractWeeklyRate: 4785,
+        daysWorked: 2,
+      });
+      const line = week.lineItems.some((l) => l.label === "Weekly guarantee");
+      return `$${week.grandTotal.toLocaleString()}${line ? " with guarantee line" : ", no guarantee line"}`;
+    },
+  },
+  {
+    rule: "A week counts as a continuation only when the calendar week immediately before it was worked — a gap week starts a fresh engagement with a fresh floor.",
+    example: "Weeks of Aug 10 + Aug 17, then Aug 31 after a gap",
+    expected: "Aug 17 continues; Aug 31 does not",
+    got: () => {
+      const starts = ["2026-08-10", "2026-08-17"];
+      const consecutive = isContinuationWeek("2026-08-17", starts);
+      const gapped = isContinuationWeek("2026-08-31", starts);
+      return `Aug 17 ${consecutive ? "continues" : "does not"}; Aug 31 ${gapped ? "continues" : "does not"}`;
+    },
+  },
+  {
+    rule: "Meal penalties are not wages: they land on top of the floored week, never inside it.",
+    example: "2 days with the floor, plus $120 of penalties",
+    expected: "$4,905",
+    got: () => {
+      const week = calculateWeekly({
+        scaleWeeklyRate: 4785,
+        contractWeeklyRate: 4785,
+        daysWorked: 2,
+        postSubtotalAdjustments: 120,
+        minimumWeekly: 4785,
+      });
+      return `$${week.grandTotal.toLocaleString()}`;
+    },
+  },
+];
 
 export default function WeeklyBenchPage() {
   const { user, loading: authLoading } = useAuth();
@@ -311,6 +402,49 @@ export default function WeeklyBenchPage() {
                   }
                 />
               ))}
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-lg">Contract rules</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-1 divide-y divide-border">
+              <p className="text-xs text-muted-foreground pb-2">
+                The cards above prove the engine against payroll; these prove
+                the rules the app layers on top, run right now against the
+                same functions /weekly calls. The vitest suite pins them too,
+                and CI runs it on every push and every Monday.
+              </p>
+              {WEEKLY_RULES.map((check) => {
+                let got: string;
+                try {
+                  got = check.got();
+                } catch (error) {
+                  got = `threw: ${error instanceof Error ? error.message : "error"}`;
+                }
+                const pass = got === check.expected;
+                return (
+                  <div key={check.rule} className="py-3 space-y-1">
+                    <div className="flex items-start justify-between gap-3">
+                      <p className="text-sm">{check.rule}</p>
+                      <span
+                        className={`shrink-0 rounded px-1.5 py-0.5 text-[10px] uppercase tracking-wide border ${
+                          pass
+                            ? "border-primary/60 text-primary"
+                            : "border-rose-500/60 text-rose-400"
+                        }`}
+                      >
+                        {pass ? "Pass" : "Fail"}
+                      </span>
+                    </div>
+                    <p className="text-xs text-muted-foreground tabular-nums">
+                      {check.example} → {got}
+                      {pass ? "" : ` (expected ${check.expected})`}
+                    </p>
+                  </div>
+                );
+              })}
             </CardContent>
           </Card>
         </>
