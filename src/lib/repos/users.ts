@@ -18,8 +18,56 @@ export interface UserRecord {
   transcriptionBilling: "monthly" | "per_g" | null;
   /** Bare digits of the member's mobile, for texted-in Exhibit Gs. */
   phone: string | null;
+  /** Small UI preferences as one JSON object; see UserPrefs. */
+  prefs: string | null;
   createdAt: string;
   updatedAt: string;
+}
+
+/**
+ * The preferences that ride the user row. Every key is optional and
+ * absent means the default, so an empty object is a fresh account.
+ */
+export interface UserPrefs {
+  /**
+   * The order the transcription page runs its time fields: through the
+   * day ("chrono", the default) or as the card's columns run ("card" —
+   * call, dismissals, then the meals).
+   */
+  transcribeTimeOrder?: "chrono" | "card";
+}
+
+/** The stored JSON, or {} for NULL, junk, or a non-object. */
+export function parseUserPrefs(
+  prefs: string | null | undefined
+): UserPrefs {
+  if (!prefs) return {};
+  try {
+    const parsed = JSON.parse(prefs);
+    return parsed && typeof parsed === "object" && !Array.isArray(parsed)
+      ? (parsed as UserPrefs)
+      : {};
+  } catch {
+    return {};
+  }
+}
+
+/** Merge a patch into the stored preferences and return the result. */
+export async function mergeUserPrefs(
+  userId: string,
+  patch: UserPrefs
+): Promise<UserPrefs> {
+  const db = await getDb();
+  const row = await db
+    .prepare("SELECT prefs FROM users WHERE _id = ?1")
+    .bind(userId)
+    .first<{ prefs: string | null }>();
+  const next = { ...parseUserPrefs(row?.prefs), ...patch };
+  await db
+    .prepare("UPDATE users SET prefs = ?1, updatedAt = ?2 WHERE _id = ?3")
+    .bind(JSON.stringify(next), nowIso(), userId)
+    .run();
+  return next;
 }
 
 export async function findUserById(id: string): Promise<UserRecord | null> {

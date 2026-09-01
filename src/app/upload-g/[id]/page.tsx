@@ -161,6 +161,46 @@ export default function TranscribePage({
   const [natural, setNatural] = useState({ w: 0, h: 0 });
 
   /**
+   * Which way the time rows run: through the day ("chrono", the
+   * default) or as the card's columns do ("card"). A reading habit,
+   * not data — it mirrors to localStorage so the first paint is right
+   * and to the signed-in user's prefs on the server so their phone and
+   * desktop agree.
+   */
+  const [timeOrder, setTimeOrder] = useState<"chrono" | "card">("chrono");
+  useEffect(() => {
+    try {
+      const saved = window.localStorage.getItem("stl_transcribe_order");
+      if (saved === "card" || saved === "chrono") setTimeOrder(saved);
+    } catch {
+      // storage can be blocked; the default stands
+    }
+    fetch("/api/me/prefs")
+      .then((r) => (r.ok ? r.json() : Promise.reject()))
+      .then((data: { prefs?: { transcribeTimeOrder?: string } }) => {
+        const v = data.prefs?.transcribeTimeOrder;
+        if (v === "card" || v === "chrono") {
+          setTimeOrder(v);
+          try {
+            window.localStorage.setItem("stl_transcribe_order", v);
+          } catch {}
+        }
+      })
+      .catch(() => {});
+  }, []);
+  const chooseTimeOrder = (next: "chrono" | "card") => {
+    setTimeOrder(next);
+    try {
+      window.localStorage.setItem("stl_transcribe_order", next);
+    } catch {}
+    fetch("/api/me/prefs", {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ transcribeTimeOrder: next }),
+    }).catch(() => {});
+  };
+
+  /**
    * The Cast box is not asked: this G is the signed-in performer's (or,
    * for an admin viewing as a member, that member's), so their
    * registered name is the answer and it rides the saved row.
@@ -438,6 +478,201 @@ export default function TranscribePage({
 
   const isPdf = upload.contentType === "application/pdf";
 
+  /**
+   * The times rows, built once and ordered by the toggle. Day order
+   * runs chronologically: call, the meals, the dismissals. Card order
+   * runs the G's columns — call, both dismissals, then the meals — so
+   * transcribing moves straight across the card without jumping. The
+   * wrap warning stays glued under the wrap row either way.
+   */
+  const callRow = (
+    <TimeRow
+      key="call"
+      id="row-callTime"
+      label="Call Time"
+      hint="Make-up Hair Wrdrbe"
+      anchor
+      value={row.callTime}
+      onChange={(v) => setRow((prev) => ({ ...prev, callTime: v }))}
+    />
+  );
+
+  const mealsBand = (
+    <div
+      key="meals"
+      className={`border-t py-2 my-1 space-y-2${
+        timeOrder === "card" ? "" : " border-b"
+      }`}
+    >
+      <MealSection
+        id="g-show-nd-meal"
+        title="ND (Non-Deductible) Meal"
+        checked={showNdMeal}
+        onCheckedChange={(v) => {
+          setShowNdMeal(v);
+          if (!v)
+            setRow((prev) => ({
+              ...prev,
+              ndMealIn: "",
+              ndMealOut: "",
+            }));
+        }}
+        warnings={[ndMealWarning(ndMeal, row.callTime, row.ndMealIn)]}
+      >
+        <MealTimes>
+          {/* The Out is derived, as on Log Work: an ND meal is
+              15 minutes by rule, whatever the card's box says. */}
+          <MealTime
+            id="row-ndMealIn"
+            label="In"
+            value={row.ndMealIn}
+            onChange={(v) =>
+              setRow((prev) => ({
+                ...prev,
+                ndMealIn: v,
+                ndMealOut: v
+                  ? (followedTime(v, null, ND_MEAL_MINUTES) ?? "")
+                  : "",
+              }))
+            }
+          />
+          <NdMealOut value={row.ndMealOut || null} />
+        </MealTimes>
+      </MealSection>
+      <MealSection
+        id="g-show-first-meal"
+        title="1st Meal"
+        checked={showFirstMeal}
+        onCheckedChange={(v) => {
+          setShowFirstMeal(v);
+          if (!v) {
+            setShowSecondMeal(false);
+            setRow((prev) => ({
+              ...prev,
+              firstMealStart: "",
+              firstMealFinish: "",
+              secondMealStart: "",
+              secondMealFinish: "",
+            }));
+          }
+        }}
+        warnings={[
+          mealLengthWarning(row.firstMealStart, row.firstMealFinish),
+        ]}
+      >
+        <MealTimes>
+          <MealTime
+            id="row-firstMealStart"
+            label="In"
+            value={row.firstMealStart}
+            onChange={(v) =>
+              // Setting the In offers the Out half an hour on —
+              // what a meal usually is — so the picker opens
+              // there instead of at whatever time it is now. It
+              // only ever fills an EMPTY Out; a time read off
+              // the card never moves.
+              setRow((prev) => ({
+                ...prev,
+                firstMealStart: v,
+                firstMealFinish: v
+                  ? (offerAfterIfEmpty(v, prev.firstMealFinish, MEAL_MINUTES) ?? "")
+                  : prev.firstMealFinish,
+              }))
+            }
+          />
+          <MealTime
+            id="row-firstMealFinish"
+            label="Out"
+            value={row.firstMealFinish}
+            onChange={(v) =>
+              setRow((prev) => ({ ...prev, firstMealFinish: v }))
+            }
+          />
+        </MealTimes>
+      </MealSection>
+      {/* 2nd Meal — only visible when 1st Meal is checked */}
+      {showFirstMeal && (
+        <MealSection
+          id="g-show-second-meal"
+          title="2nd Meal"
+          checked={showSecondMeal}
+          onCheckedChange={(v) => {
+            setShowSecondMeal(v);
+            if (!v)
+              setRow((prev) => ({
+                ...prev,
+                secondMealStart: "",
+                secondMealFinish: "",
+              }));
+          }}
+          warnings={[
+            secondMealOrderWarning(
+              row.firstMealFinish,
+              row.secondMealStart
+            ),
+            mealLengthWarning(
+              row.secondMealStart,
+              row.secondMealFinish
+            ),
+          ]}
+        >
+          <MealTimes>
+            <MealTime
+              id="row-secondMealStart"
+              label="In"
+              value={row.secondMealStart}
+              onChange={(v) =>
+                setRow((prev) => ({
+                  ...prev,
+                  secondMealStart: v,
+                  secondMealFinish: v
+                    ? (offerAfterIfEmpty(v, prev.secondMealFinish, MEAL_MINUTES) ?? "")
+                    : prev.secondMealFinish,
+                }))
+              }
+            />
+            <MealTime
+              id="row-secondMealFinish"
+              label="Out"
+              value={row.secondMealFinish}
+              onChange={(v) =>
+                setRow((prev) => ({ ...prev, secondMealFinish: v }))
+              }
+            />
+          </MealTimes>
+        </MealSection>
+      )}
+    </div>
+  );
+
+  const dismissRows = (
+    <div key="dismiss">
+      <TimeRow
+        id="row-dismissOnSet"
+        label="Dismiss On Set"
+        value={row.dismissOnSet}
+        onChange={(v) =>
+          setRow((prev) => ({ ...prev, dismissOnSet: v }))
+        }
+      />
+      <TimeRow
+        id="row-dismissMakeupWardrobe"
+        label="Wrapped"
+        hint="Dismiss MU/Hair Wrdrbe"
+        anchor
+        value={row.dismissMakeupWardrobe}
+        onChange={(v) =>
+          setRow((prev) => ({ ...prev, dismissMakeupWardrobe: v }))
+        }
+      />
+      {wrapOrderWarning(row.dismissOnSet, row.dismissMakeupWardrobe) && (
+        <p className="px-2 pb-1 text-xs text-amber-400">
+          {wrapOrderWarning(row.dismissOnSet, row.dismissMakeupWardrobe)}
+        </p>
+      )}
+    </div>
+  );
+
   const zoomButton = (
     label: string,
     icon: React.ReactNode,
@@ -661,184 +896,41 @@ export default function TranscribePage({
             </div>
           </div>
 
-          {/* The same rows as Log Work, in the same order — the card is
-              read into the day's form, not into a copy of the card. No
-              fold: on this page the times ARE the page. */}
+          {/* The same rows as Log Work — the card read into the day's
+              form, not into a copy of the card. No fold: on this page
+              the times ARE the page. The toggle flips between the
+              day's chronological order and the card's column order; a
+              reading habit, so it saves as a user preference. */}
           <div className="rounded-lg border border-border p-2">
-            <div className="space-y-0">
-              <TimeRow
-                id="row-callTime"
-                label="Call Time"
-                hint="Make-up Hair Wrdrbe"
-                anchor
-                value={row.callTime}
-                onChange={(v) => setRow((prev) => ({ ...prev, callTime: v }))}
-              />
-              {/* Meals */}
-              <div className="border-t border-b py-2 my-1 space-y-2">
-                <MealSection
-                  id="g-show-nd-meal"
-                  title="ND (Non-Deductible) Meal"
-                  checked={showNdMeal}
-                  onCheckedChange={(v) => {
-                    setShowNdMeal(v);
-                    if (!v)
-                      setRow((prev) => ({
-                        ...prev,
-                        ndMealIn: "",
-                        ndMealOut: "",
-                      }));
-                  }}
-                  warnings={[ndMealWarning(ndMeal, row.callTime, row.ndMealIn)]}
-                >
-                  <MealTimes>
-                    {/* The Out is derived, as on Log Work: an ND meal is
-                        15 minutes by rule, whatever the card's box says. */}
-                    <MealTime
-                      id="row-ndMealIn"
-                      label="In"
-                      value={row.ndMealIn}
-                      onChange={(v) =>
-                        setRow((prev) => ({
-                          ...prev,
-                          ndMealIn: v,
-                          ndMealOut: v
-                            ? (followedTime(v, null, ND_MEAL_MINUTES) ?? "")
-                            : "",
-                        }))
-                      }
-                    />
-                    <NdMealOut value={row.ndMealOut || null} />
-                  </MealTimes>
-                </MealSection>
-                <MealSection
-                  id="g-show-first-meal"
-                  title="1st Meal"
-                  checked={showFirstMeal}
-                  onCheckedChange={(v) => {
-                    setShowFirstMeal(v);
-                    if (!v) {
-                      setShowSecondMeal(false);
-                      setRow((prev) => ({
-                        ...prev,
-                        firstMealStart: "",
-                        firstMealFinish: "",
-                        secondMealStart: "",
-                        secondMealFinish: "",
-                      }));
-                    }
-                  }}
-                  warnings={[
-                    mealLengthWarning(row.firstMealStart, row.firstMealFinish),
-                  ]}
-                >
-                  <MealTimes>
-                    <MealTime
-                      id="row-firstMealStart"
-                      label="In"
-                      value={row.firstMealStart}
-                      onChange={(v) =>
-                        // Setting the In offers the Out half an hour on —
-                        // what a meal usually is — so the picker opens
-                        // there instead of at whatever time it is now. It
-                        // only ever fills an EMPTY Out; a time read off
-                        // the card never moves.
-                        setRow((prev) => ({
-                          ...prev,
-                          firstMealStart: v,
-                          firstMealFinish: v
-                            ? (offerAfterIfEmpty(v, prev.firstMealFinish, MEAL_MINUTES) ?? "")
-                            : prev.firstMealFinish,
-                        }))
-                      }
-                    />
-                    <MealTime
-                      id="row-firstMealFinish"
-                      label="Out"
-                      value={row.firstMealFinish}
-                      onChange={(v) =>
-                        setRow((prev) => ({ ...prev, firstMealFinish: v }))
-                      }
-                    />
-                  </MealTimes>
-                </MealSection>
-                {/* 2nd Meal — only visible when 1st Meal is checked */}
-                {showFirstMeal && (
-                  <MealSection
-                    id="g-show-second-meal"
-                    title="2nd Meal"
-                    checked={showSecondMeal}
-                    onCheckedChange={(v) => {
-                      setShowSecondMeal(v);
-                      if (!v)
-                        setRow((prev) => ({
-                          ...prev,
-                          secondMealStart: "",
-                          secondMealFinish: "",
-                        }));
-                    }}
-                    warnings={[
-                      secondMealOrderWarning(
-                        row.firstMealFinish,
-                        row.secondMealStart
-                      ),
-                      mealLengthWarning(
-                        row.secondMealStart,
-                        row.secondMealFinish
-                      ),
-                    ]}
+            <div className="flex items-center justify-between gap-2 px-2 pt-1 pb-1">
+              <span className="text-sm font-semibold">Times</span>
+              <div className="flex rounded-md border border-border overflow-hidden shrink-0">
+                {(
+                  [
+                    ["chrono", "Day order"],
+                    ["card", "Card order"],
+                  ] as const
+                ).map(([value, label]) => (
+                  <button
+                    key={value}
+                    type="button"
+                    onClick={() => chooseTimeOrder(value)}
+                    aria-pressed={timeOrder === value}
+                    className={`px-2 py-1 text-xs ${
+                      timeOrder === value
+                        ? "bg-accent font-medium"
+                        : "text-muted-foreground hover:bg-accent/50"
+                    }`}
                   >
-                    <MealTimes>
-                      <MealTime
-                        id="row-secondMealStart"
-                        label="In"
-                        value={row.secondMealStart}
-                        onChange={(v) =>
-                          setRow((prev) => ({
-                            ...prev,
-                            secondMealStart: v,
-                            secondMealFinish: v
-                              ? (offerAfterIfEmpty(v, prev.secondMealFinish, MEAL_MINUTES) ?? "")
-                              : prev.secondMealFinish,
-                          }))
-                        }
-                      />
-                      <MealTime
-                        id="row-secondMealFinish"
-                        label="Out"
-                        value={row.secondMealFinish}
-                        onChange={(v) =>
-                          setRow((prev) => ({ ...prev, secondMealFinish: v }))
-                        }
-                      />
-                    </MealTimes>
-                  </MealSection>
-                )}
+                    {label}
+                  </button>
+                ))}
               </div>
-
-              <TimeRow
-                id="row-dismissOnSet"
-                label="Dismiss On Set"
-                value={row.dismissOnSet}
-                onChange={(v) =>
-                  setRow((prev) => ({ ...prev, dismissOnSet: v }))
-                }
-              />
-              <TimeRow
-                id="row-dismissMakeupWardrobe"
-                label="Wrapped"
-                hint="Dismiss MU/Hair Wrdrbe"
-                anchor
-                value={row.dismissMakeupWardrobe}
-                onChange={(v) =>
-                  setRow((prev) => ({ ...prev, dismissMakeupWardrobe: v }))
-                }
-              />
-              {wrapOrderWarning(row.dismissOnSet, row.dismissMakeupWardrobe) && (
-                <p className="px-2 pb-1 text-xs text-amber-400">
-                  {wrapOrderWarning(row.dismissOnSet, row.dismissMakeupWardrobe)}
-                </p>
-              )}
+            </div>
+            <div className="space-y-0">
+              {timeOrder === "card"
+                ? [callRow, dismissRows, mealsBand]
+                : [callRow, mealsBand, dismissRows]}
 
               {/* On the form like any other card column — real money,
                   and it raises the overtime rate when the day reprices. */}

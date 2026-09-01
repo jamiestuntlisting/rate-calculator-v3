@@ -63,11 +63,17 @@ export default function PreferencesPage() {
   const [phone, setPhone] = useState("");
   const [intakeNumber, setIntakeNumber] = useState<string | null>(null);
   const [savingPhone, setSavingPhone] = useState(false);
+  /** Transcription time-row order — the same preference the toggle on
+   *  the transcription page saves; shown here so it is findable. */
+  const [timeOrder, setTimeOrder] = useState<"chrono" | "card">("chrono");
 
   useEffect(() => {
     setMounted(true);
     const saved = window.localStorage.getItem("stl_g_view");
     if (saved === "grid" || saved === "list") setView(saved);
+    const savedOrder = window.localStorage.getItem("stl_transcribe_order");
+    if (savedOrder === "chrono" || savedOrder === "card")
+      setTimeOrder(savedOrder);
     fetch("/api/me/phone")
       .then((r) => (r.ok ? r.json() : Promise.reject()))
       .then((data: { phone: string | null; intakeNumber: string | null }) => {
@@ -75,7 +81,31 @@ export default function PreferencesPage() {
         setIntakeNumber(data.intakeNumber);
       })
       .catch(() => {});
+    fetch("/api/me/prefs")
+      .then((r) => (r.ok ? r.json() : Promise.reject()))
+      .then((data: { prefs?: { transcribeTimeOrder?: string } }) => {
+        const v = data.prefs?.transcribeTimeOrder;
+        if (v === "chrono" || v === "card") {
+          setTimeOrder(v);
+          try {
+            window.localStorage.setItem("stl_transcribe_order", v);
+          } catch {}
+        }
+      })
+      .catch(() => {});
   }, []);
+
+  const chooseTimeOrder = (next: "chrono" | "card") => {
+    setTimeOrder(next);
+    try {
+      window.localStorage.setItem("stl_transcribe_order", next);
+    } catch {}
+    fetch("/api/me/prefs", {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ transcribeTimeOrder: next }),
+    }).catch(() => toast.error("Couldn't save the order"));
+  };
 
   const savePhone = async () => {
     setSavingPhone(true);
@@ -190,6 +220,16 @@ export default function PreferencesPage() {
               { value: "list", label: "List" },
             ]}
             onChange={chooseView}
+          />
+          <Choice
+            label="Transcription times"
+            description="Run the time fields through the day, or as the card's columns do."
+            value={timeOrder}
+            options={[
+              { value: "chrono", label: "Day order" },
+              { value: "card", label: "Card order" },
+            ]}
+            onChange={chooseTimeOrder}
           />
         </CardContent>
       </Card>
