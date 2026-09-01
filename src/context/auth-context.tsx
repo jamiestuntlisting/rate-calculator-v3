@@ -49,7 +49,7 @@ const AuthContext = createContext<AuthContextValue | undefined>(undefined);
  * app to someone who has not signed in, so sending them to /login would
  * defeat it.
  */
-const SIGNED_OUT_PATHS = ["/login", "/how-it-works"];
+const SIGNED_OUT_PATHS = ["/login", "/how-it-works", "/privacy", "/terms"];
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<AuthUser | null>(null);
