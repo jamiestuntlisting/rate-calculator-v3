@@ -61,7 +61,7 @@ import type { WorkDocument, WorkRecord } from "@/types";
 import { DOCUMENT_TYPE_LABELS } from "@/types";
 import { ExhibitGViewer } from "@/components/shared/exhibit-g-viewer";
 import { RotatableThumb } from "@/components/shared/rotatable-thumb";
-import { ArrowLeft, Save, Upload, Trash2, Pencil, X } from "lucide-react";
+import { ArrowLeft, FileDown, Save, Upload, Trash2, Pencil, X } from "lucide-react";
 
 const STATUS_LABELS: Record<string, string> = {
   unpaid: "Unpaid",
@@ -1757,6 +1757,22 @@ export default function WorkDetailPage() {
                     ) : null
                   )}
                 </div>
+              </div>
+            )}
+
+            {/* The day's working as a handable document: performer, show,
+                the G's times and the breakdown of the expected check. */}
+            {record.calculation && (
+              <div className="pt-2">
+                <a
+                  href={`/api/work-records/${record._id}/expected-pay`}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="inline-flex items-center gap-1.5 rounded-md border border-border px-3 py-2 text-sm hover:bg-accent"
+                >
+                  <FileDown className="h-4 w-4" />
+                  Expected pay (PDF)
+                </a>
               </div>
             )}
 

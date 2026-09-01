@@ -13,7 +13,7 @@ import {
 import { Badge } from "@/components/ui/badge";
 import Link from "next/link";
 import { toast } from "sonner";
-import { ArrowRight, ChevronDown, ChevronRight } from "lucide-react";
+import { ArrowRight, ChevronDown, ChevronRight, FileDown } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { RateBreakdown } from "@/components/calculation/rate-breakdown";
 import { Button } from "@/components/ui/button";
@@ -887,19 +887,30 @@ export default function AnalyticsPage() {
                         {rowOpen && (
                           <div className="border-b border-border/30 py-3 pl-8 pr-1 space-y-3">
                             {record.calculation ? (
-                              <RateBreakdown
-                                breakdown={record.calculation}
-                                linesOnly
-                                approximation={
-                                  record.flatDayRate
-                                    ? null
-                                    : record.contractLength === "three_day"
-                                      ? "three_day"
-                                      : record.weeklyContract
-                                        ? "weekly"
-                                        : null
-                                }
-                              />
+                              <>
+                                <RateBreakdown
+                                  breakdown={record.calculation}
+                                  linesOnly
+                                  approximation={
+                                    record.flatDayRate
+                                      ? null
+                                      : record.contractLength === "three_day"
+                                        ? "three_day"
+                                        : record.weeklyContract
+                                          ? "weekly"
+                                          : null
+                                  }
+                                />
+                                <a
+                                  href={`/api/work-records/${record._id}/expected-pay`}
+                                  target="_blank"
+                                  rel="noreferrer"
+                                  className="inline-flex items-center gap-1.5 text-xs text-muted-foreground underline underline-offset-2 hover:text-foreground"
+                                >
+                                  <FileDown className="h-3.5 w-3.5" />
+                                  Expected pay (PDF)
+                                </a>
+                              </>
                             ) : record.callTime ? (
                               <p className="text-sm text-muted-foreground">
                                 The times are in, but no agreement has
