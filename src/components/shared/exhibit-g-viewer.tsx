@@ -2,14 +2,10 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Maximize2, RotateCw, ZoomIn, ZoomOut } from "lucide-react";
+import { useFocalZoom } from "@/lib/use-focal-zoom";
 
 const MIN_ZOOM = 0.1;
 const MAX_ZOOM = 8;
-
-function touchDistance(touches: React.TouchList): number {
-  const [a, b] = [touches[0], touches[1]];
-  return Math.hypot(a.clientX - b.clientX, a.clientY - b.clientY);
-}
 
 const clampZoom = (z: number) => Math.min(MAX_ZOOM, Math.max(MIN_ZOOM, z));
 
@@ -42,12 +38,22 @@ export function ExhibitGViewer({
   initialRotation = 0,
   onRotate,
 }: ExhibitGViewerProps) {
-  const paneRef = useRef<HTMLDivElement>(null);
   const imgRef = useRef<HTMLImageElement | null>(null);
-  const pinch = useRef<{ distance: number; zoom: number } | null>(null);
+  /** The sized box the image lives in — what the zoom actually grows. */
+  const cardBoxRef = useRef<HTMLDivElement>(null);
   const [natural, setNatural] = useState({ w: 0, h: 0 });
   const [zoom, setZoom] = useState(1);
   const [rotation, setRotation] = useState(initialRotation);
+  // Zoom anchored to the pinch point / cursor / pane centre, so the
+  // column being read stays put instead of sliding to the corner.
+  const { paneRef, paneEl, onTouchStart, onTouchEnd, zoomAtCenter } =
+    useFocalZoom({
+      contentRef: cardBoxRef,
+      zoom,
+      setZoom,
+      minZoom: MIN_ZOOM,
+      maxZoom: MAX_ZOOM,
+    });
 
   /**
    * The pane's height cap in pixels, read while the pane still stands at
@@ -57,7 +63,7 @@ export function ExhibitGViewer({
   const capPx = useRef(0);
 
   /** Whole card in view: the largest zoom that fits width AND height. */
-  const containZoom = (pane: HTMLDivElement, w: number, h: number, rot: number) => {
+  const containZoom = (pane: HTMLElement, w: number, h: number, rot: number) => {
     const contentW = rot % 180 === 0 ? w : h;
     const contentH = rot % 180 === 0 ? h : w;
     const cap = capPx.current || pane.clientHeight;
@@ -78,7 +84,7 @@ export function ExhibitGViewer({
   const adoptImage = (img: HTMLImageElement) => {
     if (measured.current) return;
     const { naturalWidth, naturalHeight } = img;
-    const pane = paneRef.current;
+    const pane = paneEl.current;
     if (!naturalWidth || !naturalHeight || !pane || !pane.clientWidth) return;
     measured.current = true;
     capPx.current = pane.clientHeight;
@@ -92,10 +98,10 @@ export function ExhibitGViewer({
 
   /** The Fit button: back to the whole card, however deep the zoom went. */
   const fitToView = useCallback(() => {
-    const pane = paneRef.current;
+    const pane = paneEl.current;
     if (!pane || !natural.w || !natural.h) return;
     setZoom(containZoom(pane, natural.w, natural.h, rotation));
-  }, [natural, rotation]);
+  }, [natural, rotation, paneEl]);
 
   const baseW = natural.w * zoom;
   const baseH = natural.h * zoom;
@@ -115,28 +121,6 @@ export function ExhibitGViewer({
     const next = (rotation + 90) % 360;
     setRotation(next);
     onRotate?.(next);
-  };
-
-  const onTouchStart = (e: React.TouchEvent) => {
-    if (e.touches.length === 2) {
-      pinch.current = { distance: touchDistance(e.touches), zoom };
-    }
-  };
-
-  const onTouchMove = (e: React.TouchEvent) => {
-    if (e.touches.length === 2 && pinch.current) {
-      e.preventDefault();
-      const ratio = touchDistance(e.touches) / pinch.current.distance;
-      setZoom(clampZoom(pinch.current.zoom * ratio));
-    }
-  };
-
-  // Desktop: ctrl/⌘ + wheel zooms, like a photo viewer. A bare wheel still
-  // scrolls the pane, so the page does not fight the reader.
-  const onWheel = (e: React.WheelEvent) => {
-    if (!e.ctrlKey && !e.metaKey) return;
-    e.preventDefault();
-    setZoom((z) => clampZoom(z * (e.deltaY < 0 ? 1.08 : 0.93)));
   };
 
   if (isPdf) {
@@ -159,19 +143,13 @@ export function ExhibitGViewer({
           {label ?? alt}
         </span>
         <div className="flex items-center gap-0.5 shrink-0">
-          <ToolButton
-            label="Zoom out"
-            onClick={() => setZoom((z) => clampZoom(z * 0.8))}
-          >
+          <ToolButton label="Zoom out" onClick={() => zoomAtCenter(0.8)}>
             <ZoomOut className="h-4 w-4" />
           </ToolButton>
           <span className="text-[11px] tabular-nums text-muted-foreground w-10 text-center">
             {Math.round(zoom * 100)}%
           </span>
-          <ToolButton
-            label="Zoom in"
-            onClick={() => setZoom((z) => clampZoom(z * 1.25))}
-          >
+          <ToolButton label="Zoom in" onClick={() => zoomAtCenter(1.25)}>
             <ZoomIn className="h-4 w-4" />
           </ToolButton>
           <ToolButton label="Fit the whole card" onClick={fitToView}>
@@ -193,17 +171,15 @@ export function ExhibitGViewer({
         style={{
           height: displayH ? `min(${Math.ceil(displayH)}px, ${height})` : height,
           minHeight: "4rem",
+          touchAction: "pan-x pan-y",
         }}
-        onWheel={onWheel}
         onTouchStart={onTouchStart}
-        onTouchMove={onTouchMove}
-        onTouchEnd={() => {
-          pinch.current = null;
-        }}
+        onTouchEnd={onTouchEnd}
       >
         {/* Centered: when the fit is bound by height, the leftover width
             splits evenly instead of hanging off one side. */}
         <div
+          ref={cardBoxRef}
           style={{
             width: displayW || "100%",
             height: displayH || "100%",

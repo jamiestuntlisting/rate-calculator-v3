@@ -30,6 +30,7 @@ import { checkNdMeal, ND_MEAL_MINUTES } from "@/lib/nd-meal";
 import { mealLengthWarning, secondMealOrderWarning } from "@/lib/meal-length";
 import { wrapOrderWarning } from "@/lib/wrap-check";
 import { useAuth } from "@/context/auth-context";
+import { useFocalZoom } from "@/lib/use-focal-zoom";
 import { toast } from "sonner";
 
 interface GUpload {
@@ -104,18 +105,14 @@ function emptyRow(): TranscriptionRow {
   };
 }
 
-/** Distance between two active touches, for pinch-zoom. */
-function touchDistance(touches: React.TouchList): number {
-  const [a, b] = [touches[0], touches[1]];
-  return Math.hypot(a.clientX - b.clientX, a.clientY - b.clientY);
-}
-
 /**
  * The transcription screen is a split view: the Exhibit G on one half —
  * left on a desktop, top on a phone — and the fields on the other, each
  * pane scrolling on its own, an even fifty-fifty. The image opens
  * fitted to its pane so the whole card shows with no dead white space,
- * and zooms from there: buttons, pinch, or ctrl/⌘ + scroll.
+ * and zooms from there: buttons, pinch, or ctrl/⌘ + scroll — anchored
+ * to the pinch point by useFocalZoom, so the row being read stays under
+ * the fingers instead of sliding off toward the corner.
  *
  * The fields run down the pane in the same order and the same rows as
  * Log Work — the transcription is that form, read off a card — so a
@@ -191,9 +188,17 @@ export default function TranscribePage({
   const [rotation, setRotation] = useState(0);
   const [zoom, setZoom] = useState(1);
 
-  const imageRef = useRef<HTMLDivElement>(null);
   const formPaneRef = useRef<HTMLDivElement>(null);
-  const pinch = useRef<{ distance: number; zoom: number } | null>(null);
+  /** The sized box the card lives in — what the zoom actually grows. */
+  const cardBoxRef = useRef<HTMLDivElement>(null);
+  const { paneRef, paneEl, onTouchStart, onTouchEnd, zoomAtCenter } =
+    useFocalZoom({
+      contentRef: cardBoxRef,
+      zoom,
+      setZoom,
+      minZoom: 0.02,
+      maxZoom: 8,
+    });
   const restored = useRef(false);
   const savedView = useRef<Transcription["view"] | null>(null);
 
@@ -239,20 +244,20 @@ export default function TranscribePage({
 
   /** The zoom at which the whole card fits its pane, both dimensions. */
   const fitZoom = useCallback(() => {
-    const pane = imageRef.current;
+    const pane = paneEl.current;
     if (!pane || !natural.w) return 1;
     const rotated = rotation % 180 !== 0;
     const contentW = rotated ? natural.h : natural.w;
     const contentH = rotated ? natural.w : natural.h;
     return Math.min(pane.clientWidth / contentW, pane.clientHeight / contentH);
-  }, [natural, rotation]);
+  }, [paneEl, natural, rotation]);
 
   const fitToPane = useCallback(() => {
     setZoom(Math.max(0.02, fitZoom()));
     requestAnimationFrame(() => {
-      imageRef.current?.scrollTo({ left: 0, top: 0 });
+      paneEl.current?.scrollTo({ left: 0, top: 0 });
     });
-  }, [fitZoom]);
+  }, [fitZoom, paneEl]);
 
   // First load: restore the saved view, or open fitted so the whole card
   // is on screen with nothing but card in the pane.
@@ -263,7 +268,7 @@ export default function TranscribePage({
     if (view) {
       setZoom(view.zoom);
       requestAnimationFrame(() => {
-        imageRef.current?.scrollTo({
+        paneEl.current?.scrollTo({
           left: view.scrollX,
           top: view.y ?? view.rowY ?? 0,
         });
@@ -271,7 +276,7 @@ export default function TranscribePage({
     } else {
       fitToPane();
     }
-  }, [natural, fitToPane]);
+  }, [natural, fitToPane, paneEl]);
 
   const baseW = natural.w * zoom;
   const baseH = natural.h * zoom;
@@ -287,54 +292,6 @@ export default function TranscribePage({
     return "none";
   })();
 
-  const onTouchStart = (e: React.TouchEvent) => {
-    if (e.touches.length === 2) {
-      pinch.current = { distance: touchDistance(e.touches), zoom };
-    }
-  };
-
-  const onTouchEnd = () => {
-    pinch.current = null;
-  };
-
-  /**
-   * Zooming the card must zoom ONLY the card: a trackpad pinch (which
-   * arrives as ctrl+wheel) and a touch pinch both default to zooming the
-   * whole page, fields and all. React registers wheel/touchmove
-   * passively, where preventDefault is silently ignored — so the two
-   * handlers that need to swallow the browser's zoom are attached by
-   * hand, non-passive, to the image pane alone.
-   */
-  useEffect(() => {
-    const el = imageRef.current;
-    if (!el) return;
-    const onWheel = (e: WheelEvent) => {
-      if (!e.ctrlKey && !e.metaKey) return;
-      e.preventDefault();
-      setZoom((z) =>
-        Math.min(8, Math.max(0.02, z * (e.deltaY < 0 ? 1.08 : 0.93)))
-      );
-    };
-    const onTouchMove = (e: TouchEvent) => {
-      if (e.touches.length === 2 && pinch.current) {
-        e.preventDefault();
-        const [a, b] = [e.touches[0], e.touches[1]];
-        const distance = Math.hypot(
-          a.clientX - b.clientX,
-          a.clientY - b.clientY
-        );
-        const ratio = distance / pinch.current.distance;
-        setZoom(Math.min(8, Math.max(0.02, pinch.current.zoom * ratio)));
-      }
-    };
-    el.addEventListener("wheel", onWheel, { passive: false });
-    el.addEventListener("touchmove", onTouchMove, { passive: false });
-    return () => {
-      el.removeEventListener("wheel", onWheel);
-      el.removeEventListener("touchmove", onTouchMove);
-    };
-  }, [upload]);
-
   const save = useCallback(async () => {
     setSaving(true);
     try {
@@ -347,8 +304,8 @@ export default function TranscribePage({
             rows: [{ ...row, performer: performerName || row.performer }],
             view: {
               zoom,
-              scrollX: imageRef.current?.scrollLeft ?? 0,
-              y: imageRef.current?.scrollTop ?? 0,
+              scrollX: paneEl.current?.scrollLeft ?? 0,
+              y: paneEl.current?.scrollTop ?? 0,
             },
           },
         }),
@@ -360,7 +317,7 @@ export default function TranscribePage({
     } finally {
       setSaving(false);
     }
-  }, [id, row, details, zoom, performerName]);
+  }, [id, row, details, zoom, performerName, paneEl]);
 
   const rotate = async () => {
     const next = (rotation + 90) % 360;
@@ -443,13 +400,14 @@ export default function TranscribePage({
         ) : (
           <>
             <div
-              ref={imageRef}
+              ref={paneRef}
               onTouchStart={onTouchStart}
               onTouchEnd={onTouchEnd}
               className="h-full w-full overflow-auto overscroll-contain"
               style={{ touchAction: "pan-x pan-y" }}
             >
               <div
+                ref={cardBoxRef}
                 className="relative mx-auto"
                 style={{
                   width: displayW || "100%",
@@ -485,10 +443,10 @@ export default function TranscribePage({
               </span>
               <span className="pointer-events-auto flex items-center gap-1.5">
                 {zoomButton("Zoom out", <ZoomOut className="h-4 w-4" />, () =>
-                  setZoom((z) => Math.max(0.02, z * 0.8))
+                  zoomAtCenter(0.8)
                 )}
                 {zoomButton("Zoom in", <ZoomIn className="h-4 w-4" />, () =>
-                  setZoom((z) => Math.min(8, z * 1.25))
+                  zoomAtCenter(1.25)
                 )}
                 {zoomButton(
                   "Fit the whole card",
