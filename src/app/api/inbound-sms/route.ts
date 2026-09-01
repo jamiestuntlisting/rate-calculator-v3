@@ -3,7 +3,7 @@ import { ingestGUploads, type IngestFile } from "@/lib/g-ingest";
 import { isUploadable } from "@/lib/uploadable";
 import { findUserByPhoneKey } from "@/lib/repos/users";
 import { phoneKey } from "@/lib/phone";
-import { twimlMessage, validateTwilioSignature } from "@/lib/twilio";
+import { twilioSignature, twimlMessage, validateTwilioSignature } from "@/lib/twilio";
 
 /**
  * Exhibit Gs arriving by text message.
@@ -103,17 +103,26 @@ export async function POST(request: Request) {
       }
     }
     if (!signatureOk) {
-      // Log the URL shapes (never the signature or token) so a mismatch
-      // is diagnosable from the Workers logs.
+      // Make the refusal diagnosable. paramCount separates "the body
+      // reached us" (about a dozen params — then the token is wrong)
+      // from "the body was eaten in transit" (zero). The signature
+      // prefixes go to the logs only — eight base64 chars of an HMAC
+      // identify a mismatch without enabling a forgery.
+      const paramCount = Object.keys(params).length;
       console.error("inbound-sms signature mismatch", {
         requestUrl: request.url,
         host,
         candidatesTried: candidates.length,
+        paramCount,
+        receivedPrefix: signature.slice(0, 8),
+        expectedPrefix: (
+          await twilioSignature(authToken, candidates[0], params)
+        ).slice(0, 8),
       });
-      return new Response(JSON.stringify({ error: "Bad signature" }), {
-        status: 403,
-        headers: { "Content-Type": "application/json" },
-      });
+      return new Response(
+        JSON.stringify({ error: "Bad signature", params: paramCount }),
+        { status: 403, headers: { "Content-Type": "application/json" } }
+      );
     }
 
     const from = params.From ?? "";
