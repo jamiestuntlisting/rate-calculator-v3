@@ -225,11 +225,25 @@ export default function UploadGPage() {
 
   const isPdf = (u: GUpload) => u.contentType === "application/pdf";
 
+  // The page is a to-do list; the number on the title is how long it
+  // still is. Zero shows no badge — the empty pile says it better.
+  const todoCount = uploads.filter((u) => !u.transcribedAt).length;
+
   return (
     <div className="container mx-auto px-4 py-8 max-w-6xl">
       <div className="flex flex-wrap items-center justify-between gap-4 mb-6">
         <div>
-          <h1 className="text-3xl font-bold">Transcribe</h1>
+          <h1 className="text-3xl font-bold flex items-center gap-3">
+            Transcribe
+            {!loading && todoCount > 0 && (
+              <span
+                aria-label={`${todoCount} to transcribe`}
+                className="rounded-full bg-accent px-3 py-0.5 text-lg font-semibold tabular-nums"
+              >
+                {todoCount}
+              </span>
+            )}
+          </h1>
           <p className="text-muted-foreground text-sm mt-1">
             Exhibit Gs, call sheets and timecards. Tap one to transcribe it.
           </p>
