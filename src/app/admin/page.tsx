@@ -65,7 +65,7 @@ const ADMIN_PAGES = [
   },
   {
     href: "/admin/time-bench",
-    title: "Time bench",
+    title: "Daily tests",
     detail: "The Log Work time rules in words, each checked live.",
     icon: FlaskConical,
   },

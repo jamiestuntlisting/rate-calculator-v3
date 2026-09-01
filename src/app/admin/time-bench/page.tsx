@@ -183,7 +183,7 @@ export default function TimeBenchPage() {
         ← Admin
       </Link>
       <div>
-        <h1 className="text-3xl font-bold tracking-tight">Time Bench</h1>
+        <h1 className="text-3xl font-bold tracking-tight">Daily tests</h1>
         <p className="text-sm text-muted-foreground mt-1">
           The Log Work time rules, in words, each run right now against the
           same functions the form calls. {passing} of {total} passing. The

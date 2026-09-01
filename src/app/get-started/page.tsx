@@ -5,6 +5,7 @@ import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 import { toUploadableImage } from "@/lib/heic-to-jpeg";
+import { isUploadable } from "@/lib/uploadable";
 import { Check, Loader2, Upload } from "lucide-react";
 
 /**
@@ -59,27 +60,58 @@ export default function GetStartedPage() {
   }, [refresh]);
 
   const uploadFiles = async (files: File[]) => {
-    const usable = files.filter(
-      (f) =>
-        f.type.startsWith("image/") ||
-        f.type === "application/pdf" ||
-        /\.(hei[cf])$/i.test(f.name)
-    );
+    // Judged on type first and extension second, the same rule the
+    // server applies — a JPEG with a blank type (desktop drags and
+    // synced files do this) is still a JPEG. Skips are said out loud,
+    // never silent.
+    const usable = files.filter((f) => isUploadable(f.type, f.name));
     if (usable.length === 0) {
       toast.error("Only photos or PDFs can be uploaded");
       return;
     }
+    if (usable.length < files.length) {
+      toast.warning(
+        `${files.length - usable.length} file${files.length - usable.length === 1 ? "" : "s"} skipped — not a photo or PDF`
+      );
+    }
     setUploading(true);
     try {
-      const form = new FormData();
-      // iPhone HEICs become JPEGs on the way in, one at a time — the
-      // decoder is heavy and a bulk drop can be a whole season of Gs.
-      for (const file of usable) form.append("file", await toUploadableImage(file));
-      const res = await fetch("/api/g-uploads", { method: "POST", body: form });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || "Upload failed");
-      const added = data.created?.length ?? 0;
-      const dupes = data.duplicates?.length ?? 0;
+      // A season of Gs in one request can exceed the platform's request
+      // size limit and die without a useful error — a batch of phone
+      // JPEGs runs several MB each. Upload in chunks instead, capped by
+      // count and cumulative size, and add the results up.
+      const MAX_CHUNK_FILES = 4;
+      const MAX_CHUNK_BYTES = 24 * 1024 * 1024;
+      let added = 0;
+      let dupes = 0;
+      let queue: File[] = [];
+      let queueBytes = 0;
+      const flush = async () => {
+        if (queue.length === 0) return;
+        const form = new FormData();
+        for (const file of queue) form.append("file", file);
+        queue = [];
+        queueBytes = 0;
+        const res = await fetch("/api/g-uploads", { method: "POST", body: form });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || "Upload failed");
+        added += data.created?.length ?? 0;
+        dupes += data.duplicates?.length ?? 0;
+      };
+      for (const original of usable) {
+        // iPhone HEICs become JPEGs on the way in, one at a time — the
+        // decoder is heavy and a bulk drop can be a whole season of Gs.
+        const file = await toUploadableImage(original);
+        if (
+          queue.length >= MAX_CHUNK_FILES ||
+          (queueBytes + file.size > MAX_CHUNK_BYTES && queue.length > 0)
+        ) {
+          await flush();
+        }
+        queue.push(file);
+        queueBytes += file.size;
+      }
+      await flush();
       if (added > 0)
         toast.success(`${added} file${added === 1 ? "" : "s"} in — each is a day in your tracker now`);
       if (dupes > 0)

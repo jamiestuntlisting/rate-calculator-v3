@@ -1,7 +1,7 @@
 /**
  * The reference ShowBiz SAG Cards export the weekly bench runs by default.
  *
- * ShowBiz_SAG_Cards_Anonymized_042826.csv — 414 cards, 0 of them weekly, and
+ * ShowBiz_SAG_Cards_Anonymized_042826.csv — 414 cards, 133 of them weekly, and
  * the file docs/weekly-rules.md was derived from. Bundling it means a
  * regression in the weekly engine shows up on the bench without anyone
  * having to go and find an export first: it should read 132 of 133 matching
@@ -26,7 +26,7 @@ export { SHOWBIZ_SAMPLE };
 
 /** The bundled export, gzipped then base64'd. */
 const GZIP_BASE64 =
-  "H4sIACOblGoC/+y9647kxrXv+X3eIYGC0cDMAHmy4n4pYHAg26Pt0ba0fSxhC55vZam81VC7y6hu" +
+  "H4sIABLklmoC/+y9647kxrXv+X3eIYGC0cDMAHmy4n4pYHAg26Pt0ba0fSxhC55vZam81VC7y6hu" +
   "2UfPNh/mkeYVJm5kBslFMnjJCzOXrc7KSjIzIhiRwV+ty3/9f//P//ubXfd/v9mf7NX4n6AiPqHu" +
   "359ePv74/uN/xRe+1ZrkJ4D/vaMHQrKfC//Le5a6xeoBDL/VPLJHxh7UEzUPf/r62EFy4KS4a+/o" +
   "3lLWHco3L/96+Orl7dPLr62ufP376o30IMno4NJ8mNhC/QINo/z65cf3zw/fvrz98/0PL5/cC//x" +

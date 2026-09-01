@@ -1,5 +1,7 @@
 "use client";
 
+import { isUploadable } from "@/lib/uploadable";
+import { toUploadableImage } from "@/lib/heic-to-jpeg";
 import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import {
@@ -82,43 +84,67 @@ export default function UploadGPage() {
 
   const uploadFiles = useCallback(
     async (files: File[]) => {
-      const usable = files.filter(
-        (f) => f.type.startsWith("image/") || f.type === "application/pdf" || /\.(hei[cf])$/i.test(f.name)
-      );
+      // Type first, extension second — the same rule the server applies,
+      // so a JPEG with a blank type still counts as a JPEG.
+      const usable = files.filter((f) => isUploadable(f.type, f.name));
       if (usable.length === 0) {
         toast.error("Only images or PDFs can be uploaded");
         return;
       }
 
+      if (usable.length < files.length) {
+        toast.warning(
+          `${files.length - usable.length} file${files.length - usable.length === 1 ? "" : "s"} skipped — not a photo or PDF`
+        );
+      }
       setUploading(true);
       try {
-        const form = new FormData();
-        for (const file of usable) form.append("file", file);
-
-        const res = await fetch("/api/g-uploads", {
-          method: "POST",
-          body: form,
-        });
-        const data = (await res.json()) as {
-          created?: GUpload[];
-          duplicates?: Array<{ originalName: string }>;
-          error?: string;
+        // Chunked: one giant request full of phone JPEGs can exceed the
+        // platform's request size limit and die without a useful error.
+        const MAX_CHUNK_FILES = 4;
+        const MAX_CHUNK_BYTES = 24 * 1024 * 1024;
+        let added = 0;
+        let dupes = 0;
+        const dupeNames: string[] = [];
+        let queue: File[] = [];
+        let queueBytes = 0;
+        const flush = async () => {
+          if (queue.length === 0) return;
+          const form = new FormData();
+          for (const file of queue) form.append("file", file);
+          queue = [];
+          queueBytes = 0;
+          const res = await fetch("/api/g-uploads", { method: "POST", body: form });
+          const data = (await res.json()) as {
+            created?: GUpload[];
+            duplicates?: Array<{ originalName: string }>;
+            error?: string;
+          };
+          if (!res.ok) throw new Error(data.error || "Upload failed");
+          added += data.created?.length ?? 0;
+          dupes += data.duplicates?.length ?? 0;
+          for (const d of data.duplicates ?? []) dupeNames.push(d.originalName);
         };
-
-        if (!res.ok) throw new Error(data.error || "Upload failed");
-
-        const added = data.created?.length ?? 0;
-        const dupes = data.duplicates?.length ?? 0;
+        for (const original of usable) {
+          // An iPhone HEIC becomes a JPEG here, so the preview can draw it.
+          const file = await toUploadableImage(original);
+          if (
+            queue.length >= MAX_CHUNK_FILES ||
+            (queueBytes + file.size > MAX_CHUNK_BYTES && queue.length > 0)
+          ) {
+            await flush();
+          }
+          queue.push(file);
+          queueBytes += file.size;
+        }
+        await flush();
 
         if (added > 0) {
           toast.success(`Uploaded ${added} file${added === 1 ? "" : "s"}`);
         }
         if (dupes > 0) {
-          const names = (data.duplicates ?? [])
-            .map((d) => d.originalName)
-            .join(", ");
           toast.warning(
-            `Already uploaded, skipped: ${names}`,
+            `Already uploaded, skipped: ${dupeNames.join(", ")}`,
             { duration: 6000 }
           );
         }

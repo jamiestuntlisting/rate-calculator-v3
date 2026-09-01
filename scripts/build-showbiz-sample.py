@@ -72,7 +72,8 @@ def main(source: str) -> None:
         raise SystemExit("encoded form does not round-trip; refusing to write")
 
     lines = [line for line in csv.replace("\r\n", "\n").replace("\r", "\n").split("\n") if line.strip()]
-    weekly = sum(1 for line in lines if ",weekly" in line.lower())
+    # The same rule the app's isWeeklyCard applies, quoting-proof.
+    weekly = sum(1 for line in lines if "weekly player" in line.lower())
 
     chunks = textwrap.wrap(encoded, 76)
     payload = "\n".join('  "%s" +' % c for c in chunks[:-1])

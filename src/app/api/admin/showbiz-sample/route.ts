@@ -37,8 +37,11 @@ export async function GET() {
         "Content-Type": "text/csv; charset=utf-8",
         "Content-Disposition": `inline; filename="${filename}"`,
         "X-Export-Filename": filename,
-        // Bundled with the build, so it only changes when the build does.
-        "Cache-Control": "private, max-age=3600",
+        // Never cached: a truncated response cached for an hour once
+        // made the bench read 24 cards and 0 weeklies on a healthy
+        // deploy. The file is ~1MB, admin-only and rarely fetched —
+        // correctness beats the round trip.
+        "Cache-Control": "private, no-store",
       },
     });
   } catch (error) {
