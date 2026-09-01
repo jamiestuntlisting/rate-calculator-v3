@@ -241,6 +241,15 @@ state stays in step.
   which zero-pads an hour ("9:30") because a native field shows a bare one
   as empty and silently loses the time. Setting a meal's start still offers
   a finish half an hour on and never overwrites one already entered.
+  iOS also stamps the current clock into an empty time field the moment
+  it is tapped; `TimeSelect` refuses that stamp when the form's day (via
+  `WorkDateContext`, provided by all four times forms) isn't today — the
+  test is value ≈ current minute arriving within moments of focus, in
+  local time because UTC calls a New York evening tomorrow. Today's
+  forms still take "now"; that is live logging. A wrap equal to the
+  dismissal is legal (the card writes a dash) — only strictly-before
+  warns, and never through `calculateDuration`, which reads an equal
+  pair as 24 hours.
 - Serve R2 objects with `object.writeHttpMetadata()`; setting
   `Content-Length` by hand truncates images.
 - Read `e.currentTarget` synchronously in event handlers — React clears it
