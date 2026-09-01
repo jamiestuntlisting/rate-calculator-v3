@@ -16,6 +16,8 @@ export interface UserRecord {
   transcriptionAddOn: number;
   /** How that transcription is paid for: 'monthly', 'per_g', or null. */
   transcriptionBilling: "monthly" | "per_g" | null;
+  /** Bare digits of the member's mobile, for texted-in Exhibit Gs. */
+  phone: string | null;
   createdAt: string;
   updatedAt: string;
 }
@@ -154,6 +156,41 @@ export async function updateMembership(
       nowIso(),
       userId
     )
+    .first<UserRecord>();
+}
+
+/**
+ * The member a texted-in Exhibit G belongs to. Matching compares the
+ * last ten digits — the national number — so "+1 929..." and "929..."
+ * are the same person. Returns null on no match or an ambiguous one:
+ * a wrong guess files someone's paperwork into a stranger's account.
+ */
+export async function findUserByPhoneKey(
+  key: string
+): Promise<UserRecord | null> {
+  if (key.length < 10) return null;
+  const db = await getDb();
+  const { results } = await db
+    .prepare(
+      `SELECT * FROM users
+       WHERE phone IS NOT NULL AND substr(phone, -10) = ?1`
+    )
+    .bind(key)
+    .all<UserRecord>();
+  return results.length === 1 ? results[0] : null;
+}
+
+/** Store (or clear) the member's mobile, already reduced to digits. */
+export async function setUserPhone(
+  userId: string,
+  digits: string | null
+): Promise<UserRecord | null> {
+  const db = await getDb();
+  return db
+    .prepare(
+      "UPDATE users SET phone = ?1, updatedAt = ?2 WHERE _id = ?3 RETURNING *"
+    )
+    .bind(digits, nowIso(), userId)
     .first<UserRecord>();
 }
 

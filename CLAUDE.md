@@ -186,6 +186,15 @@ state stays in step.
   go live for everyone. The defaults stay written in the code, so an empty
   override store is exactly the page as committed. Reading is public,
   writing is admin-only. Admin → Pages links to them.
+- **Text intake** — text a photo of a G to the Twilio number and it lands
+  in the sender's account: Twilio POSTs to `/api/inbound-sms` (exempt
+  from session middleware; authenticated by `X-Twilio-Signature` against
+  `TWILIO_AUTH_TOKEN` in `app_config`). Senders match on `users.phone`
+  (last ten digits; set under Preferences, or best-effort probed from
+  the StuntListing profile at login — probe never breaks login and never
+  overwrites a typed number). Replies are TwiML at 200 always. Setup —
+  the number, webhook and config rows — is docs/text-in-exhibit-gs.md;
+  James still has to pick the number and set the three config values.
 - **Email intake** — mail an Exhibit G to the intake Gmail and it lands in
   the sender's account: a Google Apps Script inside the mailbox POSTs each
   message to `/api/inbound-email` (secret in `app_config` under

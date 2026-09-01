@@ -11,9 +11,10 @@ const PUBLIC_PATHS = [
   "/login",
   "/how-it-works",
   "/api/auth/login",
-  // Machine caller: the mailbox watcher. It authenticates with its own
-  // shared secret inside the route, not a session cookie.
+  // Machine callers: the mailbox watcher and Twilio. Each authenticates
+  // inside its route (shared secret, request signature), not a session.
   "/api/inbound-email",
+  "/api/inbound-sms",
   "/api/auth/logout",
   "/api/auth/me",
 ];

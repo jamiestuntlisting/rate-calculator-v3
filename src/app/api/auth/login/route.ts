@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
-import { upsertUserByStuntlistingId, findUserByStuntlistingId } from "@/lib/repos/users";
+import { upsertUserByStuntlistingId, findUserByStuntlistingId, setUserPhone } from "@/lib/repos/users";
+import { isPlausiblePhone, phoneDigits } from "@/lib/phone";
 import { resolveMembershipTier } from "@/lib/membership";
 import {
   createSession,
@@ -144,6 +145,39 @@ export async function POST(request: Request) {
       role: isAdmin ? "admin" : "user",
       stlAccessToken: access_token,
     });
+
+    // 4b. Best-effort mobile number for the texted-in Exhibit G intake.
+    // The StuntListing schema's field name for it isn't pinned down, so
+    // candidates are probed one at a time in their own queries — a miss
+    // errors only that probe, never the login — and only an EMPTY stored
+    // phone is filled: a number typed into Preferences always stands.
+    step = "probing for a mobile number";
+    if (!user.phone) {
+      for (const field of ["phone", "phone_number", "mobile"]) {
+        try {
+          const probeRes = await fetch("https://api.stuntlisting.com/graphql", {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              Authorization: `Bearer ${access_token}`,
+            },
+            body: JSON.stringify({
+              query: `query { getMyProfile { ${field} } }`,
+            }),
+          });
+          const probeData = await probeRes.json();
+          const value = probeData?.data?.getMyProfile?.[field];
+          if (typeof value === "string" && isPlausiblePhone(value)) {
+            await setUserPhone(user._id, phoneDigits(value));
+            console.log(`stored mobile from StuntListing field "${field}" for ${userEmail}`);
+            break;
+          }
+          if (!probeData?.errors) break; // field exists but is empty — stop.
+        } catch {
+          break; // network trouble — not worth more round trips.
+        }
+      }
+    }
 
     // 5. Create session JWT and set cookie on the response directly
     step = "creating session";

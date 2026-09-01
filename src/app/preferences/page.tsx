@@ -4,6 +4,10 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useTheme } from "next-themes";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { toast } from "sonner";
 import { useAuth } from "@/context/auth-context";
 import { findPlan, planFor, type PlanId } from "@/lib/membership-plans";
 
@@ -55,12 +59,44 @@ export default function PreferencesPage() {
   const { theme, setTheme } = useTheme();
   const [view, setView] = useState<ViewMode>("grid");
   const [mounted, setMounted] = useState(false);
+  /** Mobile number for texting in Exhibit Gs, and the number to text. */
+  const [phone, setPhone] = useState("");
+  const [intakeNumber, setIntakeNumber] = useState<string | null>(null);
+  const [savingPhone, setSavingPhone] = useState(false);
 
   useEffect(() => {
     setMounted(true);
     const saved = window.localStorage.getItem("stl_g_view");
     if (saved === "grid" || saved === "list") setView(saved);
+    fetch("/api/me/phone")
+      .then((r) => (r.ok ? r.json() : Promise.reject()))
+      .then((data: { phone: string | null; intakeNumber: string | null }) => {
+        if (data.phone) setPhone(data.phone);
+        setIntakeNumber(data.intakeNumber);
+      })
+      .catch(() => {});
   }, []);
+
+  const savePhone = async () => {
+    setSavingPhone(true);
+    try {
+      const res = await fetch("/api/me/phone", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ phone }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Couldn't save");
+      setPhone(data.phone ?? "");
+      toast.success(
+        data.phone ? "Number saved — you can text Gs in now" : "Number removed"
+      );
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Couldn't save");
+    } finally {
+      setSavingPhone(false);
+    }
+  };
 
   const chooseView = (next: ViewMode) => {
     setView(next);
@@ -91,6 +127,39 @@ export default function PreferencesPage() {
           >
             Change membership
           </Link>
+        </CardContent>
+      </Card>
+
+      <Card className="mb-4">
+        <CardHeader>
+          <CardTitle className="text-lg">Text in your Exhibit Gs</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-3">
+          <p className="text-sm text-muted-foreground">
+            {intakeNumber
+              ? `Text a photo of your Exhibit G to ${intakeNumber} and it lands in your tracker. We match on the number below.`
+              : "Text a photo of your Exhibit G and it lands in your tracker — the intake number is being set up. We match on the number below."}
+          </p>
+          <div className="flex flex-wrap items-end gap-2">
+            <div className="min-w-0 flex-1 space-y-1">
+              <Label htmlFor="pref-phone" className="text-sm">
+                Your mobile number
+              </Label>
+              <Input
+                id="pref-phone"
+                type="tel"
+                inputMode="tel"
+                autoComplete="tel"
+                value={phone}
+                onChange={(e) => setPhone(e.target.value)}
+                placeholder="(555) 555-0100"
+                className="h-11"
+              />
+            </div>
+            <Button onClick={savePhone} disabled={savingPhone} className="h-11">
+              {savingPhone ? "Saving…" : "Save"}
+            </Button>
+          </div>
         </CardContent>
       </Card>
 
