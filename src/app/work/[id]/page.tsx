@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { DateField } from "@/components/ui/date-field";
 import { TimeSelect, toDisplay } from "@/components/calculator/time-select";
 import {
   AGREEMENTS,
@@ -880,8 +881,7 @@ export default function WorkDetailPage() {
                   <div className="grid grid-cols-2 gap-4">
                     <div className="space-y-1">
                       <Label className="text-sm text-muted-foreground">Work Date</Label>
-                      <Input
-                        type="date"
+                      <DateField
                         value={otherEditData.workDate}
                         onChange={(e) => setOtherEditData(d => ({ ...d, workDate: e.target.value }))}
                       />
@@ -1040,9 +1040,8 @@ export default function WorkDetailPage() {
                       </div>
                       <div className="space-y-1 min-w-0">
                         <Label htmlFor="edit-workDate" className="text-base">Work Date</Label>
-                        <Input
+                        <DateField
                           id="edit-workDate"
-                          type="date"
                           value={editData.workDate}
                           onChange={(e) => setEditData(d => ({ ...d, workDate: e.target.value }))}
                           className="text-lg h-12 w-full max-w-full"

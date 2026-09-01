@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { Input } from "@/components/ui/input";
+import { DateField } from "@/components/ui/date-field";
 import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
 import { ChevronDown, ChevronRight, Info, Loader2 } from "lucide-react";
@@ -843,9 +844,8 @@ export function WeeklyForm() {
                   <Label htmlFor="viewDate" className="text-xs text-muted-foreground">
                     Date
                   </Label>
-                  <Input
+                  <DateField
                     id="viewDate"
-                    type="date"
                     value={viewEdit.workDate}
                     onChange={(e) =>
                       setViewEdit((prev) => ({ ...prev, workDate: e.target.value }))

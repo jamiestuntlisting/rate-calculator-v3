@@ -25,7 +25,15 @@ import { DocumentUpload } from "@/components/shared/document-upload";
 import { ExhibitGDropzone } from "@/components/shared/exhibit-g-dropzone";
 import { SuggestInput } from "@/components/shared/suggest-input";
 import { CollapsibleSection } from "@/components/calculator/collapsible-section";
-import { TimeSelect } from "@/components/calculator/time-select";
+import {
+  MealSection,
+  MealTime,
+  MealTimes,
+  NdMealOut,
+  TimeRow,
+  ndMealWarning,
+} from "@/components/calculator/work-times-fields";
+import { DateField } from "@/components/ui/date-field";
 import {
   AGREEMENTS,
   FLAT_AGREEMENTS,
@@ -47,7 +55,7 @@ import { snapToSixMinutes, formatCurrency } from "@/lib/time-utils";
 import { MEAL_MINUTES } from "@/components/calculator/time-select";
 import { followedTime, offerAfterIfEmpty, offerBeforeIfEmpty } from "@/lib/follow-time";
 import { calculateRate } from "@/lib/rate-engine";
-import { checkNdMeal, ND_MEAL_MINUTES, ND_MEAL_WINDOW_HOURS } from "@/lib/nd-meal";
+import { checkNdMeal, ND_MEAL_MINUTES } from "@/lib/nd-meal";
 import { shortDay } from "@/lib/format-date";
 import { RateBreakdown } from "@/components/calculation/rate-breakdown";
 import { clampMealFinish, mealLengthWarning, secondMealOrderWarning } from "@/lib/meal-length";
@@ -868,9 +876,8 @@ export function ExhibitGForm() {
               </div>
               <div className="space-y-1 min-w-0">
                 <Label htmlFor="workDate" className="text-base">Work Date</Label>
-                <Input
+                <DateField
                   id="workDate"
-                  type="date"
                   value={input.workDate}
                   onChange={(e) => update("workDate", e.target.value)}
                   className="text-lg h-12 w-full max-w-full"
@@ -1122,116 +1129,75 @@ export function ExhibitGForm() {
             }
           >
             <div className="space-y-0">
-              <div className="flex items-center justify-between gap-4 p-2 rounded bg-muted/50">
-                <Label htmlFor="callTime" className="text-base shrink-0">Call Time</Label>
-                <div className="flex-1 min-w-0 max-w-[15rem]"><TimeSelect id="callTime" value={input.callTime} onChange={(v) => setInput((prev) => ({ ...prev, callTime: v, ...reofferMeals(prev, prev.ndMealOut || v || null) }))} /></div>
-              </div>
+              <TimeRow
+                id="callTime"
+                label="Call Time"
+                anchor
+                value={input.callTime}
+                onChange={(v) => setInput((prev) => ({ ...prev, callTime: v, ...reofferMeals(prev, prev.ndMealOut || v || null) }))}
+              />
               {/* Meals */}
               <div className="border-t border-b py-3 my-1 space-y-3">
-                {/* ND Meal */}
-                <div className="space-y-0">
-                  <div className="flex items-center space-x-2 p-2">
-                    <Checkbox id="showNdMeal" checked={showNdMeal} onCheckedChange={(v) => { setShowNdMeal(!!v); if (!v) { update("ndMealIn", null); update("ndMealOut", null); } }} />
-                    <Label htmlFor="showNdMeal" className="text-base font-normal">ND (Non-Deductible) Meal</Label>
-                  </div>
-                  {showNdMeal && (
-                    <div className="grid grid-cols-2 gap-2 px-2 pb-2">
-                      <div>
-                        <Label htmlFor="ndMealIn" className="text-sm text-muted-foreground">In</Label>
-                        {/* The Out is not asked: an ND meal is 15 minutes,
-                            so it is derived, and the lunch clock re-anchors
-                            to the ND end. */}
-                        <TimeSelect id="ndMealIn" value={input.ndMealIn || ""} onChange={(v) => setInput((prev) => { const out = v ? followedTime(v, null, ND_MEAL_MINUTES) : null; return { ...prev, ndMealIn: v || null, ndMealOut: out, ...reofferMeals(prev, out || prev.callTime || null) }; })} compact />
-                      </div>
-                      <div>
-                        <Label className="text-sm text-muted-foreground">Out</Label>
-                        <p className="flex h-10 items-center text-base tabular-nums">
-                          {input.ndMealOut ? toDisplay(input.ndMealOut) : "\u2014"}
-                          <span className="ml-2 text-xs text-muted-foreground">always 15 min</span>
-                        </p>
-                      </div>
-                    </div>
-                  )}
-                  {showNdMeal && !ndMeal.ok && (
-                    <p className="px-2 pb-2 text-xs text-amber-400">
-                      {ndMeal.problem === "ends_before_it_starts"
-                        ? "An ND meal has to end after it starts."
-                        : `An ND meal has to fall in the ${ND_MEAL_WINDOW_HOURS} hours after your call — from ${toDisplay(
-                            input.callTime
-                          )} to ${toDisplay(
-                            ndMeal.windowEnd
-                          )}. Outside that it is a deductible meal, which pays differently.`}
-                    </p>
-                  )}
-                </div>
-                {/* 1st Meal */}
-                <div className="space-y-0">
-                  <div className="flex items-center space-x-2 p-2">
-                    <Checkbox id="showFirstMeal" checked={showFirstMeal} onCheckedChange={(v) => { setShowFirstMeal(!!v); showFirstMealRef.current = !!v; if (!v) { firstMealTouched.current = false; update("firstMealStart", null); update("firstMealFinish", null); setShowSecondMeal(false); update("secondMealStart", null); update("secondMealFinish", null); } else { setInput((prev) => ({ ...prev, ...reofferMeals(prev, prev.ndMealOut || prev.callTime || null) })); } }} />
-                    <Label htmlFor="showFirstMeal" className="text-base font-normal">1st Meal</Label>
-                  </div>
-                  {showFirstMeal && (
-                    <div className="grid grid-cols-2 gap-2 px-2 pb-2">
-                      <div>
-                        <Label htmlFor="firstMealStart" className="text-sm text-muted-foreground">In</Label>
-                        <TimeSelect id="firstMealStart" value={input.firstMealStart || ""} onChange={(v) => setMealStart("firstMealStart", "firstMealFinish", v)} compact />
-                      </div>
-                      <div>
-                        <Label htmlFor="firstMealFinish" className="text-sm text-muted-foreground">Out</Label>
-                        <TimeSelect id="firstMealFinish" value={input.firstMealFinish || ""} onChange={(v) => setInput((prev) => { const fin = clampMealFinish(prev.firstMealStart, v || null); if (!showSecondMeal) return { ...prev, firstMealFinish: fin }; const start = secondMealTouched.current ? followedTime(fin, prev.secondMealStart, MEAL_PENALTIES.maxHoursBeforeSecondMeal * 60) : followedTime(fin, null, MEAL_PENALTIES.maxHoursBeforeSecondMeal * 60); return { ...prev, firstMealFinish: fin, secondMealStart: start, secondMealFinish: followedTime(start, prev.secondMealFinish, MEAL_MINUTES) }; })} compact />
-                      </div>
-                    </div>
-                  )}
-                  {showFirstMeal &&
-                    mealLengthWarning(input.firstMealStart, input.firstMealFinish) && (
-                      <p className="px-2 pb-2 text-xs text-amber-400">
-                        {mealLengthWarning(input.firstMealStart, input.firstMealFinish)}
-                      </p>
-                    )}
-                </div>
+                <MealSection
+                  id="showNdMeal"
+                  title="ND (Non-Deductible) Meal"
+                  checked={showNdMeal}
+                  onCheckedChange={(v) => { setShowNdMeal(v); if (!v) { update("ndMealIn", null); update("ndMealOut", null); } }}
+                  warnings={[ndMealWarning(ndMeal, input.callTime)]}
+                >
+                  <MealTimes>
+                    {/* The Out is not asked: an ND meal is 15 minutes,
+                        so it is derived, and the lunch clock re-anchors
+                        to the ND end. */}
+                    <MealTime id="ndMealIn" label="In" value={input.ndMealIn || ""} onChange={(v) => setInput((prev) => { const out = v ? followedTime(v, null, ND_MEAL_MINUTES) : null; return { ...prev, ndMealIn: v || null, ndMealOut: out, ...reofferMeals(prev, out || prev.callTime || null) }; })} />
+                    <NdMealOut value={input.ndMealOut} />
+                  </MealTimes>
+                </MealSection>
+                <MealSection
+                  id="showFirstMeal"
+                  title="1st Meal"
+                  checked={showFirstMeal}
+                  onCheckedChange={(v) => { setShowFirstMeal(v); showFirstMealRef.current = v; if (!v) { firstMealTouched.current = false; update("firstMealStart", null); update("firstMealFinish", null); setShowSecondMeal(false); update("secondMealStart", null); update("secondMealFinish", null); } else { setInput((prev) => ({ ...prev, ...reofferMeals(prev, prev.ndMealOut || prev.callTime || null) })); } }}
+                  warnings={[mealLengthWarning(input.firstMealStart, input.firstMealFinish)]}
+                >
+                  <MealTimes>
+                    <MealTime id="firstMealStart" label="In" value={input.firstMealStart || ""} onChange={(v) => setMealStart("firstMealStart", "firstMealFinish", v)} />
+                    <MealTime id="firstMealFinish" label="Out" value={input.firstMealFinish || ""} onChange={(v) => setInput((prev) => { const fin = clampMealFinish(prev.firstMealStart, v || null); if (!showSecondMeal) return { ...prev, firstMealFinish: fin }; const start = secondMealTouched.current ? followedTime(fin, prev.secondMealStart, MEAL_PENALTIES.maxHoursBeforeSecondMeal * 60) : followedTime(fin, null, MEAL_PENALTIES.maxHoursBeforeSecondMeal * 60); return { ...prev, firstMealFinish: fin, secondMealStart: start, secondMealFinish: followedTime(start, prev.secondMealFinish, MEAL_MINUTES) }; })} />
+                  </MealTimes>
+                </MealSection>
                 {/* 2nd Meal — only visible when 1st Meal is checked */}
                 {showFirstMeal && (
-                <div className="space-y-0">
-                  <div className="flex items-center space-x-2 p-2">
-                    <Checkbox id="showSecondMeal" checked={showSecondMeal} onCheckedChange={(v) => { setShowSecondMeal(!!v); if (!v) { secondMealTouched.current = false; update("secondMealStart", null); update("secondMealFinish", null); } else { setInput((prev) => { const start = followedTime(prev.firstMealFinish, prev.secondMealStart, MEAL_PENALTIES.maxHoursBeforeSecondMeal * 60); return { ...prev, secondMealStart: start, secondMealFinish: followedTime(start, prev.secondMealFinish, MEAL_MINUTES) }; }); } }} />
-                    <Label htmlFor="showSecondMeal" className="text-base font-normal">2nd Meal</Label>
-                  </div>
-                  {showSecondMeal && (
-                    <div className="grid grid-cols-2 gap-2 px-2 pb-2">
-                      <div>
-                        <Label htmlFor="secondMealStart" className="text-sm text-muted-foreground">In</Label>
-                        <TimeSelect id="secondMealStart" value={input.secondMealStart || ""} onChange={(v) => setMealStart("secondMealStart", "secondMealFinish", v)} compact />
-                      </div>
-                      <div>
-                        <Label htmlFor="secondMealFinish" className="text-sm text-muted-foreground">Out</Label>
-                        <TimeSelect id="secondMealFinish" value={input.secondMealFinish || ""} onChange={(v) => setInput((prev) => ({ ...prev, secondMealFinish: clampMealFinish(prev.secondMealStart, v || null) }))} compact />
-                      </div>
-                    </div>
-                  )}
-                  {showSecondMeal &&
-                    secondMealOrderWarning(input.firstMealFinish, input.secondMealStart) && (
-                      <p className="px-2 pb-2 text-xs text-amber-400">
-                        {secondMealOrderWarning(input.firstMealFinish, input.secondMealStart)}
-                      </p>
-                    )}
-                  {showSecondMeal &&
-                    mealLengthWarning(input.secondMealStart, input.secondMealFinish) && (
-                      <p className="px-2 pb-2 text-xs text-amber-400">
-                        {mealLengthWarning(input.secondMealStart, input.secondMealFinish)}
-                      </p>
-                    )}
-                </div>
+                  <MealSection
+                    id="showSecondMeal"
+                    title="2nd Meal"
+                    checked={showSecondMeal}
+                    onCheckedChange={(v) => { setShowSecondMeal(v); if (!v) { secondMealTouched.current = false; update("secondMealStart", null); update("secondMealFinish", null); } else { setInput((prev) => { const start = followedTime(prev.firstMealFinish, prev.secondMealStart, MEAL_PENALTIES.maxHoursBeforeSecondMeal * 60); return { ...prev, secondMealStart: start, secondMealFinish: followedTime(start, prev.secondMealFinish, MEAL_MINUTES) }; }); } }}
+                    warnings={[
+                      secondMealOrderWarning(input.firstMealFinish, input.secondMealStart),
+                      mealLengthWarning(input.secondMealStart, input.secondMealFinish),
+                    ]}
+                  >
+                    <MealTimes>
+                      <MealTime id="secondMealStart" label="In" value={input.secondMealStart || ""} onChange={(v) => setMealStart("secondMealStart", "secondMealFinish", v)} />
+                      <MealTime id="secondMealFinish" label="Out" value={input.secondMealFinish || ""} onChange={(v) => setInput((prev) => ({ ...prev, secondMealFinish: clampMealFinish(prev.secondMealStart, v || null) }))} />
+                    </MealTimes>
+                  </MealSection>
                 )}
               </div>
 
-              <div className="flex items-center justify-between gap-4 p-2">
-                <Label htmlFor="dismissOnSet" className="text-base shrink-0">Dismiss On Set</Label>
-                <div className="flex-1 min-w-0 max-w-[15rem]"><TimeSelect id="dismissOnSet" value={input.dismissOnSet} onChange={setDismissOnSet} /></div>
-              </div>
-              <div className="flex items-center justify-between gap-4 p-2 rounded bg-muted/50">
-                <Label htmlFor="dismissMakeupWardrobe" className="text-base shrink-0">Wrapped</Label>
-                <div className="flex-1 min-w-0 max-w-[15rem]"><TimeSelect id="dismissMakeupWardrobe" value={input.dismissMakeupWardrobe || ""} onChange={(v) => setInput((prev) => ({ ...prev, dismissMakeupWardrobe: v || null, dismissOnSet: v ? offerBeforeIfEmpty(v, prev.dismissOnSet, WRAP_MINUTES) ?? prev.dismissOnSet : prev.dismissOnSet }))} /></div>
-              </div>
+              <TimeRow
+                id="dismissOnSet"
+                label="Dismiss On Set"
+                value={input.dismissOnSet}
+                onChange={setDismissOnSet}
+              />
+              <TimeRow
+                id="dismissMakeupWardrobe"
+                label="Wrapped"
+                anchor
+                value={input.dismissMakeupWardrobe || ""}
+                onChange={(v) => setInput((prev) => ({ ...prev, dismissMakeupWardrobe: v || null, dismissOnSet: v ? offerBeforeIfEmpty(v, prev.dismissOnSet, WRAP_MINUTES) ?? prev.dismissOnSet : prev.dismissOnSet }))}
+              />
               {wrapOrderWarning(input.dismissOnSet, input.dismissMakeupWardrobe) && (
                 <p className="px-2 pb-1 text-xs text-amber-400">
                   {wrapOrderWarning(input.dismissOnSet, input.dismissMakeupWardrobe)}

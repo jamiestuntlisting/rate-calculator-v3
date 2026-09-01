@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { DateField } from "@/components/ui/date-field";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import {
@@ -192,9 +193,8 @@ export default function OtherWorkPage() {
             {/* Work Date */}
             <div className="space-y-1">
               <Label htmlFor="workDate">Work Date</Label>
-              <Input
+              <DateField
                 id="workDate"
-                type="date"
                 value={workDate}
                 onChange={(e) => setWorkDate(e.target.value)}
               />
