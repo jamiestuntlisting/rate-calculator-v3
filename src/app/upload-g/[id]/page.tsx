@@ -12,6 +12,7 @@ import {
   ZoomOut,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { DateField } from "@/components/ui/date-field";
@@ -56,6 +57,8 @@ interface TranscriptionRow {
   firstMealFinish: string;
   secondMealStart: string;
   secondMealFinish: string;
+  /** The card's STUNT ADJUST column — dollars, and it feeds the OT rate. */
+  stuntAdjustment: string;
   notes: string;
 }
 
@@ -94,6 +97,7 @@ function emptyRow(): TranscriptionRow {
     firstMealFinish: "",
     secondMealStart: "",
     secondMealFinish: "",
+    stuntAdjustment: "",
     notes: "",
   };
 }
@@ -720,12 +724,43 @@ export default function TranscribePage({
                   {wrapOrderWarning(row.dismissOnSet, row.dismissMakeupWardrobe)}
                 </p>
               )}
+
+              {/* On the form like any other card column — real money,
+                  and it raises the overtime rate when the day reprices. */}
+              <div className="border-t pt-1 mt-1">
+                <div className="flex items-center justify-between gap-4 p-2">
+                  <Label htmlFor="row-stuntAdjustment" className="text-base shrink-0">
+                    Stunt Adjustment
+                  </Label>
+                  <div className="relative flex-1 min-w-0 max-w-[15rem]">
+                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-base text-muted-foreground">
+                      $
+                    </span>
+                    <Input
+                      id="row-stuntAdjustment"
+                      type="number"
+                      inputMode="decimal"
+                      min="0"
+                      step="50"
+                      value={row.stuntAdjustment}
+                      onChange={(e) =>
+                        setRow((prev) => ({
+                          ...prev,
+                          stuntAdjustment: e.target.value,
+                        }))
+                      }
+                      placeholder="0.00"
+                      className="h-11 w-full pl-7 text-base"
+                    />
+                  </div>
+                </div>
+              </div>
             </div>
           </div>
 
           <CollapsibleSection
             title="Notes"
-            summary={row.notes || "Stunt adjustment, mileage, anything else"}
+            summary={row.notes || "Mileage, anything else on the line"}
           >
             <Textarea
               id="row-notes"
@@ -733,7 +768,7 @@ export default function TranscribePage({
               onChange={(e) =>
                 setRow((prev) => ({ ...prev, notes: e.target.value }))
               }
-              placeholder="Stunt adjustment, mileage, anything else on the line"
+              placeholder="Mileage, anything else on the line"
               rows={2}
               className="text-lg"
             />

@@ -105,6 +105,12 @@ export async function PATCH(
       // The transcription row calls it "character"; the work record calls
       // it "characterName".
       if (row?.character) patch.characterName = row.character;
+      // The adjustment is typed as text on the form; the record stores
+      // dollars. An explicit 0 lands too — only an empty box is silence.
+      const adjustment = parseFloat(String(row?.stuntAdjustment ?? ""));
+      if (Number.isFinite(adjustment) && adjustment >= 0) {
+        patch.stuntAdjustment = adjustment;
+      }
       // Times present means it is no longer just an attachment.
       if (patch.callTime && patch.dismissOnSet) patch.recordStatus = "complete";
       else if (Object.keys(patch).length > 0) patch.recordStatus = "draft";
