@@ -2,8 +2,10 @@
 
 import { use, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import {
   ArrowLeft,
+  Check,
   Loader2,
   Maximize,
   RotateCw,
@@ -41,6 +43,8 @@ interface GUpload {
   rotation: number;
   contentType: string;
   transcription: Transcription | null;
+  /** When the member declared the transcription finished; null = not yet. */
+  transcribedAt: string | null;
 }
 
 /** The performer's own line on the Exhibit G. */
@@ -121,10 +125,13 @@ export default function TranscribePage({
   params: Promise<{ id: string }>;
 }) {
   const { id } = use(params);
+  const router = useRouter();
 
   const [upload, setUpload] = useState<GUpload | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  /** When this G was declared finished; null while still in progress. */
+  const [doneAt, setDoneAt] = useState<string | null>(null);
   const [row, setRow] = useState<TranscriptionRow>(emptyRow());
   const [details, setDetails] = useState<TranscriptionDetails>({
     showName: "",
@@ -207,6 +214,7 @@ export default function TranscribePage({
         const data = (await res.json()) as GUpload;
         setUpload(data);
         setRotation(data.rotation);
+        setDoneAt(data.transcribedAt ?? null);
         if (data.transcription?.rows?.[0]) {
           // Older saves may miss keys; the empty row fills them so every
           // field stays a controlled input.
@@ -289,32 +297,50 @@ export default function TranscribePage({
     return "none";
   })();
 
-  const save = useCallback(async () => {
-    setSaving(true);
-    try {
-      const res = await fetch(`/api/g-uploads/${id}`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          transcription: {
-            details,
-            rows: [{ ...row, performer: performerName || row.performer }],
-            view: {
-              zoom,
-              scrollX: paneEl.current?.scrollLeft ?? 0,
-              y: paneEl.current?.scrollTop ?? 0,
+  /**
+   * Saving and finishing are different acts. A bare save keeps the G in
+   * progress — partial saves are the point of this form. Passing `done`
+   * stamps the transcription finished (or reopens it), and finishing
+   * walks back to the pile, because "done" means on to the next one.
+   */
+  const save = useCallback(
+    async (done?: boolean) => {
+      setSaving(true);
+      try {
+        const res = await fetch(`/api/g-uploads/${id}`, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            ...(typeof done === "boolean" ? { done } : {}),
+            transcription: {
+              details,
+              rows: [{ ...row, performer: performerName || row.performer }],
+              view: {
+                zoom,
+                scrollX: paneEl.current?.scrollLeft ?? 0,
+                y: paneEl.current?.scrollTop ?? 0,
+              },
             },
-          },
-        }),
-      });
-      if (!res.ok) throw new Error();
-      toast.success("Saved");
-    } catch {
-      toast.error("Couldn't save");
-    } finally {
-      setSaving(false);
-    }
-  }, [id, row, details, zoom, performerName, paneEl]);
+          }),
+        });
+        if (!res.ok) throw new Error();
+        if (done === true) {
+          toast.success("Done — transcribed");
+          router.push("/upload-g");
+        } else if (done === false) {
+          setDoneAt(null);
+          toast.success("Reopened — save again when it's right");
+        } else {
+          toast.success("Saved");
+        }
+      } catch {
+        toast.error("Couldn't save");
+      } finally {
+        setSaving(false);
+      }
+    },
+    [id, row, details, zoom, performerName, paneEl, router]
+  );
 
   const rotate = async () => {
     const next = (rotation + 90) % 360;
@@ -495,12 +521,19 @@ export default function TranscribePage({
                 <h1 className="text-lg font-bold leading-tight truncate">
                   {upload.displayTitle}
                 </h1>
-                <p className="text-xs text-muted-foreground">
-                  Save as much or as little as you like — even just the date.
-                </p>
+                {doneAt ? (
+                  <p className="text-xs text-emerald-400">
+                    Transcribed ✓ — reopen at the bottom if something needs
+                    correcting.
+                  </p>
+                ) : (
+                  <p className="text-xs text-muted-foreground">
+                    Save as much or as little as you like — even just the date.
+                  </p>
+                )}
               </div>
             </div>
-            <Button onClick={save} disabled={saving}>
+            <Button onClick={() => save()} disabled={saving}>
               {saving ? (
                 <Loader2 className="h-4 w-4 mr-2 animate-spin" />
               ) : (
@@ -773,6 +806,35 @@ export default function TranscribePage({
               className="text-lg"
             />
           </CollapsibleSection>
+
+          {/* Saving keeps the G in progress; Done declares it finished.
+              The two live at the bottom because that is where a card ends
+              — you read down the form and then say which one this was. */}
+          <div className="flex flex-wrap items-center gap-2 pt-1">
+            <Button variant="outline" onClick={() => save()} disabled={saving}>
+              {saving ? (
+                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+              ) : (
+                <Save className="h-4 w-4 mr-2" />
+              )}
+              Save
+            </Button>
+            {doneAt ? (
+              <Button
+                variant="ghost"
+                onClick={() => save(false)}
+                disabled={saving}
+                className="text-muted-foreground"
+              >
+                Transcribed ✓ — tap to reopen
+              </Button>
+            ) : (
+              <Button onClick={() => save(true)} disabled={saving}>
+                <Check className="h-4 w-4 mr-2" />
+                Done — finished transcribing
+              </Button>
+            )}
+          </div>
 
           <p className="text-xs text-muted-foreground">
             Pinch the card to zoom (or ⌘/Ctrl + scroll).

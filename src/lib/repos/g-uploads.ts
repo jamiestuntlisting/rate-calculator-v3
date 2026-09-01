@@ -12,6 +12,8 @@ export interface GUploadRow {
   rotation: number;
   transcription: string | null;
   transcriptionRequested: number;
+  /** When the member declared the transcription finished; NULL = not yet. */
+  transcribedAt: string | null;
   /** The tracker row this Exhibit G belongs to — one G is one work day. */
   workRecordId: string | null;
   createdAt: string;
@@ -57,7 +59,7 @@ export async function listTranscriptionQueue(): Promise<
   const db = await getDb();
   const { results } = await db
     .prepare(
-      `SELECT * FROM g_uploads WHERE transcription IS NULL
+      `SELECT * FROM g_uploads WHERE transcribedAt IS NULL
        ORDER BY transcriptionRequested DESC, createdAt ASC LIMIT 100`
     )
     .all<GUploadRow>();
@@ -134,6 +136,8 @@ export interface UpdateGUploadInput {
   title?: string;
   rotation?: number;
   transcription?: unknown;
+  /** Set to mark the transcription finished, null to reopen it. */
+  transcribedAt?: string | null;
   workRecordId?: string | null;
 }
 
@@ -165,6 +169,10 @@ export async function updateGUpload(
     params.push(
       patch.transcription === null ? null : JSON.stringify(patch.transcription)
     );
+  }
+  if (patch.transcribedAt !== undefined) {
+    sets.push("transcribedAt = ?");
+    params.push(patch.transcribedAt);
   }
 
   params.push(id, userId);

@@ -73,6 +73,11 @@ export async function PATCH(
       ...(body.transcription !== undefined
         ? { transcription: body.transcription }
         : {}),
+      // Saving and finishing are different acts: `done: true` stamps the
+      // transcription finished, `done: false` reopens it for correction.
+      ...(typeof body.done === "boolean"
+        ? { transcribedAt: body.done ? new Date().toISOString() : null }
+        : {}),
     });
 
     if (!upload) {

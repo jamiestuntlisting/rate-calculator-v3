@@ -28,8 +28,21 @@ interface GUpload {
   rotation: number;
   path: string;
   transcription: unknown | null;
+  /** Set when the member declared the transcription finished. */
+  transcribedAt?: string | null;
   createdAt: string;
 }
+
+/** Finished beats started: the label says which one this G actually is. */
+const transcriptionLabel = (u: {
+  transcription: unknown | null;
+  transcribedAt?: string | null;
+}) =>
+  u.transcribedAt
+    ? " · transcribed ✓"
+    : u.transcription
+      ? " · in progress"
+      : "";
 
 type ViewMode = "grid" | "list";
 
@@ -351,7 +364,7 @@ export default function UploadGPage() {
 
                   <span className="text-xs text-muted-foreground text-center truncate">
                     {formatUploadDate(u.createdAt)}
-                    {u.transcription ? " · transcribed" : ""}
+                    {transcriptionLabel(u)}
                   </span>
 
                   <button
@@ -419,7 +432,7 @@ export default function UploadGPage() {
                 )}
                 <p className="text-sm text-muted-foreground">
                   Uploaded {formatUploadDate(u.createdAt)}
-                  {u.transcription ? " · transcribed" : ""}
+                  {transcriptionLabel(u)}
                 </p>
               </div>
 

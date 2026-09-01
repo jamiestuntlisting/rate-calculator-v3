@@ -24,6 +24,7 @@ interface GUploadItem {
   contentType: string;
   createdAt: string;
   transcription: unknown | null;
+  transcribedAt?: string | null;
   transcriptionRequested?: number;
 }
 
@@ -96,9 +97,10 @@ export default function AdminTranscribePage() {
       }
       const data = (await res.json()) as { uploads: GUploadItem[] };
       // Asked-for ones first — that is the queue the member is waiting on.
+      // Not-done is the bar: a half-typed G still needs finishing.
       setRecords(
         (data.uploads || [])
-          .filter((u: GUploadItem) => !u.transcription)
+          .filter((u: GUploadItem) => !u.transcribedAt)
           .sort(
             (a: GUploadItem, b: GUploadItem) =>
               (b.transcriptionRequested ?? 0) - (a.transcriptionRequested ?? 0)
