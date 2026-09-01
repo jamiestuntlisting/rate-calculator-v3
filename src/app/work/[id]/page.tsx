@@ -54,7 +54,7 @@ import { MEAL_PENALTIES, RATES, type RateSchedule, commercialSessionFee } from "
 import { additionalContractPay } from "@/lib/multi-contract";
 import { PayStubSection } from "@/components/shared/pay-stub-section";
 import { useAuth } from "@/context/auth-context";
-import type { PayStubLine } from "@/lib/pay-stub";
+import { owedLinesFromRecord, type PayStubLine } from "@/lib/pay-stub";
 import { toast } from "sonner";
 import { toUploadableImage } from "@/lib/heic-to-jpeg";
 import type { WorkDocument, WorkRecord } from "@/types";
@@ -231,30 +231,7 @@ export default function WorkDetailPage() {
    * What we make the day up of, in the same shape a stub is read in — so the
    * note to payroll can put the two side by side.
    */
-  const owedLines: PayStubLine[] = (() => {
-    const calculation = record?.calculation;
-    if (!calculation) return [];
-    const lines: PayStubLine[] = calculation.segments.map((segment) => ({
-      label: segment.label,
-      hours: segment.hours,
-      amount: segment.subtotal,
-    }));
-    if (calculation.penalties?.totalPenalties) {
-      lines.push({
-        label: "Meal penalties",
-        hours: null,
-        amount: calculation.penalties.totalPenalties,
-      });
-    }
-    if (record?.stuntAdjustment) {
-      lines.push({
-        label: "Stunt adjustment",
-        hours: null,
-        amount: record.stuntAdjustment,
-      });
-    }
-    return lines;
-  })();
+  const owedLines: PayStubLine[] = record ? owedLinesFromRecord(record) : [];
 
   /** Shows this member has logged, for the Show field's autocomplete. */
   const [knownShows, setKnownShows] = useState<string[]>([]);

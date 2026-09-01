@@ -9,6 +9,8 @@
  * because the second meal penalty is missing".
  */
 
+import type { CalculationBreakdown } from "@/types";
+
 /** A stub covers one work day, or one week of a weekly contract. */
 export type PayStubScope = "day" | "week";
 
@@ -33,6 +35,39 @@ export const STUB_LINE_LABELS = [
 
 /** Anything under this is rounding, not a shortfall worth raising. */
 export const SETTLED_WITHIN = 0.005;
+
+/**
+ * A record's working, read into the three columns a stub is read in —
+ * what for, the hours, the money — so ours and theirs can sit side by
+ * side. Empty when the day has no calculation yet.
+ */
+export function owedLinesFromRecord(record: {
+  calculation?: CalculationBreakdown | null;
+  stuntAdjustment?: number | null;
+}): PayStubLine[] {
+  const calculation = record.calculation;
+  if (!calculation) return [];
+  const lines: PayStubLine[] = calculation.segments.map((segment) => ({
+    label: segment.label,
+    hours: segment.hours,
+    amount: segment.subtotal,
+  }));
+  if (calculation.penalties?.totalPenalties) {
+    lines.push({
+      label: "Meal penalties",
+      hours: null,
+      amount: calculation.penalties.totalPenalties,
+    });
+  }
+  if (record.stuntAdjustment) {
+    lines.push({
+      label: "Stunt adjustment",
+      hours: null,
+      amount: record.stuntAdjustment,
+    });
+  }
+  return lines;
+}
 
 const round2 = (n: number) => Math.round(n * 100) / 100;
 

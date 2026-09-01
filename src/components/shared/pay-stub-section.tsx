@@ -1,12 +1,22 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
-import { ChevronDown, ChevronRight, Loader2, Plus, Save, X } from "lucide-react";
+import {
+  Camera,
+  ChevronDown,
+  ChevronRight,
+  Loader2,
+  Plus,
+  Save,
+  X,
+} from "lucide-react";
 import { toast } from "sonner";
 import { formatCurrency } from "@/lib/time-utils";
+import { toUploadableImage } from "@/lib/heic-to-jpeg";
+import type { WorkDocument } from "@/types";
 import {
   compareStub,
   disputeMessage,
@@ -52,10 +62,14 @@ export function PayStubSection({
   owedLines,
 }: PayStubSectionProps) {
   const [lines, setLines] = useState<PayStubLine[]>([]);
+  /** Photographs of the check or stub, stored with the stub itself. */
+  const [documents, setDocuments] = useState<WorkDocument[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [uploadingPhoto, setUploadingPhoto] = useState(false);
   const [openDispute, setOpenDispute] = useState(false);
   const [payrollEmail, setPayrollEmail] = useState("");
+  const photoInput = useRef<HTMLInputElement>(null);
 
   const query =
     scope === "day"
@@ -67,11 +81,13 @@ export function PayStubSection({
       const res = await fetch(`/api/pay-stubs?${query}`);
       if (!res.ok) throw new Error();
       const data = (await res.json()) as {
-        stub: { lineItems: PayStubLine[] } | null;
+        stub: { lineItems: PayStubLine[]; documents?: WorkDocument[] } | null;
       };
       setLines(data.stub?.lineItems ?? []);
+      setDocuments(data.stub?.documents ?? []);
     } catch {
       setLines([]);
+      setDocuments([]);
     } finally {
       setLoading(false);
     }
@@ -81,7 +97,7 @@ export function PayStubSection({
     load();
   }, [load]);
 
-  const save = async (next: PayStubLine[]) => {
+  const save = async (next: PayStubLine[], nextDocs?: WorkDocument[]) => {
     setSaving(true);
     try {
       const res = await fetch("/api/pay-stubs", {
@@ -93,6 +109,7 @@ export function PayStubSection({
           weekStart,
           showName,
           lineItems: next.filter((l) => l.label.trim() || l.amount),
+          documents: nextDocs ?? documents,
         }),
       });
       if (!res.ok) throw new Error();
@@ -102,6 +119,42 @@ export function PayStubSection({
     } finally {
       setSaving(false);
     }
+  };
+
+  /**
+   * A photo of the check lands next to the stub's lines and is saved
+   * straight away — the picture is the evidence, so it must not sit
+   * unsaved behind a button.
+   */
+  const addPhoto = async (original: File) => {
+    setUploadingPhoto(true);
+    try {
+      const file = await toUploadableImage(original);
+      const formData = new FormData();
+      formData.append("file", file);
+      const res = await fetch("/api/uploads", { method: "POST", body: formData });
+      if (!res.ok) throw new Error();
+      const { filename } = (await res.json()) as { filename: string };
+      const doc: WorkDocument = {
+        filename,
+        originalName: file.name,
+        documentType: "paystub",
+        uploadedAt: new Date().toISOString(),
+      };
+      const nextDocs = [...documents, doc];
+      setDocuments(nextDocs);
+      await save(lines, nextDocs);
+    } catch {
+      toast.error(`Couldn't upload ${original.name}`);
+    } finally {
+      setUploadingPhoto(false);
+    }
+  };
+
+  const removePhoto = async (index: number) => {
+    const nextDocs = documents.filter((_, i) => i !== index);
+    setDocuments(nextDocs);
+    await save(lines, nextDocs);
   };
 
   const update = (index: number, patch: Partial<PayStubLine>) =>
@@ -136,7 +189,58 @@ export function PayStubSection({
   }
 
   return (
-    <div className="space-y-4">
+    // With a photo of the check in hand, the image and the stub's lines
+    // sit side by side on a desktop — the check on one side, the working
+    // on the other — and stack on a phone.
+    <div
+      className={
+        documents.length ? "grid grid-cols-1 gap-4 lg:grid-cols-2" : undefined
+      }
+    >
+      {documents.length > 0 && (
+        <div className="space-y-2 lg:sticky lg:top-4 lg:self-start">
+          {documents.map((doc, index) => {
+            const isPdf = /\.pdf$/i.test(doc.filename);
+            return (
+              <div key={`${doc.filename}-${index}`} className="relative">
+                {isPdf ? (
+                  <a
+                    href={`/api/uploads/${doc.filename}`}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="block rounded border border-border p-3 text-sm underline underline-offset-2"
+                  >
+                    {doc.originalName}
+                  </a>
+                ) : (
+                  <a
+                    href={`/api/uploads/${doc.filename}`}
+                    target="_blank"
+                    rel="noreferrer"
+                  >
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img
+                      src={`/api/uploads/${doc.filename}`}
+                      alt={doc.originalName}
+                      className="max-h-[28rem] w-full rounded border border-border bg-zinc-950 object-contain"
+                    />
+                  </a>
+                )}
+                <button
+                  type="button"
+                  aria-label="Remove the photo"
+                  onClick={() => removePhoto(index)}
+                  className="absolute right-1.5 top-1.5 rounded bg-black/60 p-1 text-white/80 hover:text-white"
+                >
+                  <X className="h-4 w-4" />
+                </button>
+              </div>
+            );
+          })}
+        </div>
+      )}
+
+      <div className="space-y-4">
       <div className="space-y-2">
         {lines.map((line, index) => (
           <div key={index} className="flex items-start gap-2">
@@ -205,6 +309,30 @@ export function PayStubSection({
           <Plus className="h-4 w-4" />
           Add a line
         </Button>
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={() => photoInput.current?.click()}
+          disabled={uploadingPhoto}
+        >
+          {uploadingPhoto ? (
+            <Loader2 className="h-4 w-4 animate-spin" />
+          ) : (
+            <Camera className="h-4 w-4" />
+          )}
+          {documents.length ? "Add another photo" : "Add the check photo"}
+        </Button>
+        <input
+          ref={photoInput}
+          type="file"
+          accept="image/*,.heic,.heif,.pdf"
+          className="hidden"
+          onChange={(e) => {
+            const file = e.currentTarget.files?.[0];
+            e.currentTarget.value = "";
+            if (file) addPhoto(file);
+          }}
+        />
         <Button size="sm" onClick={() => save(lines)} disabled={saving}>
           {saving ? (
             <Loader2 className="h-4 w-4 animate-spin" />
@@ -323,6 +451,7 @@ export function PayStubSection({
             )}
           </div>
         )}
+      </div>
       </div>
     </div>
   );

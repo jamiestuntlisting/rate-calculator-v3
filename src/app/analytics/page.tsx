@@ -17,6 +17,10 @@ import { ArrowRight, ChevronDown, ChevronRight } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { RateBreakdown } from "@/components/calculation/rate-breakdown";
 import { Button } from "@/components/ui/button";
+import { CollapsibleSection } from "@/components/calculator/collapsible-section";
+import { PayStubSection } from "@/components/shared/pay-stub-section";
+import { owedLinesFromRecord, type PayStubLine } from "@/lib/pay-stub";
+import { useAuth } from "@/context/auth-context";
 import type { WorkRecord } from "@/types";
 
 /** Same rule the record page applies when a payment is typed in. */
@@ -110,6 +114,15 @@ export default function AnalyticsPage() {
   const [checkOpenFor, setCheckOpenFor] = useState<string | null>(null);
   /** Rows opened to their paycheck breakdown. */
   const [openRows, setOpenRows] = useState<Set<string>>(new Set());
+
+  /** Whose money this is — the member being viewed, for the payroll note. */
+  const { user, viewingAs } = useAuth();
+  const performerAccount = viewingAs ?? user;
+  const performerName = performerAccount
+    ? performerAccount.firstName
+      ? `${performerAccount.firstName} ${performerAccount.lastName || ""}`.trim()
+      : performerAccount.email
+    : "This performer";
 
   /**
    * The resolution mark is a human decision, never derived: 'late' is
@@ -467,6 +480,25 @@ export default function AnalyticsPage() {
           ? VERDICTS.late
           : null;
     const contractNoun = weekly.kind === "three_day" ? "3-day" : "Weekly";
+    const weekStartYmd = weekly.weekStart.split("T")[0];
+    /**
+     * The week's working, in stub columns. When the Weekly page has an
+     * exact total the note quotes that one line; otherwise the per-day
+     * approximations, which are what the shown total adds up from.
+     */
+    const weekOwedLines: PayStubLine[] = item.approximate
+      ? weekRecords.map((r) => ({
+          label: shortDay(r.workDate.split("T")[0]),
+          hours: r.calculation?.netWorkHours ?? null,
+          amount: r.expectedAmount || 0,
+        }))
+      : [
+          {
+            label: `${contractNoun} contract total (Weekly page working)`,
+            hours: null,
+            amount: item.expected,
+          },
+        ];
     return (
       <React.Fragment key={weekly._id}>
         <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5 py-2 border-b border-border/30">
@@ -602,6 +634,21 @@ export default function AnalyticsPage() {
                 );
               })}
             </div>
+            {/* One check for the week — so one stub and one photo too. */}
+            <CollapsibleSection
+              title="Check & pay stub"
+              summary="Add the week's check photo and lines, compared against our working"
+            >
+              <PayStubSection
+                scope="week"
+                weekStart={weekStartYmd}
+                showName={showName}
+                owed={item.expected}
+                performerName={performerName}
+                period={`the ${contractNoun.toLowerCase()} week of ${shortDay(weekStartYmd)}`}
+                owedLines={weekOwedLines}
+              />
+            </CollapsibleSection>
             <div className="flex flex-wrap items-center gap-2">
               <span className="text-xs text-muted-foreground">Mark it:</span>
               <button
@@ -899,6 +946,23 @@ export default function AnalyticsPage() {
                                     : `Payment due by ${shortDay(paymentDueDate(record.workDate) ?? "")} — the second Wednesday after the work week.`}
                               </p>
                             )}
+                            {/* The check itself: its total and photo, and
+                                the stub's lines against ours — image and
+                                breakdown side by side once a photo is in. */}
+                            <CollapsibleSection
+                              title="Check & pay stub"
+                              summary="Add the check's photo and lines, compared against our working"
+                            >
+                              <PayStubSection
+                                scope="day"
+                                workRecordId={record._id}
+                                showName={show.name}
+                                owed={record.expectedAmount || 0}
+                                performerName={performerName}
+                                period={`the work day of ${shortDay(ymd)}`}
+                                owedLines={owedLinesFromRecord(record)}
+                              />
+                            </CollapsibleSection>
                             <div className="flex flex-wrap items-center gap-2">
                               <span className="text-xs text-muted-foreground">
                                 Mark it:
