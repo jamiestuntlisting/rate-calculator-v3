@@ -15,6 +15,7 @@ import {
   ListTodo,
   FlaskConical,
   CalendarClock,
+  Undo2,
 } from "lucide-react";
 import { useAuth } from "@/context/auth-context";
 import { isAdminEmail } from "@/lib/admin-emails";
@@ -56,6 +57,12 @@ const ADMIN_PAGES = [
     title: "Rate schedules",
     detail: "The rates in force by date — what any work day is priced on.",
     icon: CalendarClock,
+  },
+  {
+    href: "/admin/reverse",
+    title: "Reverse calculator",
+    detail: "Start from what a check paid and work backwards to the day.",
+    icon: Undo2,
   },
   {
     href: "/admin/weekly-bench",
