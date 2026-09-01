@@ -13,7 +13,7 @@ import {
 import { Badge } from "@/components/ui/badge";
 import Link from "next/link";
 import { toast } from "sonner";
-import { ChevronDown, ChevronRight } from "lucide-react";
+import { ArrowRight, ChevronDown, ChevronRight } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { RateBreakdown } from "@/components/calculation/rate-breakdown";
 import { Button } from "@/components/ui/button";
@@ -30,6 +30,34 @@ function derivePaymentStatus(amount: number, expected: number | undefined): stri
 }
 
 const iso = (d: Date) => d.toISOString().split("T")[0];
+
+/** The slice of a saved weekly this page needs. */
+interface WeeklyLite {
+  _id: string;
+  kind: string;
+  title: string;
+  weekStart: string;
+  expectedAmount: number;
+}
+
+/**
+ * One line in a show's ledger: a daily on its own, or a whole weekly
+ * (or 3-day) contract — its days grouped behind one row because the
+ * contract is paid as one check, never day by day.
+ */
+type ShowItem =
+  | { kind: "day"; record: WorkRecord }
+  | {
+      kind: "week";
+      weekly: WeeklyLite;
+      records: WorkRecord[];
+      /** The saved weekly total when the Weekly page worked one out;
+       * otherwise the sum of the days' approximations. */
+      expected: number;
+      approximate: boolean;
+      paid: number;
+      sortDate: string;
+    };
 
 /** "2,174.03" — in the ledger rows the $ stays on the totals, so the
  * columns read as numbers instead of a wall of dollar signs. */
@@ -65,6 +93,14 @@ const VERDICTS: Record<string, { label: string; tone: string }> = {
 
 export default function AnalyticsPage() {
   const [records, setRecords] = useState<WorkRecord[]>([]);
+  /**
+   * Which uploaded Exhibit G backs which tracker row, so an unlogged day
+   * can offer "transcribe it" instead of a dead end. Missing entries just
+   * mean the day was typed in without an upload.
+   */
+  const [gUploadByRecord, setGUploadByRecord] = useState<Record<string, string>>({});
+  /** Saved weeklies, so their days can fold into one row here. */
+  const [weeklies, setWeeklies] = useState<WeeklyLite[]>([]);
   const [loading, setLoading] = useState(true);
   /** Per-day paid entries being edited, keyed by record id. */
   const [paidEdits, setPaidEdits] = useState<Record<string, string>>({});
@@ -184,12 +220,62 @@ export default function AnalyticsPage() {
     }
   };
 
+  /**
+   * A weekly is paid as one check, so its Paid box takes the whole check
+   * and the page spreads it across the contract's days — oldest first,
+   * each day up to its own working, the last absorbing any difference.
+   * The split is bookkeeping; the number that matters is the one typed.
+   */
+  const saveWeekTotal = async (weekRecords: WorkRecord[], total: number) => {
+    const sorted = [...weekRecords].sort((a, b) =>
+      a.workDate.localeCompare(b.workDate)
+    );
+    let remaining = Math.round(total * 100) / 100;
+    for (let i = 0; i < sorted.length; i++) {
+      const last = i === sorted.length - 1;
+      const due = sorted[i].expectedAmount || 0;
+      const pay =
+        Math.round(
+          (last ? Math.max(0, remaining) : Math.min(due, Math.max(0, remaining))) * 100
+        ) / 100;
+      await savePaid(sorted[i], pay);
+      remaining = Math.round((remaining - pay) * 100) / 100;
+    }
+  };
+
+  const saveWeekEdit = async (item: Extract<ShowItem, { kind: "week" }>) => {
+    const raw = paidEdits[item.weekly._id];
+    if (raw === undefined) return;
+    const amount = parseFloat(raw) || 0;
+    if (Math.abs(amount - item.paid) < 0.005) return;
+    try {
+      await saveWeekTotal(item.records, amount);
+      toast.success("Check saved across the week");
+    } catch {
+      toast.error("Couldn't save that check");
+    }
+  };
+
   useEffect(() => {
     fetch("/api/work-records?limit=1000")
       .then((res) => (res.ok ? res.json() : Promise.reject()))
       .then((data) => setRecords(data.records || []))
       .catch(() => {})
       .finally(() => setLoading(false));
+    fetch("/api/g-uploads")
+      .then((res) => (res.ok ? res.json() : Promise.reject()))
+      .then((data: { uploads?: Array<{ _id: string; workRecordId?: string }> }) => {
+        const map: Record<string, string> = {};
+        for (const u of data.uploads ?? []) {
+          if (u.workRecordId) map[u.workRecordId] = u._id;
+        }
+        setGUploadByRecord(map);
+      })
+      .catch(() => {});
+    fetch("/api/weeklies")
+      .then((res) => (res.ok ? res.json() : Promise.reject()))
+      .then((data: { weeklies?: WeeklyLite[] }) => setWeeklies(data.weeklies ?? []))
+      .catch(() => {});
   }, []);
 
   const stats = useMemo(() => {
@@ -219,31 +305,89 @@ export default function AnalyticsPage() {
     for (const r of records) stages[stageOf(r)]++;
     const lateCount = records.filter((r) => isPaymentLate(r)).length;
     const missingGCount = records.filter((r) => r.missingExhibitG).length;
+    // A G was uploaded but its times never read off — the day cannot be
+    // priced until someone transcribes it, so it is a to-do, not a stat.
+    const untranscribedCount = records.filter(
+      (r) => !r.calculation && !r.callTime && gUploadByRecord[r._id]
+    ).length;
+    // Times are in but the day still has no working — usually a
+    // transcribed G whose agreement has not been picked yet.
+    const unpricedCount = records.filter(
+      (r) => !r.calculation && r.callTime
+    ).length;
 
     // By show — with the days themselves, oldest first, because this is
     // where payments get resolved and a paycheck lands on actual days.
-    const showMap = new Map<
-      string,
-      { days: number; expected: number; paid: number; records: WorkRecord[] }
-    >();
+    // Days attached to a saved weekly (or 3-day) fold into one item: the
+    // contract is one check, so it gets one line, one calculated total
+    // and one paid amount, with its days as the detail inside.
+    const weeklyById = new Map(weeklies.map((w) => [w._id, w]));
+    const showMap = new Map<string, { records: WorkRecord[] }>();
     for (const r of records) {
       const name = r.showName || "Unknown";
-      const existing =
-        showMap.get(name) || { days: 0, expected: 0, paid: 0, records: [] };
-      existing.days += 1;
-      existing.expected += r.expectedAmount || 0;
-      existing.paid += r.paidAmount;
+      const existing = showMap.get(name) || { records: [] };
       existing.records.push(r);
       showMap.set(name, existing);
     }
     const byShow = [...showMap.entries()]
-      .map(([name, data]) => ({
-        name,
-        ...data,
-        records: [...data.records].sort((a, b) =>
+      .map(([name, data]) => {
+        const sorted = [...data.records].sort((a, b) =>
           a.workDate.localeCompare(b.workDate)
-        ),
-      }))
+        );
+        const grouped = new Map<string, WorkRecord[]>();
+        const loose: WorkRecord[] = [];
+        for (const r of sorted) {
+          const weekly = r.weeklyId ? weeklyById.get(r.weeklyId) : undefined;
+          if (weekly) {
+            const list = grouped.get(weekly._id);
+            if (list) list.push(r);
+            else grouped.set(weekly._id, [r]);
+          } else {
+            loose.push(r);
+          }
+        }
+        const items: ShowItem[] = [
+          ...loose.map((record): ShowItem => ({ kind: "day", record })),
+          ...[...grouped.entries()].map(([weeklyId, recs]): ShowItem => {
+            const weekly = weeklyById.get(weeklyId)!;
+            const daySum = recs.reduce(
+              (s, r) => s + (r.expectedAmount || 0),
+              0
+            );
+            const stored = weekly.expectedAmount || 0;
+            return {
+              kind: "week",
+              weekly,
+              records: recs,
+              expected: stored > 0 ? stored : daySum,
+              approximate: !(stored > 0),
+              paid: recs.reduce((s, r) => s + r.paidAmount, 0),
+              sortDate: recs[0].workDate,
+            };
+          }),
+        ].sort((a, b) =>
+          (a.kind === "day" ? a.record.workDate : a.sortDate).localeCompare(
+            b.kind === "day" ? b.record.workDate : b.sortDate
+          )
+        );
+        const expected = items.reduce(
+          (s, item) =>
+            s +
+            (item.kind === "day"
+              ? item.record.expectedAmount || 0
+              : item.expected),
+          0
+        );
+        const paid = data.records.reduce((s, r) => s + r.paidAmount, 0);
+        return {
+          name,
+          days: data.records.length,
+          expected,
+          paid,
+          items,
+          looseRecords: loose,
+        };
+      })
       .sort((a, b) => b.expected - a.expected);
 
     // By month — parse from ISO string to avoid timezone shifts
@@ -292,11 +436,195 @@ export default function AnalyticsPage() {
       stages,
       lateCount,
       missingGCount,
+      untranscribedCount,
+      unpricedCount,
       byShow,
       byMonth,
       byAgreement,
     };
-  }, [records]);
+  }, [records, gUploadByRecord, weeklies]);
+
+  /**
+   * A weekly contract's line in the ledger. One row, the weekly total in
+   * the Calculated column and one Paid box for the one check; the days
+   * live inside the expansion, each with its own to-do (transcribe the
+   * G, log the times) when it is not done.
+   */
+  const renderWeek = (
+    item: Extract<ShowItem, { kind: "week" }>,
+    showName: string
+  ) => {
+    const { weekly, records: weekRecords } = item;
+    const rowOpen = openRows.has(weekly._id);
+    const edit = paidEdits[weekly._id];
+    const allDone = weekRecords.every((r) => r.paymentFlag === "done");
+    const anyLate = weekRecords.some((r) => isPaymentLate(r));
+    const verdict = allDone
+      ? { label: "Done", tone: "bg-green-900/40 text-green-300 border-green-700/50" }
+      : item.paid > 0
+        ? (VERDICTS[derivePaymentStatus(item.paid, item.expected)] ?? null)
+        : anyLate
+          ? VERDICTS.late
+          : null;
+    const contractNoun = weekly.kind === "three_day" ? "3-day" : "Weekly";
+    return (
+      <React.Fragment key={weekly._id}>
+        <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5 py-2 border-b border-border/30">
+          <button
+            type="button"
+            aria-expanded={rowOpen}
+            aria-label="Show the week's days"
+            onClick={() =>
+              setOpenRows((prev) => {
+                const next = new Set(prev);
+                if (next.has(weekly._id)) next.delete(weekly._id);
+                else next.add(weekly._id);
+                return next;
+              })
+            }
+            className="order-1 w-5 shrink-0 text-muted-foreground hover:text-foreground"
+          >
+            {rowOpen ? (
+              <ChevronDown className="h-4 w-4" />
+            ) : (
+              <ChevronRight className="h-4 w-4" />
+            )}
+          </button>
+          <Link href="/weekly" className="order-2 min-w-0 flex-1 truncate">
+            <span className="text-sm font-medium">{showName}</span>
+            <span className="text-xs text-muted-foreground">
+              {" "}· {contractNoun} of {shortDay(weekly.weekStart.split("T")[0])} ·{" "}
+              {weekRecords.length} day{weekRecords.length === 1 ? "" : "s"}
+            </span>
+          </Link>
+          {verdict ? (
+            <span
+              className={`order-3 sm:order-5 shrink-0 w-14 text-center rounded px-1 py-0.5 text-[10px] font-semibold border ${verdict.tone}`}
+            >
+              {verdict.label}
+            </span>
+          ) : (
+            <span className="order-3 sm:order-5 shrink-0 w-14 text-center text-xs text-muted-foreground">
+              —
+            </span>
+          )}
+          <div className="order-4 flex w-full items-center gap-2 pl-5 sm:w-auto sm:gap-3 sm:pl-0">
+            <span className="mr-auto whitespace-nowrap text-[11px] text-muted-foreground sm:hidden">
+              calc → paid
+            </span>
+            {item.expected ? (
+              <span className="text-sm tabular-nums shrink-0 w-24 text-right">
+                {fmtAmount(item.expected)}
+                {item.approximate && "*"}
+              </span>
+            ) : (
+              <span className="text-sm shrink-0 w-24 text-right text-muted-foreground">
+                —
+              </span>
+            )}
+            <div className="w-24 shrink-0 sm:ml-4 sm:w-28">
+              <Input
+                type="number"
+                inputMode="decimal"
+                min="0"
+                value={edit ?? (item.paid || "")}
+                onChange={(e) =>
+                  setPaidEdits((prev) => ({
+                    ...prev,
+                    [weekly._id]: e.target.value,
+                  }))
+                }
+                onBlur={() => saveWeekEdit(item)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") e.currentTarget.blur();
+                }}
+                placeholder="0.00"
+                className="h-9 text-sm text-right tabular-nums"
+              />
+            </div>
+          </div>
+        </div>
+        {rowOpen && (
+          <div className="border-b border-border/30 py-3 pl-8 pr-1 space-y-3">
+            <p className="text-xs text-muted-foreground">
+              A {contractNoun.toLowerCase()} is paid as one check — the Paid
+              box holds the whole check, spread across the days as
+              bookkeeping.{" "}
+              {item.approximate
+                ? "Its total here is the days' approximations added up; the Weekly page works the week out exactly."
+                : "The total is the Weekly page's working for this week."}
+            </p>
+            <div className="space-y-1">
+              {weekRecords.map((r) => {
+                const ymd = r.workDate.split("T")[0];
+                return (
+                  <div
+                    key={r._id}
+                    className="flex flex-wrap items-center gap-x-3 gap-y-1 text-sm"
+                  >
+                    <Link
+                      href={`/work/${r._id}`}
+                      className="min-w-0 flex-1 truncate"
+                    >
+                      {shortDay(ymd)}
+                    </Link>
+                    {r.calculation ? (
+                      <span className="tabular-nums w-24 text-right shrink-0">
+                        {fmtAmount(r.expectedAmount || 0)}
+                      </span>
+                    ) : r.callTime ? (
+                      <Link
+                        href={`/work/${r._id}?edit=1`}
+                        className="shrink-0 text-xs text-amber-400 underline underline-offset-2"
+                      >
+                        Pick its agreement
+                      </Link>
+                    ) : gUploadByRecord[r._id] ? (
+                      <Link
+                        href={`/upload-g/${gUploadByRecord[r._id]}`}
+                        className="shrink-0 text-xs text-amber-400 underline underline-offset-2"
+                      >
+                        Transcribe the G
+                      </Link>
+                    ) : (
+                      <Link
+                        href={`/work/${r._id}?edit=1`}
+                        className="shrink-0 text-xs text-amber-400 underline underline-offset-2"
+                      >
+                        Log times
+                      </Link>
+                    )}
+                    <span className="tabular-nums w-24 text-right shrink-0 text-muted-foreground sm:ml-4 sm:w-28">
+                      {r.paidAmount ? fmtAmount(r.paidAmount) : "—"}
+                    </span>
+                    <span className="hidden w-14 shrink-0 sm:block" aria-hidden />
+                  </div>
+                );
+              })}
+            </div>
+            <div className="flex flex-wrap items-center gap-2">
+              <span className="text-xs text-muted-foreground">Mark it:</span>
+              <button
+                type="button"
+                onClick={async () => {
+                  for (const r of weekRecords) {
+                    await saveFlag(r, allDone ? null : "done");
+                  }
+                }}
+                className={`rounded border px-2 py-1 text-xs ${
+                  allDone
+                    ? "border-green-700/60 bg-green-900/40 text-green-300"
+                    : "border-border text-muted-foreground hover:bg-accent"
+                }`}
+              >
+                Done — not chasing this
+              </button>
+            </div>
+          </div>
+        )}
+      </React.Fragment>
+    );
+  };
 
   if (loading) {
     return (
@@ -320,29 +648,65 @@ export default function AnalyticsPage() {
       <h1 className="text-2xl font-bold">Resolve</h1>
 
       {/* One question: where does each day stand on its way from an
-          Exhibit G photo to money resolved. The bar is the pipeline; the
-          legend names each stage with its count. */}
+          Exhibit G photo to money resolved. One block per stage with the
+          arrows saying which way a day travels; every stage shows even
+          at zero, so the pipeline always has the same shape. */}
       <Card>
         <CardContent className="pt-4 space-y-3">
           <div className="flex items-baseline justify-between gap-3">
             <p className="text-sm text-muted-foreground">Work days</p>
             <p className="text-2xl font-bold tabular-nums">{stats.totalDays}</p>
           </div>
-          <Meter
-            segments={[
-              { label: "Exhibit G only", value: stats.stages.gOnly, className: "bg-zinc-500" },
-              { label: "Logged", value: stats.stages.logged, className: "bg-blue-400" },
-              { label: "Payment received", value: stats.stages.received, className: "bg-yellow-400" },
-              { label: "Paid correctly", value: stats.stages.correct, className: "bg-green-500" },
-              { label: "Done", value: stats.stages.done, className: "bg-primary" },
-            ]}
-            format={(n) => String(n)}
-          />
-          {(stats.missingGCount > 0 || stats.lateCount > 0) && (
+          <div className="flex items-stretch gap-1 overflow-x-auto pb-1 sm:gap-1.5">
+            {[
+              { label: "Exhibit G", value: stats.stages.gOnly, tone: "border-zinc-500/60" },
+              { label: "Logged", value: stats.stages.logged, tone: "border-blue-400/60" },
+              { label: "Payment received", value: stats.stages.received, tone: "border-yellow-400/60" },
+              { label: "Paid correctly", value: stats.stages.correct, tone: "border-green-500/60" },
+              { label: "Done", value: stats.stages.done, tone: "border-primary/60" },
+            ].map((stage, i) => (
+              <React.Fragment key={stage.label}>
+                {i > 0 && (
+                  <ArrowRight
+                    aria-hidden
+                    className="h-4 w-4 shrink-0 self-center text-muted-foreground"
+                  />
+                )}
+                <div
+                  className={`min-w-[3.9rem] flex-1 rounded-lg border p-1.5 text-center sm:p-2 ${
+                    stage.value > 0 ? stage.tone : "border-border opacity-50"
+                  }`}
+                >
+                  <p className="text-xl font-bold tabular-nums leading-tight">
+                    {stage.value}
+                  </p>
+                  <p className="text-[10px] leading-tight text-muted-foreground">
+                    {stage.label}
+                  </p>
+                </div>
+              </React.Fragment>
+            ))}
+          </div>
+          {/* What still needs a hand: the page's to-do line. */}
+          {(stats.untranscribedCount > 0 ||
+            stats.unpricedCount > 0 ||
+            stats.missingGCount > 0 ||
+            stats.lateCount > 0) && (
             <p className="text-xs text-muted-foreground">
+              {stats.untranscribedCount > 0 && (
+                <>
+                  {stats.untranscribedCount} Exhibit{" "}
+                  {stats.untranscribedCount === 1 ? "G" : "Gs"} waiting to be{" "}
+                  <Link href="/upload-g" className="underline underline-offset-2">
+                    transcribed
+                  </Link>
+                  {". "}
+                </>
+              )}
+              {stats.unpricedCount > 0 &&
+                `${stats.unpricedCount} day${stats.unpricedCount === 1 ? " has" : "s have"} times but no agreement picked, so no working yet. `}
               {stats.missingGCount > 0 &&
-                `${stats.missingGCount} day${stats.missingGCount === 1 ? "" : "s"} still missing an Exhibit G.`}
-              {stats.missingGCount > 0 && stats.lateCount > 0 && " "}
+                `${stats.missingGCount} day${stats.missingGCount === 1 ? "" : "s"} still missing an Exhibit G. `}
               {stats.lateCount > 0 &&
                 `${stats.lateCount} late — no check by the second Wednesday after the work week.`}
             </p>
@@ -364,7 +728,7 @@ export default function AnalyticsPage() {
                 <span className="w-5 shrink-0" aria-hidden />
                 <span className="flex-1 min-w-0">Show · date</span>
                 <span className="w-24 text-right shrink-0">Calculated</span>
-                <span className="w-28 text-right shrink-0">Paid</span>
+                <span className="w-28 text-right shrink-0 sm:ml-4">Paid</span>
                 <span className="w-14 shrink-0" aria-hidden />
               </div>
               {/* One row per day: show, date, what we calculated, what they
@@ -372,7 +736,9 @@ export default function AnalyticsPage() {
                   ledger shape as a pay stub, nothing to open. */}
               {stats.byShow.map((show) => (
                 <div key={show.name} className="pb-2">
-                  {show.records.map((record) => {
+                  {show.items.map((item) => {
+                    if (item.kind === "week") return renderWeek(item, show.name);
+                    const record = item.record;
                     const ymd = record.workDate.split("T")[0];
                     const edit = paidEdits[record._id];
                     const rowOpen = openRows.has(record._id);
@@ -436,9 +802,9 @@ export default function AnalyticsPage() {
                               —
                             </span>
                           )}
-                          <div className="order-4 flex w-full items-center gap-3 pl-8 sm:w-auto sm:pl-0">
+                          <div className="order-4 flex w-full items-center gap-2 pl-5 sm:w-auto sm:gap-3 sm:pl-0">
                             <span className="mr-auto whitespace-nowrap text-[11px] text-muted-foreground sm:hidden">
-                              calculated → paid
+                              calc → paid
                             </span>
                             {record.expectedAmount ? (
                               <span className="text-sm tabular-nums shrink-0 w-24 text-right">
@@ -449,7 +815,7 @@ export default function AnalyticsPage() {
                                 —
                               </span>
                             )}
-                            <div className="w-28 shrink-0">
+                            <div className="w-24 shrink-0 sm:ml-4 sm:w-28">
                               <Input
                                 type="number"
                                 inputMode="decimal"
@@ -487,6 +853,30 @@ export default function AnalyticsPage() {
                                         : null
                                 }
                               />
+                            ) : record.callTime ? (
+                              <p className="text-sm text-muted-foreground">
+                                The times are in, but no agreement has
+                                been picked, so there is no working to
+                                compare a check against.{" "}
+                                <Link
+                                  href={`/work/${record._id}?edit=1`}
+                                  className="underline underline-offset-2"
+                                >
+                                  Open the day and pick its agreement
+                                </Link>
+                              </p>
+                            ) : gUploadByRecord[record._id] ? (
+                              <p className="text-sm text-muted-foreground">
+                                This day’s Exhibit G hasn’t been
+                                transcribed — no times, so nothing to
+                                compare a check against.{" "}
+                                <Link
+                                  href={`/upload-g/${gUploadByRecord[record._id]}`}
+                                  className="underline underline-offset-2"
+                                >
+                                  Transcribe the G
+                                </Link>
+                              </p>
                             ) : (
                               <p className="text-sm text-muted-foreground">
                                 This day hasn’t been logged yet — no
@@ -545,28 +935,31 @@ export default function AnalyticsPage() {
                     <span className="text-sm font-semibold tabular-nums shrink-0 w-24 text-right">
                       {formatCurrency(show.expected)}
                     </span>
-                    <span className="text-sm font-semibold tabular-nums shrink-0 w-28 text-right">
+                    <span className="text-sm font-semibold tabular-nums shrink-0 w-28 text-right sm:ml-4">
                       {formatCurrency(show.paid)}
                     </span>
                     <span className="w-14 shrink-0 text-center">
-                      <button
-                        type="button"
-                        aria-expanded={checkOpenFor === show.name}
-                        onClick={() =>
-                          setCheckOpenFor((prev) =>
-                            prev === show.name ? null : show.name
-                          )
-                        }
-                        className="rounded border border-border px-1.5 py-0.5 text-[10px] text-muted-foreground hover:bg-accent"
-                      >
-                        ＋ Check
-                      </button>
+                      {show.looseRecords.length > 0 && (
+                        <button
+                          type="button"
+                          aria-expanded={checkOpenFor === show.name}
+                          onClick={() =>
+                            setCheckOpenFor((prev) =>
+                              prev === show.name ? null : show.name
+                            )
+                          }
+                          className="rounded border border-border px-1.5 py-0.5 text-[10px] text-muted-foreground hover:bg-accent"
+                        >
+                          ＋ Check
+                        </button>
+                      )}
                     </span>
                   </div>
                   {checkOpenFor === show.name && (
                     <div className="flex items-center gap-2 py-1.5">
                       <span className="flex-1 min-w-0 text-xs text-muted-foreground">
-                        Paycheck — fills the oldest unpaid day first
+                        Paycheck — fills the oldest unpaid daily first; a
+                        weekly takes its check on its own row
                       </span>
                       <div className="w-24 shrink-0">
                         <Input
@@ -589,7 +982,7 @@ export default function AnalyticsPage() {
                         variant="outline"
                         className="w-14 px-0"
                         disabled={busyShow === show.name}
-                        onClick={() => applyCheck(show.name, show.records)}
+                        onClick={() => applyCheck(show.name, show.looseRecords)}
                       >
                         {busyShow === show.name ? "…" : "Apply"}
                       </Button>
@@ -661,45 +1054,3 @@ export default function AnalyticsPage() {
   );
 }
 
-/**
- * A single stacked bar with its legend: the number's split, in one glance.
- * Segments keep a 2px surface gap so adjacent colors never touch, and the
- * legend carries every label and amount — the color is reinforcement, not
- * the message.
- */
-function Meter({
-  segments,
-  format,
-}: {
-  segments: Array<{ label: string; value: number; className: string }>;
-  format: (n: number) => string;
-}) {
-  const shown = segments.filter((s) => s.value > 0);
-  const total = shown.reduce((n, s) => n + s.value, 0);
-  if (total <= 0) {
-    return <p className="text-xs text-muted-foreground">Nothing yet.</p>;
-  }
-  return (
-    <div className="space-y-2">
-      <div className="flex h-3 w-full gap-[2px] overflow-hidden rounded-full bg-muted/30">
-        {shown.map((segment) => (
-          <div
-            key={segment.label}
-            title={`${segment.label}: ${format(segment.value)}`}
-            style={{ width: `${(segment.value / total) * 100}%` }}
-            className={`${segment.className} min-w-[3px]`}
-          />
-        ))}
-      </div>
-      <div className="flex flex-wrap gap-x-4 gap-y-1">
-        {shown.map((segment) => (
-          <span key={segment.label} className="flex items-center gap-1.5 text-xs">
-            <span aria-hidden className={`h-2 w-2 rounded-sm ${segment.className}`} />
-            <span className="text-muted-foreground">{segment.label}</span>
-            <span className="tabular-nums font-medium">{format(segment.value)}</span>
-          </span>
-        ))}
-      </div>
-    </div>
-  );
-}

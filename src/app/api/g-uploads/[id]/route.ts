@@ -5,7 +5,8 @@ import {
   findGUpload,
   updateGUpload,
 } from "@/lib/repos/g-uploads";
-import { updateWorkRecord } from "@/lib/repos/work-records";
+import { findWorkRecord, updateWorkRecord } from "@/lib/repos/work-records";
+import { recalculateDay } from "@/lib/day-recalc";
 import { requireAuth, getEffectiveUserId } from "@/lib/api-auth";
 
 export async function GET(
@@ -110,6 +111,21 @@ export async function PATCH(
 
       if (Object.keys(patch).length > 0) {
         await updateWorkRecord(existing.workRecordId, userId, patch);
+        // A transcription that filled in the times has priced the day:
+        // re-derive the stored calculation the same way the weekly stamp
+        // paths do, so the Tracker and Resolve stop reading "not logged"
+        // for a day whose card was read in. Days without enough to
+        // compute stay exactly as they are.
+        const updated = await findWorkRecord(existing.workRecordId, userId);
+        if (updated) {
+          const result = recalculateDay(updated);
+          if (result) {
+            await updateWorkRecord(existing.workRecordId, userId, {
+              calculation: result.calculation,
+              expectedAmount: result.expectedAmount,
+            });
+          }
+        }
       }
     }
 
