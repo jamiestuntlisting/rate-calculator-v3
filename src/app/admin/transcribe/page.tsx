@@ -119,6 +119,12 @@ export default function AdminTranscribePage() {
     requested: boolean;
   }
   const [queue, setQueue] = useState<QueueItem[] | null>(null);
+  /** The queue is the page's point — it loads itself. */
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  useEffect(() => {
+    loadQueue();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
   const [loadingQueue, setLoadingQueue] = useState(false);
 
   /**
@@ -246,7 +252,10 @@ export default function AdminTranscribePage() {
             </button>
             {queue !== null && (
               <div className="space-y-1">
-                {queue.length === 0 ? (
+                {(selectedUserId
+                  ? queue.filter((i) => i.userId === selectedUserId)
+                  : queue
+                ).length === 0 ? (
                   <p className="text-sm text-muted-foreground">
                     Nothing waiting — every upload is transcribed.
                   </p>
@@ -257,7 +266,10 @@ export default function AdminTranscribePage() {
                       top item, transcribe it, come back and the next is on
                       top.
                     </p>
-                    {queue.map((item, index) => (
+                    {(selectedUserId
+                      ? queue.filter((i) => i.userId === selectedUserId)
+                      : queue
+                    ).map((item, index) => (
                       <button
                         key={item._id}
                         type="button"

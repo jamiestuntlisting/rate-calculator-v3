@@ -12,11 +12,19 @@ export default function HomePage() {
    */
   const [firstTime, setFirstTime] = useState(false);
   useEffect(() => {
-    fetch("/api/work-records")
-      .then((r) => r.json())
-      .then((data) => {
-        const records = Array.isArray(data) ? data : (data.records ?? []);
-        setFirstTime(records.length === 0);
+    // The pile pitch is for someone who has not started the pile: no
+    // logged days and no bulk uploads. One upload in and it stops
+    // selling them what they already did.
+    Promise.all([
+      fetch("/api/work-records").then((r) => r.json()),
+      fetch("/api/g-uploads").then((r) => r.json()),
+    ])
+      .then(([recData, gData]) => {
+        const records = Array.isArray(recData)
+          ? recData
+          : (recData.records ?? []);
+        const uploads = gData.uploads ?? [];
+        setFirstTime(records.length === 0 && uploads.length === 0);
       })
       .catch(() => {});
   }, []);

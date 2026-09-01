@@ -2,7 +2,15 @@
 
 import { use, useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
-import { ArrowLeft, Loader2, RotateCw, Save } from "lucide-react";
+import {
+  ArrowLeft,
+  Loader2,
+  Maximize,
+  RotateCw,
+  Save,
+  ZoomIn,
+  ZoomOut,
+} from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { TimeSelect } from "@/components/calculator/time-select";
@@ -49,12 +57,16 @@ interface TranscriptionDetails {
 interface Transcription {
   details?: TranscriptionDetails;
   rows: TranscriptionRow[];
-  /** Remembered so the G opens exactly where it was left. */
+  /**
+   * Remembered so the G opens exactly where it was left. Older saves
+   * carry headerY/rowY from the two-pane layout; y falls back to them.
+   */
   view?: {
     zoom: number;
     scrollX: number;
-    headerY: number;
-    rowY: number;
+    y?: number;
+    headerY?: number;
+    rowY?: number;
   };
 }
 
@@ -108,6 +120,13 @@ function touchDistance(touches: React.TouchList): number {
   return Math.hypot(a.clientX - b.clientX, a.clientY - b.clientY);
 }
 
+/**
+ * The transcription screen is a split view: the Exhibit G on one half —
+ * left on a desktop, top on a phone — and the fields on the other, each
+ * pane scrolling on its own, an even fifty-fifty. The image opens
+ * fitted to its pane so the whole card shows with no dead white space,
+ * and zooms from there: buttons, pinch, or ctrl/⌘ + scroll.
+ */
 export default function TranscribePage({
   params,
 }: {
@@ -124,14 +143,34 @@ export default function TranscribePage({
     workDate: "",
   });
   const [natural, setNatural] = useState({ w: 0, h: 0 });
+  /**
+   * The split pins itself under the app header, whose height differs by
+   * breakpoint (one bar on a phone, two on a desktop) — measured, not
+   * guessed.
+   */
+  const [topOffset, setTopOffset] = useState(56);
+  useEffect(() => {
+    const header = document.querySelector("header");
+    if (!header) return;
+    const measure = () =>
+      setTopOffset(Math.round(header.getBoundingClientRect().height));
+    measure();
+    // The second nav bar mounts once auth resolves, so observe rather
+    // than measure once.
+    const observer = new ResizeObserver(measure);
+    observer.observe(header);
+    window.addEventListener("resize", measure);
+    return () => {
+      observer.disconnect();
+      window.removeEventListener("resize", measure);
+    };
+  }, []);
   const [rotation, setRotation] = useState(0);
   const [zoom, setZoom] = useState(1);
 
-  const headerRef = useRef<HTMLDivElement>(null);
-  const rowRef = useRef<HTMLDivElement>(null);
+  const imageRef = useRef<HTMLDivElement>(null);
+  const formPaneRef = useRef<HTMLDivElement>(null);
   const fieldsRef = useRef<HTMLDivElement>(null);
-  // Guards the two-way horizontal sync from feeding back on itself.
-  const syncing = useRef(false);
   const pinch = useRef<{ distance: number; zoom: number } | null>(null);
   const restored = useRef(false);
   const savedView = useRef<Transcription["view"] | null>(null);
@@ -158,37 +197,41 @@ export default function TranscribePage({
     })();
   }, [id]);
 
-  // Fit the width of the form to the pane the first time it loads, so the
-  // whole G is visible before the user starts zooming in.
+  /** The zoom at which the whole card fits its pane, both dimensions. */
+  const fitZoom = useCallback(() => {
+    const pane = imageRef.current;
+    if (!pane || !natural.w) return 1;
+    const rotated = rotation % 180 !== 0;
+    const contentW = rotated ? natural.h : natural.w;
+    const contentH = rotated ? natural.w : natural.h;
+    return Math.min(pane.clientWidth / contentW, pane.clientHeight / contentH);
+  }, [natural, rotation]);
+
+  const fitToPane = useCallback(() => {
+    setZoom(Math.max(0.02, fitZoom()));
+    requestAnimationFrame(() => {
+      imageRef.current?.scrollTo({ left: 0, top: 0 });
+    });
+  }, [fitZoom]);
+
+  // First load: restore the saved view, or open fitted so the whole card
+  // is on screen with nothing but card in the pane.
   useEffect(() => {
     if (!natural.w || restored.current) return;
     restored.current = true;
-
     const view = savedView.current;
-    const paneWidth = headerRef.current?.clientWidth ?? 0;
-    const rotated = rotation % 180 !== 0;
-    const contentWidth = rotated ? natural.h : natural.w;
-
     if (view) {
       setZoom(view.zoom);
       requestAnimationFrame(() => {
-        if (headerRef.current) {
-          headerRef.current.scrollLeft = view.scrollX;
-          headerRef.current.scrollTop = view.headerY;
-        }
-        if (rowRef.current) {
-          rowRef.current.scrollLeft = view.scrollX;
-          rowRef.current.scrollTop = view.rowY;
-        }
+        imageRef.current?.scrollTo({
+          left: view.scrollX,
+          top: view.y ?? view.rowY ?? 0,
+        });
       });
-    } else if (paneWidth && contentWidth) {
-      // 35% is where a phone photo of a card becomes readable row by
-      // row — the zoom James lands on by hand every time. Fit-to-width
-      // showed the whole card at a size where nothing on it could be
-      // read, which is a worse place to start.
-      setZoom(0.35);
+    } else {
+      fitToPane();
     }
-  }, [natural, rotation]);
+  }, [natural, fitToPane]);
 
   const baseW = natural.w * zoom;
   const baseH = natural.h * zoom;
@@ -204,29 +247,17 @@ export default function TranscribePage({
     return "none";
   })();
 
-  /** Horizontal position is shared; vertical position is each pane's own. */
-  const syncHorizontal = (from: "header" | "row") => {
-    if (syncing.current) return;
-    syncing.current = true;
-
-    const source = from === "header" ? headerRef.current : rowRef.current;
-    const target = from === "header" ? rowRef.current : headerRef.current;
-    if (source && target) target.scrollLeft = source.scrollLeft;
-
-    // Nudge the field strip to roughly the same part of the form.
-    if (source && fieldsRef.current) {
-      const imageRange = source.scrollWidth - source.clientWidth;
-      const fieldRange =
-        fieldsRef.current.scrollWidth - fieldsRef.current.clientWidth;
-      if (imageRange > 0 && fieldRange > 0) {
-        fieldsRef.current.scrollLeft =
-          (source.scrollLeft / imageRange) * fieldRange;
-      }
+  /** Reading across the card nudges the field strip to the same part. */
+  const syncFields = () => {
+    const source = imageRef.current;
+    if (!source || !fieldsRef.current) return;
+    const imageRange = source.scrollWidth - source.clientWidth;
+    const fieldRange =
+      fieldsRef.current.scrollWidth - fieldsRef.current.clientWidth;
+    if (imageRange > 0 && fieldRange > 0) {
+      fieldsRef.current.scrollLeft =
+        (source.scrollLeft / imageRange) * fieldRange;
     }
-
-    requestAnimationFrame(() => {
-      syncing.current = false;
-    });
   };
 
   const onTouchStart = (e: React.TouchEvent) => {
@@ -239,7 +270,7 @@ export default function TranscribePage({
     if (e.touches.length === 2 && pinch.current) {
       e.preventDefault();
       const ratio = touchDistance(e.touches) / pinch.current.distance;
-      setZoom(Math.min(8, Math.max(0.1, pinch.current.zoom * ratio)));
+      setZoom(Math.min(8, Math.max(0.02, pinch.current.zoom * ratio)));
     }
   };
 
@@ -251,7 +282,7 @@ export default function TranscribePage({
   const onWheel = (e: React.WheelEvent) => {
     if (!e.ctrlKey && !e.metaKey) return;
     e.preventDefault();
-    setZoom((z) => Math.min(8, Math.max(0.1, z * (e.deltaY < 0 ? 1.08 : 0.93))));
+    setZoom((z) => Math.min(8, Math.max(0.02, z * (e.deltaY < 0 ? 1.08 : 0.93))));
   };
 
   const save = useCallback(async () => {
@@ -266,9 +297,8 @@ export default function TranscribePage({
             rows: [row],
             view: {
               zoom,
-              scrollX: rowRef.current?.scrollLeft ?? 0,
-              headerY: headerRef.current?.scrollTop ?? 0,
-              rowY: rowRef.current?.scrollTop ?? 0,
+              scrollX: imageRef.current?.scrollLeft ?? 0,
+              y: imageRef.current?.scrollTop ?? 0,
             },
           },
         }),
@@ -317,188 +347,206 @@ export default function TranscribePage({
 
   const isPdf = upload.contentType === "application/pdf";
 
-  const pane = (
-    which: "header" | "row",
-    ref: React.RefObject<HTMLDivElement | null>,
-    height: string
+  const zoomButton = (
+    label: string,
+    icon: React.ReactNode,
+    onClick: () => void
   ) => (
-    <div
-      ref={ref}
-      onScroll={() => syncHorizontal(which)}
-      onTouchStart={onTouchStart}
-      onTouchMove={onTouchMove}
-      onTouchEnd={onTouchEnd}
-      onWheel={onWheel}
-      className={`overflow-auto overscroll-contain bg-white ${height}`}
-      style={{ touchAction: "pan-x pan-y" }}
+    <button
+      type="button"
+      onClick={onClick}
+      aria-label={label}
+      title={label}
+      className="rounded p-1.5 bg-black/50 text-white/90 hover:bg-black/70"
     >
-      <div
-        style={{
-          width: displayW || "100%",
-          height: displayH || 200,
-          position: "relative",
-        }}
-      >
-        {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img
-          src={upload.path}
-          alt={which === "header" ? "Exhibit G header" : "Your row"}
-          draggable={false}
-          className="absolute top-0 left-0 max-w-none select-none"
-          style={{
-            width: baseW || undefined,
-            transformOrigin: "top left",
-            transform: rotationTransform,
-          }}
-          onLoad={(e) => {
-            // Read the size now: React clears currentTarget once the handler
-            // returns, and the state updater below runs after that.
-            const { naturalWidth, naturalHeight } = e.currentTarget;
-            setNatural((prev) =>
-              prev.w ? prev : { w: naturalWidth, h: naturalHeight }
-            );
-          }}
-        />
-      </div>
-    </div>
+      {icon}
+    </button>
   );
 
   return (
-    <div className="px-3 py-4 max-w-[1800px] mx-auto">
-      <div className="flex flex-wrap items-center justify-between gap-3 mb-3">
-        <div className="flex items-center gap-2 min-w-0">
-          <Link
-            href="/upload-g"
-            className="p-2 rounded hover:bg-accent shrink-0"
-            aria-label="Back to uploads"
-          >
-            <ArrowLeft className="h-4 w-4" />
-          </Link>
-          <div className="min-w-0">
-            <h1 className="text-lg font-bold leading-tight truncate">
-              {upload.displayTitle}
-            </h1>
-            <p className="text-xs text-muted-foreground">
-              Save as much or as little as you like — even just the date.
-            </p>
-          </div>
-        </div>
-
-        <div className="flex items-center gap-2 shrink-0">
-          <Button onClick={save} disabled={saving}>
-            {saving ? (
-              <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-            ) : (
-              <Save className="h-4 w-4 mr-2" />
-            )}
-            Save
-          </Button>
-        </div>
-      </div>
-
-      {/* Save any part of this: the date alone is worth recording. */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-3">
-        <div>
-          <label
-            htmlFor="g-show-name"
-            className="block text-sm text-muted-foreground mb-1"
-          >
-            Show
-          </label>
-          <Input
-            id="g-show-name"
-            value={details.showName}
-            onChange={(e) =>
-              setDetails((d) => ({ ...d, showName: e.target.value }))
-            }
-            placeholder="Names this G and its tracker row"
-            className="h-11 text-base"
-          />
-        </div>
-        <div>
-          <label
-            htmlFor="g-work-date"
-            className="block text-sm text-muted-foreground mb-1"
-          >
-            Work date
-          </label>
-          <Input
-            id="g-work-date"
-            type="date"
-            value={details.workDate}
-            onChange={(e) =>
-              setDetails((d) => ({ ...d, workDate: e.target.value }))
-            }
-            className="h-11 text-base"
-          />
-        </div>
-      </div>
-
-      {isPdf ? (
-        <div className="rounded-lg border border-border p-8 text-center">
-          <p className="text-muted-foreground mb-4">
-            This upload is a PDF — open it in a new tab to read it while you
-            transcribe.
-          </p>
-          <a
-            href={upload.path}
-            target="_blank"
-            rel="noreferrer"
-            className="underline"
-          >
-            Open PDF
-          </a>
-        </div>
-      ) : (
-        <>
-          <div className="rounded-lg border border-border overflow-hidden">
-            <div className="flex items-center justify-between px-2 py-1 text-[11px] uppercase tracking-wide text-muted-foreground bg-muted/40">
-              <span>Column headings</span>
-              <span className="flex items-center gap-2">
-                <span className="tabular-nums normal-case">
-                  {Math.round(zoom * 100)}%
-                </span>
-                {/* Rotation belongs beside what it rotates. */}
-                <button
-                  type="button"
-                  onClick={rotate}
-                  aria-label="Rotate the card"
-                  title="Rotate"
-                  className="rounded p-1 -my-1 hover:bg-accent hover:text-foreground"
-                >
-                  <RotateCw className="h-4 w-4" />
-                </button>
-              </span>
+    // Fixed under the app header: the split escapes the page container's
+    // padding and owns the viewport edge to edge, a true fifty-fifty.
+    <div
+      className="fixed inset-x-0 bottom-0 z-10 flex flex-col bg-background lg:flex-row"
+      style={{ top: topOffset }}
+    >
+      {/* The card itself: top half on a phone, left half on a desktop.
+          Dark letterboxing, never a white void — the pane is the image. */}
+      <div className="relative h-1/2 w-full shrink-0 lg:h-full lg:w-1/2 bg-zinc-950">
+        {isPdf ? (
+          <div className="flex h-full items-center justify-center p-8 text-center">
+            <div>
+              <p className="text-muted-foreground mb-4">
+                This upload is a PDF — open it in a new tab to read it while
+                you transcribe.
+              </p>
+              <a
+                href={upload.path}
+                target="_blank"
+                rel="noreferrer"
+                className="underline"
+              >
+                Open PDF
+              </a>
             </div>
-            {pane("header", headerRef, "h-[11vh] min-h-[55px]")}
-
-            <div className="flex items-center justify-between px-2 py-1 text-[11px] uppercase tracking-wide text-muted-foreground bg-muted/40 border-t border-border">
-              <span>Your row — scroll up/down to find your line</span>
-              <span className="tabular-nums normal-case">
+          </div>
+        ) : (
+          <>
+            <div
+              ref={imageRef}
+              onScroll={syncFields}
+              onTouchStart={onTouchStart}
+              onTouchMove={onTouchMove}
+              onTouchEnd={onTouchEnd}
+              onWheel={onWheel}
+              className="h-full w-full overflow-auto overscroll-contain"
+              style={{ touchAction: "pan-x pan-y" }}
+            >
+              <div
+                className="relative mx-auto"
+                style={{
+                  width: displayW || "100%",
+                  height: displayH || "100%",
+                }}
+              >
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img
+                  src={upload.path}
+                  alt={upload.displayTitle}
+                  draggable={false}
+                  className="absolute top-0 left-0 max-w-none select-none"
+                  style={{
+                    width: baseW || undefined,
+                    transformOrigin: "top left",
+                    transform: rotationTransform,
+                  }}
+                  onLoad={(e) => {
+                    // Read the size now: React clears currentTarget once the
+                    // handler returns, and the updater runs after that.
+                    const { naturalWidth, naturalHeight } = e.currentTarget;
+                    setNatural((prev) =>
+                      prev.w ? prev : { w: naturalWidth, h: naturalHeight }
+                    );
+                  }}
+                />
+              </div>
+            </div>
+            {/* The viewer's controls float on the image, out of the way. */}
+            <div className="pointer-events-none absolute inset-x-0 top-0 flex items-center justify-between p-2">
+              <span className="pointer-events-auto rounded bg-black/50 px-2 py-1 text-xs tabular-nums text-white/90">
                 {Math.round(zoom * 100)}%
               </span>
+              <span className="pointer-events-auto flex items-center gap-1.5">
+                {zoomButton("Zoom out", <ZoomOut className="h-4 w-4" />, () =>
+                  setZoom((z) => Math.max(0.02, z * 0.8))
+                )}
+                {zoomButton("Zoom in", <ZoomIn className="h-4 w-4" />, () =>
+                  setZoom((z) => Math.min(8, z * 1.25))
+                )}
+                {zoomButton(
+                  "Fit the whole card",
+                  <Maximize className="h-4 w-4" />,
+                  fitToPane
+                )}
+                {zoomButton("Rotate", <RotateCw className="h-4 w-4" />, rotate)}
+              </span>
             </div>
-            {pane("row", rowRef, "h-[13vh] min-h-[65px]")}
+          </>
+        )}
+      </div>
+
+      {/* The fields: bottom half on a phone, right half on a desktop,
+          scrolling on their own so the card never leaves the screen. */}
+      <div
+        ref={formPaneRef}
+        className="h-1/2 w-full overflow-y-auto border-t border-border lg:h-full lg:w-1/2 lg:border-t-0 lg:border-l"
+      >
+        <div className="p-3 space-y-3">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div className="flex items-center gap-2 min-w-0">
+              <Link
+                href="/upload-g"
+                className="p-2 rounded hover:bg-accent shrink-0"
+                aria-label="Back to uploads"
+              >
+                <ArrowLeft className="h-4 w-4" />
+              </Link>
+              <div className="min-w-0">
+                <h1 className="text-lg font-bold leading-tight truncate">
+                  {upload.displayTitle}
+                </h1>
+                <p className="text-xs text-muted-foreground">
+                  Save as much or as little as you like — even just the date.
+                </p>
+              </div>
+            </div>
+            <Button onClick={save} disabled={saving}>
+              {saving ? (
+                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+              ) : (
+                <Save className="h-4 w-4 mr-2" />
+              )}
+              Save
+            </Button>
           </div>
 
-          {/* Fields for the row framed above. */}
+          {/* Save any part of this: the date alone is worth recording. */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div>
+              <label
+                htmlFor="g-show-name"
+                className="block text-sm text-muted-foreground mb-1"
+              >
+                Show
+              </label>
+              <Input
+                id="g-show-name"
+                value={details.showName}
+                onChange={(e) =>
+                  setDetails((d) => ({ ...d, showName: e.target.value }))
+                }
+                placeholder="Names this G and its tracker row"
+                className="h-11 text-base"
+              />
+            </div>
+            <div>
+              <label
+                htmlFor="g-work-date"
+                className="block text-sm text-muted-foreground mb-1"
+              >
+                Work date
+              </label>
+              <Input
+                id="g-work-date"
+                type="date"
+                value={details.workDate}
+                onChange={(e) =>
+                  setDetails((d) => ({ ...d, workDate: e.target.value }))
+                }
+                className="h-11 text-base"
+              />
+            </div>
+          </div>
+
+          {/* Fields for the row on the card, in reading order. */}
           <div
             ref={fieldsRef}
-            className="mt-3 overflow-x-auto rounded-lg border border-border"
+            className="overflow-x-auto rounded-lg border border-border"
             onFocus={(e) => {
               // The platform's time wheel anchors to its field and flips
-              // above it when the field sits at the bottom of the page —
-              // straight over the card being read. Park the tapped field a
-              // third of the way down the screen instead: your row stays
-              // visible above it, and the spacer below gives the wheel a
-              // home under the field.
+              // above it when the field sits at the bottom of the pane —
+              // straight over the card. Park the tapped field a third of
+              // the way down the form pane; the spacer below gives the
+              // wheel a home under the field.
               const el = e.target as HTMLElement;
-              if (el.tagName !== "INPUT") return;
+              const pane = formPaneRef.current;
+              if (el.tagName !== "INPUT" || !pane) return;
               const top =
-                window.scrollY +
+                pane.scrollTop +
                 el.getBoundingClientRect().top -
-                window.innerHeight * 0.32;
-              window.scrollTo({ top: Math.max(0, top) });
+                pane.getBoundingClientRect().top -
+                pane.clientHeight * 0.25;
+              pane.scrollTo({ top: Math.max(0, top) });
             }}
           >
             <div className="min-w-max p-2">
@@ -520,9 +568,7 @@ export default function TranscribePage({
                   f.time ? (
                     /* The card's time boxes get the platform's own AM/PM
                        picker — the same one every other form uses — so a
-                       "915" can never land as unparseable text. A value
-                       typed as free text before this change shows empty
-                       here; re-pick it and it saves clean. */
+                       "915" can never land as unparseable text. */
                     <div
                       key={f.key}
                       style={{ width: f.width }}
@@ -554,17 +600,16 @@ export default function TranscribePage({
             </div>
           </div>
 
-          <p className="text-xs text-muted-foreground mt-2">
-            Pinch to zoom (or ⌘/Ctrl + scroll). Drag either pane sideways —
-            both follow.
+          <p className="text-xs text-muted-foreground">
+            Pinch the card to zoom (or ⌘/Ctrl + scroll). Scrolling the card
+            sideways nudges the fields along with it.
           </p>
 
-          {/* Scroll room so a field can sit high on the screen while its
-              picker opens below it — without this the page ends right
-              under the fields and the wheel has nowhere to go but up. */}
-          <div aria-hidden className="h-[45vh]" />
-        </>
-      )}
+          {/* Scroll room so a field can sit high in the pane while its
+              picker opens below it. */}
+          <div aria-hidden className="h-[35vh]" />
+        </div>
+      </div>
     </div>
   );
 }
