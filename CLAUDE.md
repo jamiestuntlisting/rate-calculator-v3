@@ -140,6 +140,34 @@ state stays in step.
   adjustment columns: 202 is per-day stunt adjustments and feeds the overtime
   rate, 190 is allowances and meal penalties landing after the subtotal, and
   swapping them still yields a plausible gross.
+- **Transcription shares Log Work's views** — the `/upload-g/[id]`
+  fields pane renders the same vertical rows as Log Work through
+  `src/components/calculator/work-times-fields.tsx` (TimeRow,
+  MealSection, the derived ND Out). ND breakfast and 2nd meal are off
+  until the card shows one; Cast is the signed-in (or viewed) member's
+  registered name, shown not asked. Saving a transcription calls
+  `recalculateDay` like the weekly stamp paths, so a transcribed G
+  prices its tracker row; days missing an agreement stay unpriced and
+  surface as to-dos on Resolve. `DateField`
+  (`src/components/ui/date-field.tsx`) is the app's date input — it
+  summons the platform picker on pointerdown; use it, not a bare
+  `<Input type="date">`.
+- **Resolve groups weeklies** — days with a `weeklyId` fold into one
+  row per contract on /analytics: Calculated is the saved weekly's
+  `expectedAmount` (else the day sum, asterisked), and the one Paid box
+  spreads the check across the days oldest-first as bookkeeping. The
+  pipeline card is five blocks with arrows; each expanded row carries a
+  "Check & pay stub" fold (photo + lines, image beside the working) and
+  an expected-pay PDF link.
+- **Expected-pay PDF** — `/api/work-records/[id]/expected-pay` renders
+  the statement (times, breakdown, total, the G's JPEG on page 2) via
+  `src/lib/pdf.ts`, a dependency-free writer with uncompressed streams
+  so tests read the document's own text. Do not add a PDF library; the
+  Worker bundle is the reason it exists.
+- **Reverse calculator** — `/admin/reverse` works a check total
+  backwards through `src/lib/reverse-daily.ts`, pricing normal day
+  shapes with the real engine (adjustments feed the OT rate, so no
+  shortcut math — pinned by test).
 - **Non-SAG work** — commercials, music videos, low budget and anything
   else go through `/other-work`, and carry the same times as a SAG day:
   call, both meals, dismissal and wrap. They are deliberately **not** run
