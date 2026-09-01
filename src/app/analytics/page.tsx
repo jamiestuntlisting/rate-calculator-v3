@@ -399,9 +399,12 @@ export default function AnalyticsPage() {
           paid,
           items,
           looseRecords: loose,
+          latest: sorted[sorted.length - 1]?.workDate ?? "",
         };
       })
-      .sort((a, b) => b.expected - a.expected);
+      // The same order as the Tracker: whoever worked most recently
+      // sits on top, not whoever is owed the most.
+      .sort((a, b) => b.latest.localeCompare(a.latest));
 
     // By month — parse from ISO string to avoid timezone shifts
     const monthMap = new Map<string, { days: number; expected: number; paid: number }>();
@@ -523,9 +526,14 @@ export default function AnalyticsPage() {
             )}
           </button>
           <Link href="/weekly" className="order-2 min-w-0 flex-1 truncate">
+            {/* The tag does the talking: one glance says this row is a
+                contract paid as one check, not another day. */}
+            <span className="mr-1.5 inline-block rounded border border-sky-700/60 bg-sky-900/40 px-1.5 py-0.5 align-middle text-[10px] font-semibold uppercase tracking-wide text-sky-300">
+              {contractNoun}
+            </span>
             <span className="text-sm font-medium">{showName}</span>
             <span className="text-xs text-muted-foreground">
-              {" "}· {contractNoun} of {shortDay(weekly.weekStart.split("T")[0])} ·{" "}
+              {" "}· from {shortDay(weekly.weekStart.split("T")[0])} ·{" "}
               {weekRecords.length} day{weekRecords.length === 1 ? "" : "s"}
             </span>
           </Link>
