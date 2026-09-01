@@ -36,6 +36,8 @@ import { mealLengthWarning, secondMealOrderWarning } from "@/lib/meal-length";
 import { wrapOrderWarning } from "@/lib/wrap-check";
 import { useAuth } from "@/context/auth-context";
 import { useFocalZoom } from "@/lib/use-focal-zoom";
+import { calculateRate } from "@/lib/rate-engine";
+import { formatCurrency } from "@/lib/time-utils";
 import { toast } from "sonner";
 
 interface GUpload {
@@ -257,6 +259,54 @@ export default function TranscribePage({
       checkNdMeal(row.callTime, row.ndMealIn || null, row.ndMealOut || null),
     [row.callTime, row.ndMealIn, row.ndMealOut]
   );
+
+  /**
+   * Meal penalties, live, the moment call, meals and dismissal are in.
+   * They are statutory dollars on the $25/$35/$50 ladder — the same
+   * whatever the agreement — so unlike the rate they are knowable
+   * before the agreement is picked. The engine is run with a stand-in
+   * schedule purely to read its penalty lines; nothing else is shown.
+   */
+  const mealPenalties = useMemo(() => {
+    if (!row.callTime || !row.dismissOnSet) return null;
+    try {
+      const breakdown = calculateRate({
+        showName: "",
+        workDate: (details.workDate || "").slice(0, 10) || "2026-01-01",
+        callTime: row.callTime,
+        dismissOnSet: row.dismissOnSet,
+        dismissMakeupWardrobe: row.dismissMakeupWardrobe || null,
+        ndMealIn: row.ndMealIn || null,
+        ndMealOut: row.ndMealOut || null,
+        firstMealStart: row.firstMealStart || null,
+        firstMealFinish: row.firstMealFinish || null,
+        secondMealStart: row.secondMealStart || null,
+        secondMealFinish: row.secondMealFinish || null,
+        stuntAdjustment: 0,
+        flatDayRate: null,
+        forcedCall: false,
+        isSixthDay: false,
+        isSeventhDay: false,
+        isHoliday: false,
+        workStatus: "theatrical_basic",
+        characterName: "",
+        notes: "",
+      });
+      const perMeal = new Map<string, { count: number; amount: number }>();
+      for (const penalty of breakdown.penalties.mealPenalties) {
+        const entry = perMeal.get(penalty.meal) ?? { count: 0, amount: 0 };
+        entry.count += 1;
+        entry.amount += penalty.amount;
+        perMeal.set(penalty.meal, entry);
+      }
+      const total = [...perMeal.values()].reduce((s, e) => s + e.amount, 0);
+      return { perMeal, total };
+    } catch {
+      // An input the engine refuses (e.g. an ND meal outside its
+      // window) has its own warning; no panel until it is fixed.
+      return null;
+    }
+  }, [row, details.workDate]);
 
   /** The zoom at which the whole card fits its pane, both dimensions. */
   const fitZoom = useCallback(() => {
@@ -886,6 +936,41 @@ export default function TranscribePage({
                   </div>
                 </div>
               </div>
+
+              {/* Penalties are statutory dollars, so they are knowable
+                  from the times alone — long before the agreement is. */}
+              {mealPenalties && mealPenalties.total > 0 && (
+                <div className="mx-2 my-2 rounded-lg border border-amber-700/50 bg-amber-950/30 p-3">
+                  <p className="mb-1 text-sm font-medium text-amber-300">
+                    Meal penalties from these times
+                  </p>
+                  <div className="space-y-0.5">
+                    {[...mealPenalties.perMeal.entries()].map(
+                      ([meal, entry]) => (
+                        <div key={meal} className="flex justify-between text-sm">
+                          <span className="text-amber-400">
+                            {meal} — {entry.count} penalt
+                            {entry.count === 1 ? "y" : "ies"}
+                          </span>
+                          <span className="font-semibold tabular-nums text-amber-300">
+                            {formatCurrency(entry.amount)}
+                          </span>
+                        </div>
+                      )
+                    )}
+                    <div className="mt-1 flex justify-between border-t border-amber-700/50 pt-1 text-sm font-bold">
+                      <span className="text-amber-300">Total</span>
+                      <span className="tabular-nums text-amber-300">
+                        {formatCurrency(mealPenalties.total)}
+                      </span>
+                    </div>
+                  </div>
+                  <p className="mt-1.5 text-[11px] text-amber-400/80">
+                    Statutory dollars — the same whatever the agreement, so
+                    they land on top once the day is priced.
+                  </p>
+                </div>
+              )}
             </div>
           </div>
 
