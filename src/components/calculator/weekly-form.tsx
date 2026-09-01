@@ -529,6 +529,10 @@ export function WeeklyForm() {
     (sum, w) => sum + (w.breakdown?.grandTotal ?? 0),
     0
   );
+  /** Any day with no times makes every total a floor, not a figure. */
+  const anyUnworked = calculated.some(
+    (w) => w.derivation.daysWithoutCalculation > 0
+  );
 
   const setOverride = (start: string, patch: Partial<WeekOverride>) =>
     setOverrides((prev) => ({
@@ -1291,7 +1295,7 @@ export function WeeklyForm() {
         </div>
       )}
 
-      {calculated.map(({ week, breakdown, override, turnarounds, rules, continuation }) => {
+      {calculated.map(({ week, derivation, breakdown, override, turnarounds, rules, continuation }) => {
         const open = openWeek === week.start;
         // The weekly is defined by the first day actually worked — the
         // calendar boundary only decides which days belong together.
@@ -1316,12 +1320,28 @@ export function WeeklyForm() {
                 <span className="block text-xs text-muted-foreground">
                   {week.records.length} day
                   {week.records.length === 1 ? "" : "s"}
+                  {derivation.daysWithoutCalculation > 0
+                    ? ` · ${derivation.daysWithoutCalculation} not transcribed`
+                    : ""}
                   {continuation ? " · prorated weekly" : ""}
                   {lastSavedRef.current[firstDay] ? " · saved" : ""}
                 </span>
               </span>
+              {/* Days with no times contribute nothing, so until every
+                  day is transcribed the figure is a floor, and says so. */}
               <span className="text-lg font-semibold tabular-nums shrink-0">
-                {breakdown ? formatCurrency(breakdown.grandTotal) : "—"}
+                {breakdown ? (
+                  <>
+                    {derivation.daysWithoutCalculation > 0 && (
+                      <span className="mr-1.5 text-xs font-normal text-amber-400">
+                        at least
+                      </span>
+                    )}
+                    {formatCurrency(breakdown.grandTotal)}
+                  </>
+                ) : (
+                  "—"
+                )}
               </span>
             </button>
 
@@ -1561,8 +1581,19 @@ export function WeeklyForm() {
         <div className="rounded-lg border-2 border-primary bg-primary/5 p-4 flex items-center justify-between gap-4">
           <span className="text-sm text-muted-foreground">
             {calculated.length} weeks
+            {anyUnworked && (
+              <span className="block text-xs text-amber-400">
+                some days aren&apos;t transcribed yet — the real total is
+                higher
+              </span>
+            )}
           </span>
           <span className="text-2xl font-bold tabular-nums">
+            {anyUnworked && (
+              <span className="mr-1.5 text-sm font-normal text-amber-400">
+                at least
+              </span>
+            )}
             {formatCurrency(grandTotal)}
           </span>
         </div>

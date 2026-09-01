@@ -484,6 +484,8 @@ export default function AnalyticsPage() {
           : null;
     const contractNoun = weekly.kind === "three_day" ? "3-day" : "Weekly";
     const weekStartYmd = weekly.weekStart.split("T")[0];
+    /** Days with no times contribute nothing, so the figure is a floor. */
+    const unworkedDays = weekRecords.filter((r) => !r.calculation).length;
     /**
      * The week's working, in stub columns. When the Weekly page has an
      * exact total the note quotes that one line; otherwise the per-day
@@ -554,6 +556,14 @@ export default function AnalyticsPage() {
             </span>
             {item.expected ? (
               <span className="text-sm tabular-nums shrink-0 w-24 text-right">
+                {unworkedDays > 0 && (
+                  <span
+                    className="mr-0.5 text-amber-400"
+                    title={`${unworkedDays} day${unworkedDays === 1 ? "" : "s"} not transcribed yet — this is a minimum`}
+                  >
+                    ≥
+                  </span>
+                )}
                 {fmtAmount(item.expected)}
                 {item.approximate && "*"}
               </span>
@@ -593,6 +603,8 @@ export default function AnalyticsPage() {
               {item.approximate
                 ? "Its total here is the days' approximations added up; the Weekly page works the week out exactly."
                 : "The total is the Weekly page's working for this week."}
+              {unworkedDays > 0 &&
+                ` ${unworkedDays} day${unworkedDays === 1 ? " has" : "s have"} no times yet, so the figure is a minimum — it rises as they are transcribed.`}
             </p>
             <div className="space-y-1">
               {weekRecords.map((r) => {
