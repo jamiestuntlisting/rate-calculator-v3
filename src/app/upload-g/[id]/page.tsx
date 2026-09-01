@@ -1,6 +1,6 @@
 "use client";
 
-import { use, useCallback, useEffect, useRef, useState } from "react";
+import { use, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import {
   ArrowLeft,
@@ -12,8 +12,24 @@ import {
   ZoomOut,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { TimeSelect } from "@/components/calculator/time-select";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
+import { DateField } from "@/components/ui/date-field";
+import { SuggestInput } from "@/components/shared/suggest-input";
+import { CollapsibleSection } from "@/components/calculator/collapsible-section";
+import {
+  MealSection,
+  MealTime,
+  MealTimes,
+  NdMealOut,
+  TimeRow,
+  ndMealWarning,
+} from "@/components/calculator/work-times-fields";
+import { followedTime } from "@/lib/follow-time";
+import { checkNdMeal, ND_MEAL_MINUTES } from "@/lib/nd-meal";
+import { mealLengthWarning, secondMealOrderWarning } from "@/lib/meal-length";
+import { wrapOrderWarning } from "@/lib/wrap-check";
+import { useAuth } from "@/context/auth-context";
 import { toast } from "sonner";
 
 interface GUpload {
@@ -70,32 +86,6 @@ interface Transcription {
   };
 }
 
-/**
- * In the order the columns run across the card, so transcribing is a straight
- * read left to right rather than a hunt for the matching box.
- */
-const FIELDS: Array<{
-  key: keyof TranscriptionRow;
-  label: string;
-  width: string;
-  /** Time columns get the real AM/PM picker, not a bare number field. */
-  time?: boolean;
-}> = [
-  { key: "performer", label: "Cast", width: "11rem" },
-  { key: "character", label: "Character", width: "11rem" },
-  { key: "callTime", label: "Make-up Hair Wrdrbe", width: "8rem", time: true },
-  { key: "reportOnSet", label: "Report on Set", width: "8rem", time: true },
-  { key: "dismissOnSet", label: "Dismiss on Set", width: "8rem", time: true },
-  { key: "dismissMakeupWardrobe", label: "Dismiss MU/Hair Wrdrbe", width: "8rem", time: true },
-  { key: "ndMealIn", label: "ND In", width: "8rem", time: true },
-  { key: "ndMealOut", label: "ND Out", width: "8rem", time: true },
-  { key: "firstMealStart", label: "1st Meal Out", width: "8rem", time: true },
-  { key: "firstMealFinish", label: "1st Meal In", width: "8rem", time: true },
-  { key: "secondMealStart", label: "2nd Meal Out", width: "8rem", time: true },
-  { key: "secondMealFinish", label: "2nd Meal In", width: "8rem", time: true },
-  { key: "notes", label: "Notes", width: "14rem" },
-];
-
 function emptyRow(): TranscriptionRow {
   return {
     performer: "",
@@ -126,6 +116,10 @@ function touchDistance(touches: React.TouchList): number {
  * pane scrolling on its own, an even fifty-fifty. The image opens
  * fitted to its pane so the whole card shows with no dead white space,
  * and zooms from there: buttons, pinch, or ctrl/⌘ + scroll.
+ *
+ * The fields run down the pane in the same order and the same rows as
+ * Log Work — the transcription is that form, read off a card — so a
+ * phone scrolls one column and a desktop sees the whole day at once.
  */
 export default function TranscribePage({
   params,
@@ -142,26 +136,55 @@ export default function TranscribePage({
     showName: "",
     workDate: "",
   });
-  const [natural, setNatural] = useState({ w: 0, h: 0 });
   /**
-   * The split pins itself under the app header, whose height differs by
-   * breakpoint (one bar on a phone, two on a desktop) — measured, not
-   * guessed.
+   * The meals mirror Log Work: the 1st meal is expected on a normal day,
+   * the ND breakfast and the 2nd meal are off until the card shows one —
+   * or a saved transcription already carries their times.
+   */
+  const [showNdMeal, setShowNdMeal] = useState(false);
+  const [showFirstMeal, setShowFirstMeal] = useState(true);
+  const [showSecondMeal, setShowSecondMeal] = useState(false);
+  const [natural, setNatural] = useState({ w: 0, h: 0 });
+
+  /**
+   * The Cast box is not asked: this G is the signed-in performer's (or,
+   * for an admin viewing as a member, that member's), so their
+   * registered name is the answer and it rides the saved row.
+   */
+  const { user, viewingAs } = useAuth();
+  const performerAccount = viewingAs ?? user;
+  const performerName = performerAccount
+    ? performerAccount.firstName
+      ? `${performerAccount.firstName} ${performerAccount.lastName || ""}`.trim()
+      : performerAccount.email
+    : "";
+
+  /**
+   * The split pins under everything above the page: the app header and —
+   * for an admin viewing as a member — the banner above it. Measured off
+   * the header's bottom edge, not its height, precisely because of that
+   * banner; observing the body catches the banner mounting and
+   * unmounting, which moves the header without resizing it.
    */
   const [topOffset, setTopOffset] = useState(56);
   useEffect(() => {
     const header = document.querySelector("header");
     if (!header) return;
     const measure = () =>
-      setTopOffset(Math.round(header.getBoundingClientRect().height));
+      setTopOffset(
+        Math.max(0, Math.round(header.getBoundingClientRect().bottom))
+      );
     measure();
-    // The second nav bar mounts once auth resolves, so observe rather
-    // than measure once.
     const observer = new ResizeObserver(measure);
     observer.observe(header);
+    // The banner mounts and unmounts without resizing the header itself —
+    // it just pushes it down — so watch the DOM around it too.
+    const mutations = new MutationObserver(measure);
+    mutations.observe(document.body, { childList: true, subtree: true });
     window.addEventListener("resize", measure);
     return () => {
       observer.disconnect();
+      mutations.disconnect();
       window.removeEventListener("resize", measure);
     };
   }, []);
@@ -170,7 +193,6 @@ export default function TranscribePage({
 
   const imageRef = useRef<HTMLDivElement>(null);
   const formPaneRef = useRef<HTMLDivElement>(null);
-  const fieldsRef = useRef<HTMLDivElement>(null);
   const pinch = useRef<{ distance: number; zoom: number } | null>(null);
   const restored = useRef(false);
   const savedView = useRef<Transcription["view"] | null>(null);
@@ -183,7 +205,14 @@ export default function TranscribePage({
         const data = (await res.json()) as GUpload;
         setUpload(data);
         setRotation(data.rotation);
-        if (data.transcription?.rows?.[0]) setRow(data.transcription.rows[0]);
+        if (data.transcription?.rows?.[0]) {
+          // Older saves may miss keys; the empty row fills them so every
+          // field stays a controlled input.
+          const saved = { ...emptyRow(), ...data.transcription.rows[0] };
+          setRow(saved);
+          setShowNdMeal(!!(saved.ndMealIn || saved.ndMealOut));
+          setShowSecondMeal(!!(saved.secondMealStart || saved.secondMealFinish));
+        }
         if (data.transcription?.details) setDetails(data.transcription.details);
         if (data.transcription?.view) {
           savedView.current = data.transcription.view;
@@ -196,6 +225,17 @@ export default function TranscribePage({
       }
     })();
   }, [id]);
+
+  /**
+   * An ND meal outside its window is a transcription's early warning: a
+   * card really saying that usually means a misread meridiem, and the
+   * engine downstream would refuse it anyway.
+   */
+  const ndMeal = useMemo(
+    () =>
+      checkNdMeal(row.callTime, row.ndMealIn || null, row.ndMealOut || null),
+    [row.callTime, row.ndMealIn, row.ndMealOut]
+  );
 
   /** The zoom at which the whole card fits its pane, both dimensions. */
   const fitZoom = useCallback(() => {
@@ -247,30 +287,9 @@ export default function TranscribePage({
     return "none";
   })();
 
-  /** Reading across the card nudges the field strip to the same part. */
-  const syncFields = () => {
-    const source = imageRef.current;
-    if (!source || !fieldsRef.current) return;
-    const imageRange = source.scrollWidth - source.clientWidth;
-    const fieldRange =
-      fieldsRef.current.scrollWidth - fieldsRef.current.clientWidth;
-    if (imageRange > 0 && fieldRange > 0) {
-      fieldsRef.current.scrollLeft =
-        (source.scrollLeft / imageRange) * fieldRange;
-    }
-  };
-
   const onTouchStart = (e: React.TouchEvent) => {
     if (e.touches.length === 2) {
       pinch.current = { distance: touchDistance(e.touches), zoom };
-    }
-  };
-
-  const onTouchMove = (e: React.TouchEvent) => {
-    if (e.touches.length === 2 && pinch.current) {
-      e.preventDefault();
-      const ratio = touchDistance(e.touches) / pinch.current.distance;
-      setZoom(Math.min(8, Math.max(0.02, pinch.current.zoom * ratio)));
     }
   };
 
@@ -278,12 +297,43 @@ export default function TranscribePage({
     pinch.current = null;
   };
 
-  // Desktop: ctrl/⌘ + wheel zooms, like a photo viewer.
-  const onWheel = (e: React.WheelEvent) => {
-    if (!e.ctrlKey && !e.metaKey) return;
-    e.preventDefault();
-    setZoom((z) => Math.min(8, Math.max(0.02, z * (e.deltaY < 0 ? 1.08 : 0.93))));
-  };
+  /**
+   * Zooming the card must zoom ONLY the card: a trackpad pinch (which
+   * arrives as ctrl+wheel) and a touch pinch both default to zooming the
+   * whole page, fields and all. React registers wheel/touchmove
+   * passively, where preventDefault is silently ignored — so the two
+   * handlers that need to swallow the browser's zoom are attached by
+   * hand, non-passive, to the image pane alone.
+   */
+  useEffect(() => {
+    const el = imageRef.current;
+    if (!el) return;
+    const onWheel = (e: WheelEvent) => {
+      if (!e.ctrlKey && !e.metaKey) return;
+      e.preventDefault();
+      setZoom((z) =>
+        Math.min(8, Math.max(0.02, z * (e.deltaY < 0 ? 1.08 : 0.93)))
+      );
+    };
+    const onTouchMove = (e: TouchEvent) => {
+      if (e.touches.length === 2 && pinch.current) {
+        e.preventDefault();
+        const [a, b] = [e.touches[0], e.touches[1]];
+        const distance = Math.hypot(
+          a.clientX - b.clientX,
+          a.clientY - b.clientY
+        );
+        const ratio = distance / pinch.current.distance;
+        setZoom(Math.min(8, Math.max(0.02, pinch.current.zoom * ratio)));
+      }
+    };
+    el.addEventListener("wheel", onWheel, { passive: false });
+    el.addEventListener("touchmove", onTouchMove, { passive: false });
+    return () => {
+      el.removeEventListener("wheel", onWheel);
+      el.removeEventListener("touchmove", onTouchMove);
+    };
+  }, [upload]);
 
   const save = useCallback(async () => {
     setSaving(true);
@@ -294,7 +344,7 @@ export default function TranscribePage({
         body: JSON.stringify({
           transcription: {
             details,
-            rows: [row],
+            rows: [{ ...row, performer: performerName || row.performer }],
             view: {
               zoom,
               scrollX: imageRef.current?.scrollLeft ?? 0,
@@ -310,7 +360,7 @@ export default function TranscribePage({
     } finally {
       setSaving(false);
     }
-  }, [id, row, details, zoom]);
+  }, [id, row, details, zoom, performerName]);
 
   const rotate = async () => {
     const next = (rotation + 90) % 360;
@@ -394,11 +444,8 @@ export default function TranscribePage({
           <>
             <div
               ref={imageRef}
-              onScroll={syncFields}
               onTouchStart={onTouchStart}
-              onTouchMove={onTouchMove}
               onTouchEnd={onTouchEnd}
-              onWheel={onWheel}
               className="h-full w-full overflow-auto overscroll-contain"
               style={{ touchAction: "pan-x pan-y" }}
             >
@@ -461,7 +508,25 @@ export default function TranscribePage({
         ref={formPaneRef}
         className="h-1/2 w-full overflow-y-auto border-t border-border lg:h-full lg:w-1/2 lg:border-t-0 lg:border-l"
       >
-        <div className="p-3 space-y-3">
+        <div
+          className="p-3 space-y-3"
+          onFocus={(e) => {
+            // The platform's time wheel anchors to its field and flips
+            // above it when the field sits at the bottom of the pane —
+            // straight over the card. Park the tapped field a quarter of
+            // the way down the form pane; the spacer at the bottom gives
+            // the wheel a home under the field.
+            const el = e.target as HTMLElement;
+            const pane = formPaneRef.current;
+            if (el.tagName !== "INPUT" || !pane) return;
+            const top =
+              pane.scrollTop +
+              el.getBoundingClientRect().top -
+              pane.getBoundingClientRect().top -
+              pane.clientHeight * 0.25;
+            pane.scrollTo({ top: Math.max(0, top) });
+          }}
+        >
           <div className="flex flex-wrap items-center justify-between gap-3">
             <div className="flex items-center gap-2 min-w-0">
               <Link
@@ -490,119 +555,249 @@ export default function TranscribePage({
             </Button>
           </div>
 
-          {/* Save any part of this: the date alone is worth recording. */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-            <div>
-              <label
-                htmlFor="g-show-name"
-                className="block text-sm text-muted-foreground mb-1"
-              >
+          {/* Save any part of this: the date alone is worth recording.
+              One row of four on a desktop so the times below stay above
+              the fold. */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+            <div className="space-y-1 min-w-0">
+              <Label htmlFor="g-show-name" className="text-base">
                 Show
-              </label>
-              <Input
+              </Label>
+              <SuggestInput
+                kind="show"
                 id="g-show-name"
                 value={details.showName}
-                onChange={(e) =>
-                  setDetails((d) => ({ ...d, showName: e.target.value }))
-                }
-                placeholder="Names this G and its tracker row"
-                className="h-11 text-base"
+                onChange={(v) => setDetails((d) => ({ ...d, showName: v }))}
+                placeholder="Name of the show"
+                className="h-12 text-lg"
               />
             </div>
-            <div>
-              <label
-                htmlFor="g-work-date"
-                className="block text-sm text-muted-foreground mb-1"
-              >
+            <div className="space-y-1 min-w-0">
+              <Label htmlFor="g-work-date" className="text-base">
                 Work date
-              </label>
-              <Input
+              </Label>
+              <DateField
                 id="g-work-date"
-                type="date"
                 value={details.workDate}
                 onChange={(e) =>
                   setDetails((d) => ({ ...d, workDate: e.target.value }))
                 }
-                className="h-11 text-base"
+                className="h-12 text-lg w-full max-w-full"
+              />
+            </div>
+            <div className="space-y-1 min-w-0">
+              <span className="block text-base font-medium">Cast</span>
+              {/* Not a field: the G being transcribed is this performer's,
+                  so their registered name is the answer. */}
+              <p className="flex h-12 items-center text-lg truncate">
+                {performerName || "—"}
+              </p>
+            </div>
+            <div className="space-y-1 min-w-0">
+              <Label htmlFor="g-character" className="text-base">
+                Character
+              </Label>
+              <SuggestInput
+                kind="character"
+                id="g-character"
+                value={row.character}
+                onChange={(v) => setRow((prev) => ({ ...prev, character: v }))}
+                placeholder="e.g., Stunt Double"
+                className="h-12 text-lg"
               />
             </div>
           </div>
 
-          {/* Fields for the row on the card, in reading order. */}
-          <div
-            ref={fieldsRef}
-            className="overflow-x-auto rounded-lg border border-border"
-            onFocus={(e) => {
-              // The platform's time wheel anchors to its field and flips
-              // above it when the field sits at the bottom of the pane —
-              // straight over the card. Park the tapped field a third of
-              // the way down the form pane; the spacer below gives the
-              // wheel a home under the field.
-              const el = e.target as HTMLElement;
-              const pane = formPaneRef.current;
-              if (el.tagName !== "INPUT" || !pane) return;
-              const top =
-                pane.scrollTop +
-                el.getBoundingClientRect().top -
-                pane.getBoundingClientRect().top -
-                pane.clientHeight * 0.25;
-              pane.scrollTo({ top: Math.max(0, top) });
-            }}
-          >
-            <div className="min-w-max p-2">
-              {/* Bottom-aligned: the card's headings stack onto two or three
-                  lines, and each should sit right above its own box. */}
-              <div className="flex items-end gap-2 mb-1">
-                {FIELDS.map((f) => (
-                  <span
-                    key={f.key}
-                    style={{ width: f.width }}
-                    className="shrink-0 text-xs font-medium leading-tight text-muted-foreground"
-                  >
-                    {f.label}
-                  </span>
-                ))}
-              </div>
-              <div className="flex gap-2">
-                {FIELDS.map((f) =>
-                  f.time ? (
-                    /* The card's time boxes get the platform's own AM/PM
-                       picker — the same one every other form uses — so a
-                       "915" can never land as unparseable text. */
-                    <div
-                      key={f.key}
-                      style={{ width: f.width }}
-                      className="shrink-0"
-                    >
-                      <TimeSelect
-                        id={`row-${f.key}`}
-                        value={row[f.key]}
-                        onChange={(v) =>
-                          setRow((prev) => ({ ...prev, [f.key]: v }))
-                        }
-                        compact
-                      />
-                    </div>
-                  ) : (
-                    <Input
-                      key={f.key}
-                      value={row[f.key]}
-                      onChange={(e) =>
-                        setRow((prev) => ({ ...prev, [f.key]: e.target.value }))
+          {/* The same rows as Log Work, in the same order — the card is
+              read into the day's form, not into a copy of the card. No
+              fold: on this page the times ARE the page. */}
+          <div className="rounded-lg border border-border p-2">
+            <div className="space-y-0">
+              <TimeRow
+                id="row-callTime"
+                label="Call Time"
+                hint="Make-up Hair Wrdrbe on the card"
+                anchor
+                value={row.callTime}
+                onChange={(v) => setRow((prev) => ({ ...prev, callTime: v }))}
+              />
+              <TimeRow
+                id="row-reportOnSet"
+                label="Report on Set"
+                value={row.reportOnSet}
+                onChange={(v) =>
+                  setRow((prev) => ({ ...prev, reportOnSet: v }))
+                }
+              />
+              {/* Meals */}
+              <div className="border-t border-b py-2 my-1 space-y-2">
+                <MealSection
+                  id="g-show-nd-meal"
+                  title="ND (Non-Deductible) Meal"
+                  checked={showNdMeal}
+                  onCheckedChange={(v) => {
+                    setShowNdMeal(v);
+                    if (!v)
+                      setRow((prev) => ({
+                        ...prev,
+                        ndMealIn: "",
+                        ndMealOut: "",
+                      }));
+                  }}
+                  warnings={[ndMealWarning(ndMeal, row.callTime)]}
+                >
+                  <MealTimes>
+                    {/* The Out is derived, as on Log Work: an ND meal is
+                        15 minutes by rule, whatever the card's box says. */}
+                    <MealTime
+                      id="row-ndMealIn"
+                      label="In"
+                      value={row.ndMealIn}
+                      onChange={(v) =>
+                        setRow((prev) => ({
+                          ...prev,
+                          ndMealIn: v,
+                          ndMealOut: v
+                            ? (followedTime(v, null, ND_MEAL_MINUTES) ?? "")
+                            : "",
+                        }))
                       }
-                      style={{ width: f.width }}
-                      className="h-11 text-sm shrink-0"
-                      placeholder={f.label}
                     />
-                  )
+                    <NdMealOut value={row.ndMealOut || null} />
+                  </MealTimes>
+                </MealSection>
+                <MealSection
+                  id="g-show-first-meal"
+                  title="1st Meal"
+                  checked={showFirstMeal}
+                  onCheckedChange={(v) => {
+                    setShowFirstMeal(v);
+                    if (!v) {
+                      setShowSecondMeal(false);
+                      setRow((prev) => ({
+                        ...prev,
+                        firstMealStart: "",
+                        firstMealFinish: "",
+                        secondMealStart: "",
+                        secondMealFinish: "",
+                      }));
+                    }
+                  }}
+                  warnings={[
+                    mealLengthWarning(row.firstMealStart, row.firstMealFinish),
+                  ]}
+                >
+                  <MealTimes>
+                    <MealTime
+                      id="row-firstMealStart"
+                      label="In"
+                      value={row.firstMealStart}
+                      onChange={(v) =>
+                        setRow((prev) => ({ ...prev, firstMealStart: v }))
+                      }
+                    />
+                    <MealTime
+                      id="row-firstMealFinish"
+                      label="Out"
+                      value={row.firstMealFinish}
+                      onChange={(v) =>
+                        setRow((prev) => ({ ...prev, firstMealFinish: v }))
+                      }
+                    />
+                  </MealTimes>
+                </MealSection>
+                {/* 2nd Meal — only visible when 1st Meal is checked */}
+                {showFirstMeal && (
+                  <MealSection
+                    id="g-show-second-meal"
+                    title="2nd Meal"
+                    checked={showSecondMeal}
+                    onCheckedChange={(v) => {
+                      setShowSecondMeal(v);
+                      if (!v)
+                        setRow((prev) => ({
+                          ...prev,
+                          secondMealStart: "",
+                          secondMealFinish: "",
+                        }));
+                    }}
+                    warnings={[
+                      secondMealOrderWarning(
+                        row.firstMealFinish,
+                        row.secondMealStart
+                      ),
+                      mealLengthWarning(
+                        row.secondMealStart,
+                        row.secondMealFinish
+                      ),
+                    ]}
+                  >
+                    <MealTimes>
+                      <MealTime
+                        id="row-secondMealStart"
+                        label="In"
+                        value={row.secondMealStart}
+                        onChange={(v) =>
+                          setRow((prev) => ({ ...prev, secondMealStart: v }))
+                        }
+                      />
+                      <MealTime
+                        id="row-secondMealFinish"
+                        label="Out"
+                        value={row.secondMealFinish}
+                        onChange={(v) =>
+                          setRow((prev) => ({ ...prev, secondMealFinish: v }))
+                        }
+                      />
+                    </MealTimes>
+                  </MealSection>
                 )}
               </div>
+
+              <TimeRow
+                id="row-dismissOnSet"
+                label="Dismiss On Set"
+                value={row.dismissOnSet}
+                onChange={(v) =>
+                  setRow((prev) => ({ ...prev, dismissOnSet: v }))
+                }
+              />
+              <TimeRow
+                id="row-dismissMakeupWardrobe"
+                label="Wrapped"
+                hint="Dismiss MU/Hair Wrdrbe on the card"
+                anchor
+                value={row.dismissMakeupWardrobe}
+                onChange={(v) =>
+                  setRow((prev) => ({ ...prev, dismissMakeupWardrobe: v }))
+                }
+              />
+              {wrapOrderWarning(row.dismissOnSet, row.dismissMakeupWardrobe) && (
+                <p className="px-2 pb-1 text-xs text-amber-400">
+                  {wrapOrderWarning(row.dismissOnSet, row.dismissMakeupWardrobe)}
+                </p>
+              )}
             </div>
           </div>
 
+          <CollapsibleSection
+            title="Notes"
+            summary={row.notes || "Stunt adjustment, mileage, anything else"}
+          >
+            <Textarea
+              id="row-notes"
+              value={row.notes}
+              onChange={(e) =>
+                setRow((prev) => ({ ...prev, notes: e.target.value }))
+              }
+              placeholder="Stunt adjustment, mileage, anything else on the line"
+              rows={2}
+              className="text-lg"
+            />
+          </CollapsibleSection>
+
           <p className="text-xs text-muted-foreground">
-            Pinch the card to zoom (or ⌘/Ctrl + scroll). Scrolling the card
-            sideways nudges the fields along with it.
+            Pinch the card to zoom (or ⌘/Ctrl + scroll).
           </p>
 
           {/* Scroll room so a field can sit high in the pane while its

@@ -96,12 +96,14 @@ export async function PATCH(
         "secondMealFinish",
         "dismissOnSet",
         "dismissMakeupWardrobe",
-        "characterName",
         "notes",
       ]) {
         const value = row?.[field];
         if (value) patch[field] = value;
       }
+      // The transcription row calls it "character"; the work record calls
+      // it "characterName".
+      if (row?.character) patch.characterName = row.character;
       // Times present means it is no longer just an attachment.
       if (patch.callTime && patch.dismissOnSet) patch.recordStatus = "complete";
       else if (Object.keys(patch).length > 0) patch.recordStatus = "draft";
