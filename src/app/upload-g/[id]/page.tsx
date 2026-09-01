@@ -574,7 +574,7 @@ export default function TranscribePage({
               <TimeRow
                 id="row-callTime"
                 label="Call Time"
-                hint="Make-up Hair Wrdrbe on the card"
+                hint="Make-up Hair Wrdrbe"
                 anchor
                 value={row.callTime}
                 onChange={(v) => setRow((prev) => ({ ...prev, callTime: v }))}
@@ -723,7 +723,7 @@ export default function TranscribePage({
               <TimeRow
                 id="row-dismissMakeupWardrobe"
                 label="Wrapped"
-                hint="Dismiss MU/Hair Wrdrbe on the card"
+                hint="Dismiss MU/Hair Wrdrbe"
                 anchor
                 value={row.dismissMakeupWardrobe}
                 onChange={(v) =>
