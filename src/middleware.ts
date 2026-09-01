@@ -10,6 +10,10 @@ const SESSION_COOKIE = "stl_session";
 const PUBLIC_PATHS = [
   "/login",
   "/how-it-works",
+  // Policy pages must open logged out — carrier (A2P) reviewers follow
+  // these links cold, and members read them before signing in.
+  "/privacy",
+  "/terms",
   "/api/auth/login",
   // Machine callers: the mailbox watcher and Twilio. Each authenticates
   // inside its route (shared secret, request signature), not a session.
