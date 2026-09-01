@@ -76,9 +76,40 @@ export async function POST(request: Request) {
     const params: Record<string, string> = {};
     for (const [key, value] of form.entries()) params[key] = value;
 
-    const url = (await configValue("TWILIO_WEBHOOK_URL")) ?? request.url;
+    // Twilio signs the URL exactly as configured in its console, but the
+    // URL a Worker route sees can differ from it (scheme and host get
+    // rewritten on the way through Cloudflare and OpenNext). Try every
+    // sensible reading — the configured override first, then the request
+    // as seen, then the canonical https rebuild from the Host header —
+    // and accept any match: all are HMACs under the same secret token.
     const signature = request.headers.get("x-twilio-signature") ?? "";
-    if (!(await validateTwilioSignature(authToken, url, params, signature))) {
+    const requestUrl = new URL(request.url);
+    const host = request.headers.get("host") ?? requestUrl.host;
+    const candidates = [
+      ...new Set(
+        [
+          await configValue("TWILIO_WEBHOOK_URL"),
+          request.url,
+          `https://${host}${requestUrl.pathname}`,
+          `https://${host}${requestUrl.pathname}${requestUrl.search}`,
+        ].filter((u): u is string => !!u)
+      ),
+    ];
+    let signatureOk = false;
+    for (const candidate of candidates) {
+      if (await validateTwilioSignature(authToken, candidate, params, signature)) {
+        signatureOk = true;
+        break;
+      }
+    }
+    if (!signatureOk) {
+      // Log the URL shapes (never the signature or token) so a mismatch
+      // is diagnosable from the Workers logs.
+      console.error("inbound-sms signature mismatch", {
+        requestUrl: request.url,
+        host,
+        candidatesTried: candidates.length,
+      });
       return new Response(JSON.stringify({ error: "Bad signature" }), {
         status: 403,
         headers: { "Content-Type": "application/json" },
