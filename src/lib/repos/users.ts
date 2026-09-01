@@ -35,6 +35,11 @@ export interface UserPrefs {
    * call, dismissals, then the meals).
    */
   transcribeTimeOrder?: "chrono" | "card";
+  /**
+   * How the transcription page asks: the whole form at once ("form",
+   * the default) or one question at a time ("guided").
+   */
+  transcribeMode?: "form" | "guided";
 }
 
 /** The stored JSON, or {} for NULL, junk, or a non-object. */

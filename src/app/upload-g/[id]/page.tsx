@@ -6,6 +6,8 @@ import { useRouter } from "next/navigation";
 import {
   ArrowLeft,
   Check,
+  ChevronLeft,
+  ChevronRight,
   Loader2,
   Maximize,
   RotateCw,
@@ -29,8 +31,9 @@ import {
   TimeRow,
   ndMealWarning,
 } from "@/components/calculator/work-times-fields";
+import { TimeSelect } from "@/components/calculator/time-select";
 import { followedTime, offerAfterIfEmpty } from "@/lib/follow-time";
-import { MEAL_MINUTES, WorkDateContext } from "@/components/calculator/time-select";
+import { MEAL_MINUTES, WorkDateContext, toDisplay } from "@/components/calculator/time-select";
 import { checkNdMeal, ND_MEAL_MINUTES } from "@/lib/nd-meal";
 import { mealLengthWarning, secondMealOrderWarning } from "@/lib/meal-length";
 import { wrapOrderWarning } from "@/lib/wrap-check";
@@ -168,24 +171,46 @@ export default function TranscribePage({
    * desktop agree.
    */
   const [timeOrder, setTimeOrder] = useState<"chrono" | "card">("chrono");
+  /**
+   * How the page asks: the whole form ("form", the default) or one
+   * question at a time ("guided") — the same fields and the same saved
+   * record either way, so flipping mid-card loses nothing. Persisted
+   * exactly like the order: localStorage first paint, prefs for good.
+   */
+  const [mode, setMode] = useState<"form" | "guided">("form");
+  /** Where the one-at-a-time rail is; survives flipping to the form. */
+  const [guidedStep, setGuidedStep] = useState(0);
   useEffect(() => {
     try {
       const saved = window.localStorage.getItem("stl_transcribe_order");
       if (saved === "card" || saved === "chrono") setTimeOrder(saved);
+      const savedMode = window.localStorage.getItem("stl_transcribe_mode");
+      if (savedMode === "form" || savedMode === "guided") setMode(savedMode);
     } catch {
-      // storage can be blocked; the default stands
+      // storage can be blocked; the defaults stand
     }
     fetch("/api/me/prefs")
       .then((r) => (r.ok ? r.json() : Promise.reject()))
-      .then((data: { prefs?: { transcribeTimeOrder?: string } }) => {
-        const v = data.prefs?.transcribeTimeOrder;
-        if (v === "card" || v === "chrono") {
-          setTimeOrder(v);
-          try {
-            window.localStorage.setItem("stl_transcribe_order", v);
-          } catch {}
+      .then(
+        (data: {
+          prefs?: { transcribeTimeOrder?: string; transcribeMode?: string };
+        }) => {
+          const v = data.prefs?.transcribeTimeOrder;
+          if (v === "card" || v === "chrono") {
+            setTimeOrder(v);
+            try {
+              window.localStorage.setItem("stl_transcribe_order", v);
+            } catch {}
+          }
+          const m = data.prefs?.transcribeMode;
+          if (m === "form" || m === "guided") {
+            setMode(m);
+            try {
+              window.localStorage.setItem("stl_transcribe_mode", m);
+            } catch {}
+          }
         }
-      })
+      )
       .catch(() => {});
   }, []);
   const chooseTimeOrder = (next: "chrono" | "card") => {
@@ -199,6 +224,57 @@ export default function TranscribePage({
       body: JSON.stringify({ transcribeTimeOrder: next }),
     }).catch(() => {});
   };
+  const chooseMode = (next: "form" | "guided") => {
+    cancelAdvance();
+    setMode(next);
+    try {
+      window.localStorage.setItem("stl_transcribe_mode", next);
+    } catch {}
+    fetch("/api/me/prefs", {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ transcribeMode: next }),
+    }).catch(() => {});
+  };
+
+  /**
+   * Auto-advance for the one-at-a-time rail. A time is "entered" when
+   * the wheel stops turning — every change resets the timer, so a spin
+   * to 8:42 doesn't advance at 3:00 — and a date confirms faster since
+   * a picker commits it whole. Back/Next and mode flips cancel it.
+   */
+  const advanceTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const cancelAdvance = useCallback(() => {
+    if (advanceTimer.current) {
+      clearTimeout(advanceTimer.current);
+      advanceTimer.current = null;
+    }
+  }, []);
+  useEffect(() => cancelAdvance, [cancelAdvance]);
+  const goToStep = useCallback(
+    (next: number | ((s: number) => number)) => {
+      cancelAdvance();
+      setGuidedStep(next);
+    },
+    [cancelAdvance]
+  );
+  const queueAdvance = useCallback(
+    (ms: number, count: number) => {
+      cancelAdvance();
+      advanceTimer.current = setTimeout(() => {
+        advanceTimer.current = null;
+        setGuidedStep((s) => Math.min(s + 1, count - 1));
+      }, ms);
+    },
+    [cancelAdvance]
+  );
+  // Land focus on each question as it arrives, so a desktop can just
+  // type. Mobile pickers still open on tap — programmatic focus cannot
+  // (and should not) pop them. The rail renders exactly one input.
+  useEffect(() => {
+    if (mode !== "guided") return;
+    document.querySelector<HTMLElement>('input[id^="guided-"]')?.focus();
+  }, [mode, guidedStep]);
 
   /**
    * The Cast box is not asked: this G is the signed-in performer's (or,
@@ -673,6 +749,406 @@ export default function TranscribePage({
     </div>
   );
 
+  /**
+   * The amber meal-penalty readout — statutory dollars knowable from
+   * the times alone. Rendered under the form, and again on the rail's
+   * last step so a guided pass still ends on what the times mean.
+   */
+  const mealPenaltyPanel = mealPenalties && mealPenalties.total > 0 && (
+    <div className="rounded-lg border border-amber-700/50 bg-amber-950/30 p-3">
+      <p className="mb-1 text-sm font-medium text-amber-300">
+        Meal penalties from these times
+      </p>
+      <div className="space-y-0.5">
+        {[...mealPenalties.perMeal.entries()].map(([meal, entry]) => (
+          <div key={meal} className="flex justify-between text-sm">
+            <span className="text-amber-400">
+              {meal} — {entry.count} penalt
+              {entry.count === 1 ? "y" : "ies"}
+            </span>
+            <span className="font-semibold tabular-nums text-amber-300">
+              {formatCurrency(entry.amount)}
+            </span>
+          </div>
+        ))}
+        <div className="mt-1 flex justify-between border-t border-amber-700/50 pt-1 text-sm font-bold">
+          <span className="text-amber-300">Total</span>
+          <span className="tabular-nums text-amber-300">
+            {formatCurrency(mealPenalties.total)}
+          </span>
+        </div>
+      </div>
+      <p className="mt-1.5 text-[11px] text-amber-400/80">
+        Statutory dollars — the same whatever the agreement, so they land
+        on top once the day is priced.
+      </p>
+    </div>
+  );
+
+  /**
+   * One question at a time — the same fields writing the same state as
+   * the form, so flipping between the two mid-card loses nothing. The
+   * times follow the Day/Card order preference. A time advances once
+   * the wheel rests; a date right after the picker commits it; text
+   * advances on Enter or the arrow. Next past an empty question skips
+   * a box the card leaves blank, and Back revisits anything.
+   */
+  type GuidedStep = {
+    key: string;
+    label: string;
+    hint?: string;
+    kind:
+      | "show"
+      | "character"
+      | "date"
+      | "time"
+      | "money"
+      | "penalties"
+      | "final";
+    value?: string;
+    set?: (v: string) => void;
+    warning?: string | null;
+    note?: string;
+  };
+  const guidedTimeSteps: GuidedStep[] = (() => {
+    const call: GuidedStep = {
+      key: "callTime",
+      label: "Call Time",
+      hint: "The card's Make-up Hair Wrdrbe column",
+      kind: "time",
+      value: row.callTime,
+      set: (v) => setRow((p) => ({ ...p, callTime: v })),
+    };
+    const nd: GuidedStep = {
+      key: "ndMealIn",
+      label: "ND Meal — In",
+      hint: "The NDB column — Next skips it if the card shows none",
+      kind: "time",
+      value: row.ndMealIn,
+      set: (v) => {
+        if (v) setShowNdMeal(true);
+        setRow((p) => ({
+          ...p,
+          ndMealIn: v,
+          ndMealOut: v ? (followedTime(v, null, ND_MEAL_MINUTES) ?? "") : "",
+        }));
+      },
+      warning: ndMealWarning(ndMeal, row.callTime, row.ndMealIn),
+      note:
+        row.ndMealIn && row.ndMealOut
+          ? `Out ${toDisplay(row.ndMealOut)} — 15 minutes by rule`
+          : "The Out is 15 minutes later by rule",
+    };
+    const m1In: GuidedStep = {
+      key: "firstMealStart",
+      label: "1st Meal — In",
+      kind: "time",
+      value: row.firstMealStart,
+      set: (v) => {
+        if (v) setShowFirstMeal(true);
+        setRow((p) => ({
+          ...p,
+          firstMealStart: v,
+          firstMealFinish: v
+            ? (offerAfterIfEmpty(v, p.firstMealFinish, MEAL_MINUTES) ?? "")
+            : p.firstMealFinish,
+        }));
+      },
+      note: "Half an hour is offered as the Out — change it if the card differs",
+    };
+    const m1Out: GuidedStep = {
+      key: "firstMealFinish",
+      label: "1st Meal — Out",
+      kind: "time",
+      value: row.firstMealFinish,
+      set: (v) => setRow((p) => ({ ...p, firstMealFinish: v })),
+      warning: mealLengthWarning(row.firstMealStart, row.firstMealFinish),
+    };
+    const m2In: GuidedStep = {
+      key: "secondMealStart",
+      label: "2nd Meal — In",
+      hint: "Next skips it if the card shows none",
+      kind: "time",
+      value: row.secondMealStart,
+      set: (v) => {
+        if (v) {
+          setShowFirstMeal(true);
+          setShowSecondMeal(true);
+        }
+        setRow((p) => ({
+          ...p,
+          secondMealStart: v,
+          secondMealFinish: v
+            ? (offerAfterIfEmpty(v, p.secondMealFinish, MEAL_MINUTES) ?? "")
+            : p.secondMealFinish,
+        }));
+      },
+      warning: secondMealOrderWarning(row.firstMealFinish, row.secondMealStart),
+    };
+    const m2Out: GuidedStep = {
+      key: "secondMealFinish",
+      label: "2nd Meal — Out",
+      kind: "time",
+      value: row.secondMealFinish,
+      set: (v) => setRow((p) => ({ ...p, secondMealFinish: v })),
+      warning: mealLengthWarning(row.secondMealStart, row.secondMealFinish),
+    };
+    const dismiss: GuidedStep = {
+      key: "dismissOnSet",
+      label: "Dismiss On Set",
+      kind: "time",
+      value: row.dismissOnSet,
+      set: (v) => setRow((p) => ({ ...p, dismissOnSet: v })),
+    };
+    const wrap: GuidedStep = {
+      key: "dismissMakeupWardrobe",
+      label: "Wrapped",
+      hint: "The Dismiss MU/Hair Wrdrbe column — the same minute as on-set is fine",
+      kind: "time",
+      value: row.dismissMakeupWardrobe,
+      set: (v) => setRow((p) => ({ ...p, dismissMakeupWardrobe: v })),
+      warning: wrapOrderWarning(row.dismissOnSet, row.dismissMakeupWardrobe),
+    };
+    const meals = [nd, m1In, m1Out, m2In, m2Out];
+    return timeOrder === "card"
+      ? [call, dismiss, wrap, ...meals]
+      : [call, ...meals, dismiss, wrap];
+  })();
+  const guidedSteps: GuidedStep[] = [
+    {
+      key: "showName",
+      label: "Show",
+      kind: "show",
+      value: details.showName,
+      set: (v) => setDetails((d) => ({ ...d, showName: v })),
+    },
+    {
+      key: "workDate",
+      label: "Work date",
+      kind: "date",
+      value: details.workDate,
+      set: (v) => setDetails((d) => ({ ...d, workDate: v })),
+    },
+    {
+      key: "character",
+      label: "Character",
+      kind: "character",
+      value: row.character,
+      set: (v) => setRow((p) => ({ ...p, character: v })),
+    },
+    ...guidedTimeSteps,
+    {
+      key: "stuntAdjustment",
+      label: "Stunt Adjustment",
+      hint: "Column 202 — Next skips it if there was none",
+      kind: "money",
+      value: row.stuntAdjustment,
+      set: (v) => setRow((p) => ({ ...p, stuntAdjustment: v })),
+    },
+    {
+      key: "penalties",
+      label: "What kind of day was it?",
+      hint: "Tick anything the card or the call sheet says",
+      kind: "penalties",
+    },
+    { key: "final", label: "That's the whole card", kind: "final" },
+  ];
+  const stepIndex = Math.min(guidedStep, guidedSteps.length - 1);
+  const currentStep = guidedSteps[stepIndex];
+  const advanceNow = () =>
+    goToStep((s) => Math.min(s + 1, guidedSteps.length - 1));
+
+  const guidedPanel = (
+    <div
+      className="rounded-lg border border-border p-4 min-h-[21rem] flex flex-col"
+      onKeyDown={(e) => {
+        // Enter means "next" everywhere on the rail — including out of
+        // a suggestion list, where picking and moving on is the point.
+        if (e.key !== "Enter" || currentStep.kind === "final") return;
+        e.preventDefault();
+        advanceNow();
+      }}
+    >
+      <div className="flex items-center justify-between gap-2">
+        <span className="text-xs tabular-nums text-muted-foreground">
+          {stepIndex + 1} of {guidedSteps.length}
+        </span>
+        <div className="flex items-center gap-1">
+          <button
+            type="button"
+            onClick={() => goToStep((s) => Math.max(s - 1, 0))}
+            disabled={stepIndex === 0}
+            aria-label="Back"
+            className="rounded-md border border-border p-2 hover:bg-accent disabled:opacity-40"
+          >
+            <ChevronLeft className="h-5 w-5" />
+          </button>
+          <button
+            type="button"
+            onClick={advanceNow}
+            disabled={stepIndex === guidedSteps.length - 1}
+            aria-label="Next"
+            className="rounded-md border border-border p-2 hover:bg-accent disabled:opacity-40"
+          >
+            <ChevronRight className="h-5 w-5" />
+          </button>
+        </div>
+      </div>
+      <div className="mt-3 flex-1">
+        <p className="text-2xl font-bold">{currentStep.label}</p>
+        {currentStep.hint && (
+          <p className="mt-1 text-sm text-muted-foreground">
+            {currentStep.hint}
+          </p>
+        )}
+        <div className="mt-4">
+          {currentStep.kind === "show" || currentStep.kind === "character" ? (
+            <SuggestInput
+              kind={currentStep.kind}
+              id={`guided-${currentStep.key}`}
+              value={currentStep.value ?? ""}
+              onChange={(v) => currentStep.set?.(v)}
+              placeholder={
+                currentStep.kind === "show"
+                  ? "Name of the show"
+                  : "e.g., Stunt Double"
+              }
+              className="h-14 text-xl"
+            />
+          ) : currentStep.kind === "date" ? (
+            <DateField
+              id={`guided-${currentStep.key}`}
+              value={currentStep.value ?? ""}
+              onChange={(e) => {
+                const v = e.target.value;
+                currentStep.set?.(v);
+                if (v) queueAdvance(350, guidedSteps.length);
+              }}
+              className="h-14 text-xl w-full max-w-full"
+            />
+          ) : currentStep.kind === "time" ? (
+            <TimeSelect
+              id={`guided-${currentStep.key}`}
+              value={currentStep.value ?? ""}
+              onChange={(v) => {
+                currentStep.set?.(v);
+                if (v) queueAdvance(900, guidedSteps.length);
+                else cancelAdvance();
+              }}
+            />
+          ) : currentStep.kind === "money" ? (
+            <div className="relative max-w-[15rem]">
+              <span className="absolute left-3 top-1/2 -translate-y-1/2 text-lg text-muted-foreground">
+                $
+              </span>
+              <Input
+                id={`guided-${currentStep.key}`}
+                type="number"
+                inputMode="decimal"
+                min="0"
+                step="50"
+                value={currentStep.value ?? ""}
+                onChange={(e) => currentStep.set?.(e.target.value)}
+                placeholder="0.00"
+                className="h-14 w-full pl-8 text-xl"
+              />
+            </div>
+          ) : currentStep.kind === "penalties" ? (
+            <div className="grid grid-cols-2 gap-4">
+              {(
+                [
+                  ["forcedCall", "Forced Call"],
+                  ["isSixthDay", "6th Consecutive Day"],
+                  ["isSeventhDay", "7th Consecutive Day"],
+                  ["isHoliday", "Holiday"],
+                ] as const
+              ).map(([field, label]) => (
+                <div key={field} className="flex items-center space-x-2">
+                  <Checkbox
+                    id={`guided-${field}`}
+                    checked={row[field]}
+                    onCheckedChange={(v) =>
+                      setRow((prev) => ({
+                        ...prev,
+                        [field]: !!v,
+                        // 6th/7th/Holiday exclude each other, as on the form.
+                        ...(v && field === "isSixthDay"
+                          ? { isSeventhDay: false, isHoliday: false }
+                          : {}),
+                        ...(v && field === "isSeventhDay"
+                          ? { isSixthDay: false, isHoliday: false }
+                          : {}),
+                        ...(v && field === "isHoliday"
+                          ? { isSixthDay: false, isSeventhDay: false }
+                          : {}),
+                      }))
+                    }
+                  />
+                  <Label
+                    htmlFor={`guided-${field}`}
+                    className="text-base font-normal"
+                  >
+                    {label}
+                  </Label>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <div className="space-y-3">
+              {mealPenaltyPanel}
+              <div className="flex flex-wrap items-center gap-2">
+                <Button
+                  variant="outline"
+                  onClick={() => save()}
+                  disabled={saving}
+                >
+                  {saving ? (
+                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  ) : (
+                    <Save className="h-4 w-4 mr-2" />
+                  )}
+                  Save
+                </Button>
+                {doneAt ? (
+                  <Button
+                    variant="ghost"
+                    onClick={() => save(false)}
+                    disabled={saving}
+                    className="text-muted-foreground"
+                  >
+                    Transcribed ✓ — tap to reopen
+                  </Button>
+                ) : (
+                  <Button onClick={() => save(true)} disabled={saving}>
+                    <Check className="h-4 w-4 mr-2" />
+                    Done — finished transcribing
+                  </Button>
+                )}
+              </div>
+              <p className="text-xs text-muted-foreground">
+                Flip to “All fields” any time — everything you entered is
+                already there.
+              </p>
+            </div>
+          )}
+          {currentStep.warning && (
+            <p className="mt-2 text-xs text-amber-400">{currentStep.warning}</p>
+          )}
+          {currentStep.note && !currentStep.warning && (
+            <p className="mt-2 text-xs text-muted-foreground">
+              {currentStep.note}
+            </p>
+          )}
+        </div>
+      </div>
+      {currentStep.kind !== "final" && (
+        <p className="text-xs text-muted-foreground">
+          Next skips a box the card leaves blank.
+        </p>
+      )}
+    </div>
+  );
+
   const zoomButton = (
     label: string,
     icon: React.ReactNode,
@@ -799,7 +1275,8 @@ export default function TranscribePage({
             // the wheel a home under the field.
             const el = e.target as HTMLElement;
             const pane = formPaneRef.current;
-            if (el.tagName !== "INPUT" || !pane) return;
+            // The rail sits still by design — never park its fields.
+            if (mode !== "form" || el.tagName !== "INPUT" || !pane) return;
             const top =
               pane.scrollTop +
               el.getBoundingClientRect().top -
@@ -833,16 +1310,46 @@ export default function TranscribePage({
                 )}
               </div>
             </div>
-            <Button onClick={() => save()} disabled={saving}>
-              {saving ? (
-                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-              ) : (
-                <Save className="h-4 w-4 mr-2" />
-              )}
-              Save
-            </Button>
+            <div className="flex items-center gap-2 shrink-0">
+              {/* One card, two ways to read it in — the same fields
+                  either way, so flipping loses nothing. */}
+              <div className="flex rounded-md border border-border overflow-hidden">
+                {(
+                  [
+                    ["form", "All fields"],
+                    ["guided", "One at a time"],
+                  ] as const
+                ).map(([value, label]) => (
+                  <button
+                    key={value}
+                    type="button"
+                    onClick={() => chooseMode(value)}
+                    aria-pressed={mode === value}
+                    className={`px-2 py-1.5 text-xs ${
+                      mode === value
+                        ? "bg-accent font-medium"
+                        : "text-muted-foreground hover:bg-accent/50"
+                    }`}
+                  >
+                    {label}
+                  </button>
+                ))}
+              </div>
+              <Button onClick={() => save()} disabled={saving}>
+                {saving ? (
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                ) : (
+                  <Save className="h-4 w-4 mr-2" />
+                )}
+                Save
+              </Button>
+            </div>
           </div>
 
+          {mode === "guided" ? (
+            guidedPanel
+          ) : (
+            <>
           {/* Save any part of this: the date alone is worth recording.
               One row of four on a desktop so the times below stay above
               the fold. */}
@@ -1035,37 +1542,8 @@ export default function TranscribePage({
 
               {/* Penalties are statutory dollars, so they are knowable
                   from the times alone — long before the agreement is. */}
-              {mealPenalties && mealPenalties.total > 0 && (
-                <div className="mx-2 my-2 rounded-lg border border-amber-700/50 bg-amber-950/30 p-3">
-                  <p className="mb-1 text-sm font-medium text-amber-300">
-                    Meal penalties from these times
-                  </p>
-                  <div className="space-y-0.5">
-                    {[...mealPenalties.perMeal.entries()].map(
-                      ([meal, entry]) => (
-                        <div key={meal} className="flex justify-between text-sm">
-                          <span className="text-amber-400">
-                            {meal} — {entry.count} penalt
-                            {entry.count === 1 ? "y" : "ies"}
-                          </span>
-                          <span className="font-semibold tabular-nums text-amber-300">
-                            {formatCurrency(entry.amount)}
-                          </span>
-                        </div>
-                      )
-                    )}
-                    <div className="mt-1 flex justify-between border-t border-amber-700/50 pt-1 text-sm font-bold">
-                      <span className="text-amber-300">Total</span>
-                      <span className="tabular-nums text-amber-300">
-                        {formatCurrency(mealPenalties.total)}
-                      </span>
-                    </div>
-                  </div>
-                  <p className="mt-1.5 text-[11px] text-amber-400/80">
-                    Statutory dollars — the same whatever the agreement, so
-                    they land on top once the day is priced.
-                  </p>
-                </div>
+              {mealPenaltyPanel && (
+                <div className="mx-2 my-2">{mealPenaltyPanel}</div>
               )}
             </div>
           </div>
@@ -1114,14 +1592,16 @@ export default function TranscribePage({
               </Button>
             )}
           </div>
+            </>
+          )}
 
           <p className="text-xs text-muted-foreground">
             Pinch the card to zoom (or ⌘/Ctrl + scroll).
           </p>
 
           {/* Scroll room so a field can sit high in the pane while its
-              picker opens below it. */}
-          <div aria-hidden className="h-[35vh]" />
+              picker opens below it. The rail sits still and needs none. */}
+          {mode === "form" && <div aria-hidden className="h-[35vh]" />}
         </div>
       </div>
     </div>

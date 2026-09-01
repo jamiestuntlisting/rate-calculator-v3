@@ -14,6 +14,7 @@ import {
  */
 
 const TIME_ORDERS = ["chrono", "card"] as const;
+const MODES = ["form", "guided"] as const;
 
 export async function GET() {
   const auth = await requireAuth();
@@ -44,6 +45,16 @@ export async function PUT(request: Request) {
         );
       }
       patch.transcribeTimeOrder = value as UserPrefs["transcribeTimeOrder"];
+    }
+    if (body.transcribeMode !== undefined) {
+      const value = body.transcribeMode;
+      if (!MODES.includes(value as (typeof MODES)[number])) {
+        return NextResponse.json(
+          { error: "Unknown transcribe mode" },
+          { status: 400 }
+        );
+      }
+      patch.transcribeMode = value as UserPrefs["transcribeMode"];
     }
     const prefs = await mergeUserPrefs(auth.session.userId, patch);
     return NextResponse.json({ prefs });

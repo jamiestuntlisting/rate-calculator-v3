@@ -66,6 +66,10 @@ export default function PreferencesPage() {
   /** Transcription time-row order — the same preference the toggle on
    *  the transcription page saves; shown here so it is findable. */
   const [timeOrder, setTimeOrder] = useState<"chrono" | "card">("chrono");
+  /** Whole form vs one question at a time, same deal. */
+  const [transcribeMode, setTranscribeMode] = useState<"form" | "guided">(
+    "form"
+  );
 
   useEffect(() => {
     setMounted(true);
@@ -74,6 +78,9 @@ export default function PreferencesPage() {
     const savedOrder = window.localStorage.getItem("stl_transcribe_order");
     if (savedOrder === "chrono" || savedOrder === "card")
       setTimeOrder(savedOrder);
+    const savedMode = window.localStorage.getItem("stl_transcribe_mode");
+    if (savedMode === "form" || savedMode === "guided")
+      setTranscribeMode(savedMode);
     fetch("/api/me/phone")
       .then((r) => (r.ok ? r.json() : Promise.reject()))
       .then((data: { phone: string | null; intakeNumber: string | null }) => {
@@ -83,17 +90,40 @@ export default function PreferencesPage() {
       .catch(() => {});
     fetch("/api/me/prefs")
       .then((r) => (r.ok ? r.json() : Promise.reject()))
-      .then((data: { prefs?: { transcribeTimeOrder?: string } }) => {
-        const v = data.prefs?.transcribeTimeOrder;
-        if (v === "chrono" || v === "card") {
-          setTimeOrder(v);
-          try {
-            window.localStorage.setItem("stl_transcribe_order", v);
-          } catch {}
+      .then(
+        (data: {
+          prefs?: { transcribeTimeOrder?: string; transcribeMode?: string };
+        }) => {
+          const v = data.prefs?.transcribeTimeOrder;
+          if (v === "chrono" || v === "card") {
+            setTimeOrder(v);
+            try {
+              window.localStorage.setItem("stl_transcribe_order", v);
+            } catch {}
+          }
+          const m = data.prefs?.transcribeMode;
+          if (m === "form" || m === "guided") {
+            setTranscribeMode(m);
+            try {
+              window.localStorage.setItem("stl_transcribe_mode", m);
+            } catch {}
+          }
         }
-      })
+      )
       .catch(() => {});
   }, []);
+
+  const chooseTranscribeMode = (next: "form" | "guided") => {
+    setTranscribeMode(next);
+    try {
+      window.localStorage.setItem("stl_transcribe_mode", next);
+    } catch {}
+    fetch("/api/me/prefs", {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ transcribeMode: next }),
+    }).catch(() => toast.error("Couldn't save the flow"));
+  };
 
   const chooseTimeOrder = (next: "chrono" | "card") => {
     setTimeOrder(next);
@@ -230,6 +260,16 @@ export default function PreferencesPage() {
               { value: "card", label: "Card order" },
             ]}
             onChange={chooseTimeOrder}
+          />
+          <Choice
+            label="Transcription flow"
+            description="The whole form at once, or one question at a time."
+            value={transcribeMode}
+            options={[
+              { value: "form", label: "All fields" },
+              { value: "guided", label: "One at a time" },
+            ]}
+            onChange={chooseTranscribeMode}
           />
         </CardContent>
       </Card>
