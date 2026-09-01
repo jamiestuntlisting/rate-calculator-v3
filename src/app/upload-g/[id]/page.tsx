@@ -28,7 +28,8 @@ import {
   TimeRow,
   ndMealWarning,
 } from "@/components/calculator/work-times-fields";
-import { followedTime } from "@/lib/follow-time";
+import { followedTime, offerAfterIfEmpty } from "@/lib/follow-time";
+import { MEAL_MINUTES } from "@/components/calculator/time-select";
 import { checkNdMeal, ND_MEAL_MINUTES } from "@/lib/nd-meal";
 import { mealLengthWarning, secondMealOrderWarning } from "@/lib/meal-length";
 import { wrapOrderWarning } from "@/lib/wrap-check";
@@ -673,7 +674,18 @@ export default function TranscribePage({
                       label="In"
                       value={row.firstMealStart}
                       onChange={(v) =>
-                        setRow((prev) => ({ ...prev, firstMealStart: v }))
+                        // Setting the In offers the Out half an hour on —
+                        // what a meal usually is — so the picker opens
+                        // there instead of at whatever time it is now. It
+                        // only ever fills an EMPTY Out; a time read off
+                        // the card never moves.
+                        setRow((prev) => ({
+                          ...prev,
+                          firstMealStart: v,
+                          firstMealFinish: v
+                            ? (offerAfterIfEmpty(v, prev.firstMealFinish, MEAL_MINUTES) ?? "")
+                            : prev.firstMealFinish,
+                        }))
                       }
                     />
                     <MealTime
@@ -718,7 +730,13 @@ export default function TranscribePage({
                         label="In"
                         value={row.secondMealStart}
                         onChange={(v) =>
-                          setRow((prev) => ({ ...prev, secondMealStart: v }))
+                          setRow((prev) => ({
+                            ...prev,
+                            secondMealStart: v,
+                            secondMealFinish: v
+                              ? (offerAfterIfEmpty(v, prev.secondMealFinish, MEAL_MINUTES) ?? "")
+                              : prev.secondMealFinish,
+                          }))
                         }
                       />
                       <MealTime
