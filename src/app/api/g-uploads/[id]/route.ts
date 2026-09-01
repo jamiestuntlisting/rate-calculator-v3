@@ -116,6 +116,18 @@ export async function PATCH(
       if (Number.isFinite(adjustment) && adjustment >= 0) {
         patch.stuntAdjustment = adjustment;
       }
+      // The day-multiplier flags land as themselves, unchecking included —
+      // a row that carries the key said something either way. Rows saved
+      // before the checkboxes existed lack the keys and change nothing.
+      for (const flag of [
+        "forcedCall",
+        "isSixthDay",
+        "isSeventhDay",
+        "isHoliday",
+      ] as const) {
+        const value = (row as Record<string, unknown> | undefined)?.[flag];
+        if (typeof value === "boolean") patch[flag] = value;
+      }
       // Times present means it is no longer just an attachment.
       if (patch.callTime && patch.dismissOnSet) patch.recordStatus = "complete";
       else if (Object.keys(patch).length > 0) patch.recordStatus = "draft";

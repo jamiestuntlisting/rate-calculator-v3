@@ -14,6 +14,7 @@ import {
   ZoomOut,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
@@ -64,6 +65,11 @@ interface TranscriptionRow {
   secondMealFinish: string;
   /** The card's STUNT ADJUST column — dollars, and it feeds the OT rate. */
   stuntAdjustment: string;
+  /** The day-multiplier facts Log Work asks for — they reprice the day. */
+  forcedCall: boolean;
+  isSixthDay: boolean;
+  isSeventhDay: boolean;
+  isHoliday: boolean;
   notes: string;
 }
 
@@ -103,6 +109,10 @@ function emptyRow(): TranscriptionRow {
     secondMealStart: "",
     secondMealFinish: "",
     stuntAdjustment: "",
+    forcedCall: false,
+    isSixthDay: false,
+    isSeventhDay: false,
+    isHoliday: false,
     notes: "",
   };
 }
@@ -803,6 +813,76 @@ export default function TranscribePage({
                       placeholder="0.00"
                       className="h-11 w-full pl-7 text-base"
                     />
+                  </div>
+                </div>
+              </div>
+
+              {/* The same day-multiplier facts Log Work asks for — a 6th
+                  day is 1.5x on every hour, so they belong on the card's
+                  form, not in a note. 6th/7th/Holiday exclude each other,
+                  exactly as on Log Work. */}
+              <div className="border-t pt-2 mt-1">
+                <p className="px-2 pb-2 text-sm font-semibold">Penalties</p>
+                <div className="grid grid-cols-2 gap-4 px-2 pb-2 md:grid-cols-4">
+                  <div className="flex items-center space-x-2">
+                    <Checkbox
+                      id="row-forcedCall"
+                      checked={row.forcedCall}
+                      onCheckedChange={(v) =>
+                        setRow((prev) => ({ ...prev, forcedCall: !!v }))
+                      }
+                    />
+                    <Label htmlFor="row-forcedCall" className="text-base font-normal">
+                      Forced Call
+                    </Label>
+                  </div>
+                  <div className="flex items-center space-x-2">
+                    <Checkbox
+                      id="row-isSixthDay"
+                      checked={row.isSixthDay}
+                      onCheckedChange={(v) =>
+                        setRow((prev) => ({
+                          ...prev,
+                          isSixthDay: !!v,
+                          ...(v ? { isSeventhDay: false, isHoliday: false } : {}),
+                        }))
+                      }
+                    />
+                    <Label htmlFor="row-isSixthDay" className="text-base font-normal">
+                      6th Consecutive Day
+                    </Label>
+                  </div>
+                  <div className="flex items-center space-x-2">
+                    <Checkbox
+                      id="row-isSeventhDay"
+                      checked={row.isSeventhDay}
+                      onCheckedChange={(v) =>
+                        setRow((prev) => ({
+                          ...prev,
+                          isSeventhDay: !!v,
+                          ...(v ? { isSixthDay: false, isHoliday: false } : {}),
+                        }))
+                      }
+                    />
+                    <Label htmlFor="row-isSeventhDay" className="text-base font-normal">
+                      7th Consecutive Day
+                    </Label>
+                  </div>
+                  <div className="flex items-center space-x-2">
+                    <Checkbox
+                      id="row-isHoliday"
+                      checked={row.isHoliday}
+                      onCheckedChange={(v) =>
+                        setRow((prev) => ({
+                          ...prev,
+                          isHoliday: !!v,
+                          ...(v ? { isSixthDay: false, isSeventhDay: false } : {}),
+                        }))
+                      }
+                    />
+                    <Label htmlFor="row-isHoliday" className="text-base font-normal">
+                      Holiday
+                    </Label>
                   </div>
                 </div>
               </div>
