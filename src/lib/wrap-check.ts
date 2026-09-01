@@ -1,8 +1,9 @@
-import { calculateDuration } from "@/lib/time-utils";
+import { calculateDuration, parseTimeToMinutes } from "@/lib/time-utils";
 
 /**
- * Wrap comes after dismissal — dismissed on set, then out of wardrobe
- * and makeup, typically about fifteen minutes later. Setting a
+ * Wrap comes at or after dismissal — dismissed on set, then out of
+ * wardrobe and makeup, typically about fifteen minutes later but
+ * legitimately the very same minute. Setting a
  * dismissal offers that as the wrap the way a meal's start offers its
  * finish, so the picker opens at a sensible time instead of whatever
  * the clock says now; and a wrapped time that lands before the
@@ -25,6 +26,13 @@ export function wrapOrderWarning(
   wrapped: string | null | undefined
 ): string | null {
   if (!dismissOnSet || !wrapped) return null;
+  // The same minute is normal — dismissed and out of wardrobe in one
+  // go, which the card often writes as a dash. Only a wrap strictly
+  // before the dismissal reads wrong; calculateDuration would call the
+  // equal pair a 24-hour overnight stretch.
+  if (parseTimeToMinutes(wrapped) === parseTimeToMinutes(dismissOnSet)) {
+    return null;
+  }
   if (calculateDuration(dismissOnSet, wrapped) < CROSSED_THRESHOLD_MINUTES) {
     return null;
   }

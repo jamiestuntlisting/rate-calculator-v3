@@ -30,7 +30,7 @@ import {
   ndMealWarning,
 } from "@/components/calculator/work-times-fields";
 import { followedTime, offerAfterIfEmpty } from "@/lib/follow-time";
-import { MEAL_MINUTES } from "@/components/calculator/time-select";
+import { MEAL_MINUTES, WorkDateContext } from "@/components/calculator/time-select";
 import { checkNdMeal, ND_MEAL_MINUTES } from "@/lib/nd-meal";
 import { mealLengthWarning, secondMealOrderWarning } from "@/lib/meal-length";
 import { wrapOrderWarning } from "@/lib/wrap-check";
@@ -455,8 +455,12 @@ export default function TranscribePage({
   );
 
   return (
-    // Fixed under the app header: the split escapes the page container's
-    // padding and owns the viewport edge to edge, a true fifty-fifty.
+    // Every time field belongs to the card's work day; on any day but
+    // today, TimeSelect uses this to refuse the clock the platform
+    // stamps into an empty field on tap.
+    <WorkDateContext.Provider value={details.workDate || null}>
+    {/* Fixed under the app header: the split escapes the page container's
+        padding and owns the viewport edge to edge, a true fifty-fifty. */}
     <div
       className="fixed inset-x-0 bottom-0 z-10 flex flex-col bg-background lg:flex-row"
       style={{ top: topOffset }}
@@ -1029,5 +1033,6 @@ export default function TranscribePage({
         </div>
       </div>
     </div>
+    </WorkDateContext.Provider>
   );
 }

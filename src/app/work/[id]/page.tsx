@@ -6,7 +6,7 @@ import { useParams, useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { DateField } from "@/components/ui/date-field";
-import { TimeSelect, toDisplay } from "@/components/calculator/time-select";
+import { TimeSelect, toDisplay, WorkDateContext } from "@/components/calculator/time-select";
 import {
   AGREEMENTS,
   FLAT_AGREEMENTS,
@@ -736,6 +736,10 @@ export default function WorkDetailPage() {
   if (!record) return null;
 
   return (
+    // Every time field here belongs to the record's day; on any day but
+    // today, TimeSelect uses this to refuse the clock the platform
+    // stamps into an empty field on tap.
+    <WorkDateContext.Provider value={editData.workDate || record.workDate || null}>
     <div className="max-w-3xl mx-auto space-y-6">
       <div>
         <Button variant="ghost" onClick={() => router.push("/tracker")}>
@@ -1924,6 +1928,7 @@ export default function WorkDetailPage() {
         </Button>
       </div>
     </div>
+    </WorkDateContext.Provider>
   );
 }
 

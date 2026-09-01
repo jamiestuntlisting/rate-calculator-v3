@@ -65,7 +65,7 @@ import {
   MAX_CONTRACTS,
   MIN_CONTRACTS_FOR_FIELD,
 } from "@/lib/multi-contract";
-import { toDisplay } from "@/components/calculator/time-select";
+import { toDisplay, WorkDateContext } from "@/components/calculator/time-select";
 
 /** Get current time as HH:MM string, snapped to 6-min increments */
 function getCurrentTimeSnapped(): string {
@@ -711,6 +711,10 @@ export function ExhibitGForm() {
   const hasExhibitGPreview = exhibitGDocs.length > 0;
 
   return (
+    // Every time field on the form belongs to the picked work day; on
+    // any day but today, TimeSelect uses this to refuse the clock the
+    // platform stamps into an empty field on tap.
+    <WorkDateContext.Provider value={input.workDate || null}>
     <div className={hasExhibitGPreview ? "max-w-3xl lg:max-w-7xl mx-auto" : "max-w-3xl mx-auto space-y-6"}>
       <div className={hasExhibitGPreview ? "grid grid-cols-1 lg:grid-cols-2 gap-6" : ""}>
         {/* Left column: Exhibit G Preview (only when docs uploaded, desktop) */}
@@ -1484,5 +1488,6 @@ export function ExhibitGForm() {
       </div>{/* end right column */}
       </div>{/* end grid */}
     </div>
+    </WorkDateContext.Provider>
   );
 }

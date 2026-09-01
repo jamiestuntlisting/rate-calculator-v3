@@ -1,5 +1,7 @@
 import { describe, it, expect } from "vitest";
 import {
+  CLOCK_STAMP_MS,
+  isClockStamp,
   addMinutes,
   MEAL_MINUTES,
   STEP_SECONDS,
@@ -75,5 +77,46 @@ describe("the constants the form leans on", () => {
 
   it("steps in tenths of an hour where the browser allows it", () => {
     expect(STEP_SECONDS).toBe(6 * 60);
+  });
+});
+
+// A late local evening on the 1st — in UTC this is already the 2nd for
+// any American offset, which is exactly the trap: the guard must reason
+// in local time or it would treat today's form as another day's.
+const stampNow = new Date(2026, 8, 1, 23, 30);
+
+describe("clock stamp on an empty time field", () => {
+  it("drops the current minute stamped onto another day's form", () => {
+    expect(isClockStamp("23:30", "2026-08-28", 40, stampNow)).toBe(true);
+  });
+
+  it("tolerates the minute rolling over under the tap", () => {
+    expect(isClockStamp("23:29", "2026-08-28", 40, stampNow)).toBe(true);
+    expect(isClockStamp("23:31", "2026-08-28", 40, stampNow)).toBe(true);
+    expect(isClockStamp("23:28", "2026-08-28", 40, stampNow)).toBe(false);
+  });
+
+  it("wraps the comparison across midnight", () => {
+    const justPast = new Date(2026, 8, 2, 0, 0);
+    expect(isClockStamp("23:59", "2026-08-28", 40, justPast)).toBe(true);
+  });
+
+  it("lets today's form take the current time — that is live logging", () => {
+    expect(isClockStamp("23:30", "2026-09-01", 40, stampNow)).toBe(false);
+  });
+
+  it("does nothing without a work date to compare against", () => {
+    expect(isClockStamp("23:30", null, 40, stampNow)).toBe(false);
+    expect(isClockStamp("23:30", "", 40, stampNow)).toBe(false);
+  });
+
+  it("trusts a pick made after actually reading the card", () => {
+    expect(
+      isClockStamp("23:30", "2026-08-28", CLOCK_STAMP_MS + 1, stampNow)
+    ).toBe(false);
+  });
+
+  it("ignores values that are nothing like the clock", () => {
+    expect(isClockStamp("08:42", "2026-08-28", 40, stampNow)).toBe(false);
   });
 });

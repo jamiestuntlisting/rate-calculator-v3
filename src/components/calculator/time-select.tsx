@@ -1,5 +1,6 @@
 "use client";
 
+import { createContext, useContext, useRef } from "react";
 import { Label } from "@/components/ui/label";
 import { X } from "lucide-react";
 
@@ -50,6 +51,57 @@ export function addMinutes(time: string, minutes: number): string {
   ).padStart(2, "0")}`;
 }
 
+/**
+ * The work day the surrounding form is about, for every time field
+ * inside it. iOS stamps the current clock into an empty time field the
+ * moment it is tapped; on a form about any other day the clock says
+ * nothing about that day, so TimeSelect drops the stamp and leaves the
+ * field empty for the real pick. Wrap a form once and every field in
+ * it knows its day — no threading through the row components.
+ */
+export const WorkDateContext = createContext<string | null>(null);
+
+/**
+ * Local calendar date as "YYYY-MM-DD". toISOString answers in UTC,
+ * which calls a New York evening "tomorrow" — the exact hours this
+ * guard matters most.
+ */
+function localISODate(now: Date): string {
+  return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
+}
+
+/**
+ * How long after focus a clock-valued change still reads as the
+ * platform's stamp rather than a person's pick. The stamp is
+ * effectively instant; reading a card and spinning a wheel is not.
+ */
+export const CLOCK_STAMP_MS = 2500;
+
+/**
+ * True when a change landing on an empty time field looks like the
+ * platform stamping the current clock into it rather than a person
+ * choosing: the form's day isn't today, the value is the current
+ * minute (give or take the rollover), and it arrived within moments
+ * of the field taking focus. Someone genuinely picking the current
+ * minute on another day's form gets there slower than the stamp, and
+ * a retry a moment later passes anyway.
+ */
+export function isClockStamp(
+  next: string,
+  workDate: string | null | undefined,
+  msSinceFocus: number,
+  now: Date = new Date()
+): boolean {
+  if (!workDate || workDate === localISODate(now)) return false;
+  if (msSinceFocus > CLOCK_STAMP_MS) return false;
+  const match = /^(\d{2}):(\d{2})$/.exec(next);
+  if (!match) return false;
+  const nextMin = Number(match[1]) * 60 + Number(match[2]);
+  const nowMin = now.getHours() * 60 + now.getMinutes();
+  const diff = Math.abs(nextMin - nowMin);
+  return Math.min(diff, 24 * 60 - diff) <= 1;
+}
+
 interface TimeSelectProps {
   id: string;
   label?: string;
@@ -73,6 +125,8 @@ export function TimeSelect({
   compact = false,
 }: TimeSelectProps) {
   const filled = toFieldValue(value) !== "";
+  const workDate = useContext(WorkDateContext);
+  const focusedAt = useRef(0);
   return (
     <div className="space-y-1 w-full min-w-0">
       {label && (
@@ -91,7 +145,19 @@ export function TimeSelect({
         type="time"
         step={STEP_SECONDS}
         value={toFieldValue(value)}
-        onChange={(e) => onChange(e.target.value)}
+        onFocus={() => {
+          focusedAt.current = Date.now();
+        }}
+        onChange={(e) => {
+          const next = e.target.value;
+          if (
+            !filled &&
+            isClockStamp(next, workDate, Date.now() - focusedAt.current)
+          ) {
+            return;
+          }
+          onChange(next);
+        }}
         onKeyDown={(e) => {
           // A or P flips the meridiem from any segment, not just the last
           // one — the native field only honours them with AM/PM focused,

@@ -19,7 +19,7 @@ import { toast } from "sonner";
 import type { WorkDocument, OtherWorkCategory } from "@/types";
 import { OTHER_WORK_CATEGORY_LABELS } from "@/types";
 import { Save } from "lucide-react";
-import { TimeSelect, addMinutes, MEAL_MINUTES } from "@/components/calculator/time-select";
+import { TimeSelect, addMinutes, MEAL_MINUTES, WorkDateContext } from "@/components/calculator/time-select";
 import { effectiveHourlyRate, workHoursFor } from "@/lib/work-hours";
 import { formatCurrency } from "@/lib/time-utils";
 
@@ -137,6 +137,10 @@ export default function OtherWorkPage() {
   };
 
   return (
+    // Every time field belongs to the picked work day; on any day but
+    // today, TimeSelect uses this to refuse the clock the platform
+    // stamps into an empty field on tap.
+    <WorkDateContext.Provider value={workDate || null}>
     <div className="max-w-3xl mx-auto space-y-6">
       <Link
         href="/"
@@ -379,5 +383,6 @@ export default function OtherWorkPage() {
         </CardContent>
       </Card>
     </div>
+    </WorkDateContext.Provider>
   );
 }
