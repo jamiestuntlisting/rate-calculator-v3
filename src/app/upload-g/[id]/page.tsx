@@ -624,7 +624,7 @@ export default function TranscribePage({
                         ndMealOut: "",
                       }));
                   }}
-                  warnings={[ndMealWarning(ndMeal, row.callTime)]}
+                  warnings={[ndMealWarning(ndMeal, row.callTime, row.ndMealIn)]}
                 >
                   <MealTimes>
                     {/* The Out is derived, as on Log Work: an ND meal is

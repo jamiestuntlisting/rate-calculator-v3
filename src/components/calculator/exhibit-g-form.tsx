@@ -1143,7 +1143,7 @@ export function ExhibitGForm() {
                   title="ND (Non-Deductible) Meal"
                   checked={showNdMeal}
                   onCheckedChange={(v) => { setShowNdMeal(v); if (!v) { update("ndMealIn", null); update("ndMealOut", null); } }}
-                  warnings={[ndMealWarning(ndMeal, input.callTime)]}
+                  warnings={[ndMealWarning(ndMeal, input.callTime, input.ndMealIn)]}
                 >
                   <MealTimes>
                     {/* The Out is not asked: an ND meal is 15 minutes,

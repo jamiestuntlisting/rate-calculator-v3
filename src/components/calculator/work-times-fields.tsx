@@ -2,8 +2,18 @@
 
 import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
-import { TimeSelect, toDisplay } from "@/components/calculator/time-select";
-import { ND_MEAL_WINDOW_HOURS, type NdMealCheck } from "@/lib/nd-meal";
+import {
+  TimeSelect,
+  addMinutes,
+  toDisplay,
+  toFieldValue,
+} from "@/components/calculator/time-select";
+import {
+  ND_MEAL_MINUTES,
+  ND_MEAL_WINDOW_HOURS,
+  checkNdMeal,
+  type NdMealCheck,
+} from "@/lib/nd-meal";
 
 /**
  * The shared limbs of a work-times form. Log Work and the Exhibit G
@@ -141,17 +151,43 @@ export function NdMealOut({ value }: { value: string | null }) {
   );
 }
 
-/** The warning line for an ND meal outside its rule, or null when fine. */
+/** "18:45" -> "06:45": the same clock position on the other meridiem. */
+const flipMeridiem = (time: string): string | null => {
+  const value = toFieldValue(time);
+  if (!value) return null;
+  const [h, m] = value.split(":").map(Number);
+  return `${String((h + 12) % 24).padStart(2, "0")}:${String(m).padStart(2, "0")}`;
+};
+
+/**
+ * The warning line for an ND meal outside its rule, or null when fine.
+ * It quotes the time as entered, because the usual culprit is not the
+ * meal — it is the platform's time wheel opening on the wrong half of
+ * the day, so a morning meal lands as PM. When the same clock position
+ * on the other meridiem would sit inside the window, the warning says
+ * so instead of leaving the reader to spot one letter.
+ */
 export function ndMealWarning(
   check: NdMealCheck,
-  callTime: string
+  callTime: string,
+  ndMealIn?: string | null
 ): string | null {
   if (check.ok) return null;
-  return check.problem === "ends_before_it_starts"
-    ? "An ND meal has to end after it starts."
-    : `An ND meal has to fall in the ${ND_MEAL_WINDOW_HOURS} hours after your call — from ${toDisplay(
-        callTime
-      )} to ${toDisplay(
-        check.windowEnd
-      )}. Outside that it is a deductible meal, which pays differently.`;
+  if (check.problem === "ends_before_it_starts") {
+    return "An ND meal has to end after it starts.";
+  }
+  const base = `An ND meal has to fall inside the ${ND_MEAL_WINDOW_HOURS} hours after your ${toDisplay(
+    callTime
+  )} call — done by ${toDisplay(
+    check.windowEnd
+  )}. Outside that it is a deductible meal, which pays differently.`;
+  const entered = ndMealIn ? toDisplay(ndMealIn) : "";
+  const flipped = ndMealIn ? flipMeridiem(ndMealIn) : null;
+  const flippedFits =
+    flipped &&
+    checkNdMeal(callTime, flipped, addMinutes(flipped, ND_MEAL_MINUTES)).ok;
+  if (entered && flippedFits) {
+    return `${base} This one starts at ${entered} — did you mean ${toDisplay(flipped)}?`;
+  }
+  return entered ? `${base} This one starts at ${entered}.` : base;
 }
