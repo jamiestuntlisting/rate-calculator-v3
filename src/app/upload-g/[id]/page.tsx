@@ -48,12 +48,6 @@ interface TranscriptionRow {
   character: string;
   /** The card's MAKE-UP / HAIR / WRDRBE column — where the day's clock starts. */
   callTime: string;
-  /**
-   * REPORT ON SET. Recorded because the card has a column for it and a
-   * transcriber reading across needs somewhere to put it; the rate is worked
-   * out from the makeup call, so nothing downstream reads this yet.
-   */
-  reportOnSet: string;
   dismissOnSet: string;
   dismissMakeupWardrobe: string;
   ndMealIn: string;
@@ -92,7 +86,6 @@ function emptyRow(): TranscriptionRow {
     performer: "",
     character: "",
     callTime: "",
-    reportOnSet: "",
     dismissOnSet: "",
     dismissMakeupWardrobe: "",
     ndMealIn: "",
@@ -578,14 +571,6 @@ export default function TranscribePage({
                 anchor
                 value={row.callTime}
                 onChange={(v) => setRow((prev) => ({ ...prev, callTime: v }))}
-              />
-              <TimeRow
-                id="row-reportOnSet"
-                label="Report on Set"
-                value={row.reportOnSet}
-                onChange={(v) =>
-                  setRow((prev) => ({ ...prev, reportOnSet: v }))
-                }
               />
               {/* Meals */}
               <div className="border-t border-b py-2 my-1 space-y-2">
