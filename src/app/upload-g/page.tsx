@@ -229,7 +229,7 @@ export default function UploadGPage() {
     <div className="container mx-auto px-4 py-8 max-w-6xl">
       <div className="flex flex-wrap items-center justify-between gap-4 mb-6">
         <div>
-          <h1 className="text-3xl font-bold">Transcriptions</h1>
+          <h1 className="text-3xl font-bold">Transcribe</h1>
           <p className="text-muted-foreground text-sm mt-1">
             Exhibit Gs, call sheets and timecards. Tap one to transcribe it.
           </p>
@@ -299,9 +299,16 @@ export default function UploadGPage() {
         <p className="text-muted-foreground text-center py-12">
           No Exhibit Gs yet — add your first one above.
         </p>
-      ) : view === "grid" ? (
+      ) : (
+        (() => {
+          // A to-do list only lists the to-dos: finished cards drop to
+          // their own section at the bottom, out of the pile.
+          const todo = uploads.filter((u) => !u.transcribedAt);
+          const done = uploads.filter((u) => u.transcribedAt);
+          const section = (items: GUpload[]) =>
+            view === "grid" ? (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
-          {uploads.map((u) => (
+          {items.map((u) => (
             <Card key={u._id} className="overflow-hidden p-0 gap-0">
               <Link
                 href={`/upload-g/${u._id}`}
@@ -383,7 +390,7 @@ export default function UploadGPage() {
         </div>
       ) : (
         <Card className="divide-y divide-border p-0">
-          {uploads.map((u) => (
+          {items.map((u) => (
             <div key={u._id} className="flex items-center gap-3 p-3">
               <Link
                 href={`/upload-g/${u._id}`}
@@ -461,6 +468,31 @@ export default function UploadGPage() {
             </div>
           ))}
         </Card>
+            );
+          return (
+            <>
+              {todo.length === 0 ? (
+                <p className="text-muted-foreground text-center py-8">
+                  Nothing waiting to be transcribed — the pile is clear.
+                </p>
+              ) : (
+                section(todo)
+              )}
+              {done.length > 0 && (
+                <div className="mt-10 space-y-3">
+                  <div>
+                    <h2 className="text-xl font-semibold">Transcribed ✓</h2>
+                    <p className="text-sm text-muted-foreground">
+                      Out of the pile. Tap one to review it — reopen it from
+                      inside if something needs correcting.
+                    </p>
+                  </div>
+                  {section(done)}
+                </div>
+              )}
+            </>
+          );
+        })()
       )}
     </div>
   );
