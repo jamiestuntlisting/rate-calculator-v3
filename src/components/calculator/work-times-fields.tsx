@@ -141,9 +141,13 @@ export function NdMealOut({ value }: { value: string | null }) {
   return (
     <div>
       <Label className="text-sm text-muted-foreground">Out</Label>
-      <p className="flex h-10 items-center text-base tabular-nums">
-        {value ? toDisplay(value) : "—"}
-        <span className="ml-2 text-xs text-muted-foreground">
+      {/* The time never breaks across lines — on a narrow phone the
+          small print drops below it whole instead. */}
+      <p className="flex min-h-10 flex-wrap items-center gap-x-2 text-base tabular-nums">
+        <span className="whitespace-nowrap">
+          {value ? toDisplay(value) : "—"}
+        </span>
+        <span className="whitespace-nowrap text-xs text-muted-foreground">
           always 15 min
         </span>
       </p>
