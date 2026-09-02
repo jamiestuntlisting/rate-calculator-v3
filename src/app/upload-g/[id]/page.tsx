@@ -370,7 +370,16 @@ export default function TranscribePage({
           setShowNdMeal(!!(saved.ndMealIn || saved.ndMealOut));
           setShowSecondMeal(!!(saved.secondMealStart || saved.secondMealFinish));
         }
-        if (data.transcription?.details) setDetails(data.transcription.details);
+        if (data.transcription?.details) {
+          // Same courtesy as the row: a save missing keys (an API
+          // writer, an older shape) must not leave a field undefined —
+          // the inputs are controlled and the combobox trims its value.
+          const savedDetails = data.transcription.details;
+          setDetails({
+            showName: savedDetails.showName ?? "",
+            workDate: savedDetails.workDate ?? "",
+          });
+        }
         if (data.transcription?.view) {
           savedView.current = data.transcription.view;
           setZoom(data.transcription.view.zoom || 1);
@@ -500,6 +509,20 @@ export default function TranscribePage({
    */
   const save = useCallback(
     async (done?: boolean) => {
+      // Done needs the day's brackets. Anything less stays a save —
+      // a G without a call and a wrap isn't finished, it's parked.
+      if (done === true && (!row.callTime || !row.dismissMakeupWardrobe)) {
+        const missing = [
+          !row.callTime ? "the call time" : null,
+          !row.dismissMakeupWardrobe ? "the wrap" : null,
+        ]
+          .filter((m): m is string => !!m)
+          .join(" and ");
+        toast.error(
+          `Enter ${missing} before marking it done — Save keeps it in progress.`
+        );
+        return;
+      }
       setSaving(true);
       try {
         const res = await fetch(`/api/g-uploads/${id}`, {
@@ -518,7 +541,11 @@ export default function TranscribePage({
             },
           }),
         });
-        if (!res.ok) throw new Error();
+        if (!res.ok) {
+          // The server enforces the same done-gate; say its reason.
+          const data = await res.json().catch(() => null);
+          throw new Error(data?.error || "");
+        }
         if (done === true) {
           toast.success("Done — transcribed");
           router.push("/upload-g");
@@ -528,8 +555,10 @@ export default function TranscribePage({
         } else {
           toast.success("Saved");
         }
-      } catch {
-        toast.error("Couldn't save");
+      } catch (e) {
+        toast.error(
+          e instanceof Error && e.message ? e.message : "Couldn't save"
+        );
       } finally {
         setSaving(false);
       }
@@ -766,6 +795,21 @@ export default function TranscribePage({
       )}
     </div>
   );
+
+  /**
+   * Why Done is not yet on offer, or null when it is. The day's
+   * brackets — call and wrap — are the minimum for a G to count as
+   * transcribed; everything else can be partial.
+   */
+  const doneBlocker =
+    !row.callTime || !row.dismissMakeupWardrobe
+      ? `Done needs ${[
+          !row.callTime ? "the call time" : null,
+          !row.dismissMakeupWardrobe ? "the wrap" : null,
+        ]
+          .filter((m): m is string => !!m)
+          .join(" and ")} first — Save keeps it in progress.`
+      : null;
 
   /**
    * The amber meal-penalty readout — statutory dollars knowable from
@@ -1159,6 +1203,9 @@ export default function TranscribePage({
                   </Button>
                 )}
               </div>
+              {!doneAt && doneBlocker && (
+                <p className="text-xs text-amber-400">{doneBlocker}</p>
+              )}
               <p className="text-xs text-muted-foreground">
                 Flip to “All fields” any time — everything you entered is
                 already there.
@@ -1626,6 +1673,9 @@ export default function TranscribePage({
               </Button>
             )}
           </div>
+          {!doneAt && doneBlocker && (
+            <p className="text-xs text-amber-400">{doneBlocker}</p>
+          )}
             </>
           )}
 

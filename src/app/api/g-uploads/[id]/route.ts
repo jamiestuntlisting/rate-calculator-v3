@@ -59,6 +59,26 @@ export async function PATCH(
       return NextResponse.json({ error: "Upload not found" }, { status: 404 });
     }
 
+    // Done needs the day's brackets — a call time and a wrap — whatever
+    // else is partial. Judged on the transcription this request carries
+    // (or the stored one, for a bare done flag), and enforced here as
+    // well as on the form, so no client can stamp a G finished empty.
+    if (body.done === true) {
+      const finalRow = ((body.transcription ?? existing.transcription) as {
+        rows?: Array<Record<string, string>>;
+      } | null)?.rows?.[0];
+      const missing = [
+        !finalRow?.callTime ? "the call time" : null,
+        !finalRow?.dismissMakeupWardrobe ? "the wrap" : null,
+      ].filter((m): m is string => !!m);
+      if (missing.length > 0) {
+        return NextResponse.json(
+          { error: `Enter ${missing.join(" and ")} before marking it done.` },
+          { status: 400 }
+        );
+      }
+    }
+
     // A show name doubles as the upload's title until one is set by hand.
     const title =
       body.title !== undefined
