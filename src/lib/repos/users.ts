@@ -280,6 +280,8 @@ export interface MemberStats {
   tier: string;
   role: string;
   tester: number;
+  tierOverride: string | null;
+  transcriptionBilling: string | null;
   lastLogin: string | null;
   createdAt: string;
   /** The latest of a login, a logged day or an upload. */
@@ -297,7 +299,7 @@ export async function listMemberStats(): Promise<MemberStats[]> {
   const db = await getDb();
   const { results } = await db
     .prepare(
-      `SELECT u._id, u.email, u.firstName, u.lastName, u.tier, u.role, u.tester, u.lastLogin, u.createdAt,
+      `SELECT u._id, u.email, u.firstName, u.lastName, u.tier, u.role, u.tester, u.tierOverride, u.transcriptionBilling, u.lastLogin, u.createdAt,
               (SELECT COUNT(*) FROM work_records w WHERE w.userId = u._id) AS workDays,
               (SELECT COUNT(*) FROM work_records w WHERE w.userId = u._id AND w.recordStatus != 'complete') AS incompleteDays,
               (SELECT COUNT(*) FROM work_records w WHERE w.userId = u._id AND w.createdAt >= datetime('now', '-30 days')) AS recentDays,
@@ -323,5 +325,14 @@ export async function setUserCalendar(
   await db
     .prepare("UPDATE users SET calendarId = ?1, calendarSharedAt = ?2, updatedAt = ?3 WHERE _id = ?4")
     .bind(calendarId, sharedAt, nowIso(), userId)
+    .run();
+}
+
+/** Make a member an admin, or a regular member again. Takes effect at their next sign-in. */
+export async function setUserRole(userId: string, role: "user" | "admin"): Promise<void> {
+  const db = await getDb();
+  await db
+    .prepare("UPDATE users SET role = ?1, updatedAt = ?2 WHERE _id = ?3")
+    .bind(role, nowIso(), userId)
     .run();
 }
