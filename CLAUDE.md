@@ -486,9 +486,20 @@ session's `/api/auth/me` carries `tester: true` for them.
   as credits (`src/lib/imdb.ts` `showCredits`: one per show, every
   character and actor doubled) beside that link and an IMDb title
   search per show. Matching shows to tt ids is a separate feature.
+- **Members** (`/admin/members`) — who uses the service and how much,
+  with the switch that makes a member a test user (`users.tester`,
+  migration 0027; the seed list in `test-users.ts` stays on and shows
+  as "seeded"). `/admin` has a layout with a grouped sidebar on a
+  desktop, chips on a phone, and an Admin › tool breadcrumb.
 - **Audit a show** — an outline only: docs/audit-a-show.md and the
   placeholder at `/admin/audits`. Nothing built.
-- **Bank deposits via Plaid** — asked for, not designed: connect a
-  tester's (business) bank account, pull deposits above a floor (~$500
-  to $1,000), classify them as residuals or match them to expected
-  checks. Needs Plaid keys and the rest of the spec (see Admin → Tasks).
+- **Bank deposits via Plaid** (`/bank`, testers) — connect a bank
+  account view-only, pull deposits (`bank_connections`,
+  `bank_deposits`, migration 0028), and match each to the pay the
+  calculator expected on timing first (within ten days of the SAG due
+  date) and money second (between half the gross and the gross, since
+  deposits are net). Unmatched payroll-house deposits are residuals.
+  `src/lib/bank-match.ts` is the rule, tested; `src/lib/plaid.ts` is
+  the client (plain fetch). Needs `PLAID_CLIENT_ID`, `PLAID_SECRET`,
+  `PLAID_ENV`; docs/bank-deposits.md has the setup and the two open
+  decisions (auto-write residuals? auto-mark paid?).

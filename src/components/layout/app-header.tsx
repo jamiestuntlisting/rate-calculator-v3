@@ -30,6 +30,11 @@ interface NavSection {
   children: NavChild[];
 }
 
+/** Pages only test users see — features under test (src/lib/test-users.ts). */
+const TESTER_CHILDREN: Record<string, NavChild[]> = {
+  income: [{ href: "/bank", label: "Bank" }],
+};
+
 const NAV_SECTIONS: NavSection[] = [
   {
     // One page on purpose: logging the day is the thing done on set, in a
@@ -110,7 +115,12 @@ export function AppHeader() {
   const isLoginPage = pathname === "/login";
 
   const canSeeAdmin = Boolean(user && (isAdmin || isAdminEmail(user.email)));
-  const sections = NAV_SECTIONS.filter((s) => !s.adminOnly || canSeeAdmin);
+  const canSeeTests = Boolean(user?.tester) || Boolean(viewingAs);
+  const sections = NAV_SECTIONS.filter((s) => !s.adminOnly || canSeeAdmin).map((s) =>
+    canSeeTests && TESTER_CHILDREN[s.id]
+      ? { ...s, children: [...s.children, ...TESTER_CHILDREN[s.id]] }
+      : s
+  );
   const activeSection =
     sections.find((s) => s.children.some((c) => matchesChild(pathname, c.href))) ??
     sections[0];
