@@ -4,7 +4,8 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
-    "build": "rm -rf .next/cache/turbopack && opennextjs-cloudflare build && node scripts/add-cron.mjs",
+    "build": "rm -rf .next/cache/turbopack && opennextjs-cloudflare build",
+    "build:cron": "npm run build && node scripts/add-cron.mjs",
     "build:next": "next build",
     "start": "next start",
     "lint": "eslint",

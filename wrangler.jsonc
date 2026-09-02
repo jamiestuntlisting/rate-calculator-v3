@@ -8,8 +8,6 @@
 {
   "$schema": "node_modules/wrangler/config-schema.json",
   "name": "rate-calculator",
-  // The build's last step (scripts/add-cron.mjs) wraps OpenNext's output
-  // so this entry also carries the scheduled handler for the cron below.
   "main": ".open-next/worker.js",
   "compatibility_date": "2026-07-01",
   "compatibility_flags": ["nodejs_compat"],
@@ -19,11 +17,6 @@
   },
   "observability": {
     "enabled": true
-  },
-  // Once a day, 7:00 AM New York (11:00 UTC): pull every connected
-  // member's bank deposits and match them to expected pay.
-  "triggers": {
-    "crons": ["0 11 * * *"]
   },
   "d1_databases": [
     {
