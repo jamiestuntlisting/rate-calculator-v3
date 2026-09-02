@@ -615,7 +615,7 @@ export default function UploadGPage() {
                         <TableRow>
                           <TableHead className="w-14" />
                           <TableHead>File</TableHead>
-                          <TableHead>Uploaded</TableHead>
+                          <TableHead className="hidden sm:table-cell">Uploaded</TableHead>
                           <TableHead className="w-28">Kind</TableHead>
                           <TableHead className="w-12" />
                         </TableRow>
@@ -638,7 +638,7 @@ export default function UploadGPage() {
                                 )}
                               </span>
                             </TableCell>
-                            <TableCell className="max-w-[10rem] sm:max-w-none">
+                            <TableCell className="max-w-[7rem] sm:max-w-none">
                               <a
                                 href={u.path}
                                 target="_blank"
@@ -648,7 +648,7 @@ export default function UploadGPage() {
                                 {u.displayTitle}
                               </a>
                             </TableCell>
-                            <TableCell className="whitespace-nowrap">
+                            <TableCell className="hidden sm:table-cell whitespace-nowrap">
                               {formatUploadDate(u.createdAt)}
                             </TableCell>
                             <TableCell className="py-2">
@@ -726,7 +726,7 @@ export default function UploadGPage() {
                                   )}
                                 </span>
                               </TableCell>
-                              <TableCell className="max-w-[10rem] sm:max-w-none">
+                              <TableCell className="max-w-[7rem] sm:max-w-none">
                                 <span className="block truncate font-medium">
                                   {u.displayTitle}
                                 </span>
