@@ -10,8 +10,6 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import {
   Table,
   TableBody,
@@ -52,6 +50,7 @@ interface Deposit {
 
 interface Payload {
   configured: boolean;
+  floor: number;
   env: string | null;
   connection: { id: string; institution: string | null; lastSyncedAt: string | null } | null;
   deposits: Deposit[];
@@ -79,7 +78,6 @@ export default function BankPage() {
   const { user, viewingAs } = useAuth();
   const [data, setData] = useState<Payload | null>(null);
   const [busy, setBusy] = useState<string | null>(null);
-  const [floor, setFloor] = useState(String(DEFAULT_FLOOR));
   const [linkReady, setLinkReady] = useState(false);
 
   const load = useCallback(async () => {
@@ -145,11 +143,7 @@ export default function BankPage() {
   const sync = async () => {
     setBusy("sync");
     try {
-      const res = await fetch("/api/bank/sync", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ floor: parseFloat(floor) || DEFAULT_FLOOR }),
-      });
+      const res = await fetch("/api/bank/sync", { method: "POST" });
       const body = (await res.json()) as { error?: string; added?: number; matched?: number; residuals?: number };
       if (!res.ok) throw new Error(body.error || "Couldn't sync");
       toast.success(`${body.added} new; ${body.matched} matched to pay, ${body.residuals} residuals`);
@@ -173,7 +167,7 @@ export default function BankPage() {
     }
   };
 
-  const floorValue = parseFloat(floor) || DEFAULT_FLOOR;
+  const floorValue = data?.floor ?? DEFAULT_FLOOR;
   const shown = (data?.deposits ?? []).filter((d) => d.amount >= floorValue);
 
   return (
@@ -186,12 +180,13 @@ export default function BankPage() {
       <div>
         <h1 className="text-3xl font-bold tracking-tight">Bank deposits</h1>
         <p className="text-sm text-muted-foreground mt-1">
-          A feature under test. Connect a bank account, view only, and every
-          deposit above the floor is lined up with the pay the calculator
-          expected — the day or week it was for, and how close to the due
-          date it landed. A deposit from a payroll house that matches no day
-          is a residual. Deposits are net of withholding, so the match is
-          made on the calendar first and the money second.
+          A feature under test. Connect a bank account, view only. Once a
+          day the app looks for new deposits and lines each one up with the
+          pay the calculator expected — the day or week it was for, and how
+          close to the due date it landed. A deposit from a payroll house
+          that matches no day is a residual. Deposits are net of
+          withholding, so the match is made on the calendar first and the
+          money second.
         </p>
       </div>
 
@@ -230,24 +225,6 @@ export default function BankPage() {
                 {busy === "connect" ? "Opening Plaid…" : "Connect a bank account"}
               </Button>
             )}
-            <div className="space-y-1">
-              <Label htmlFor="bank-floor" className="text-xs text-muted-foreground">
-                Floor — deposits under this are not paychecks
-              </Label>
-              <div className="relative w-40">
-                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground">$</span>
-                <Input
-                  id="bank-floor"
-                  type="number"
-                  inputMode="decimal"
-                  min="0"
-                  step="50"
-                  value={floor}
-                  onChange={(e) => setFloor(e.target.value)}
-                  className="pl-7"
-                />
-              </div>
-            </div>
           </div>
         </CardContent>
       </Card>
@@ -257,6 +234,14 @@ export default function BankPage() {
           <CardTitle className="text-lg">
             Deposits {data ? `— ${shown.length} at or above ${formatCurrency(floorValue)}` : ""}
           </CardTitle>
+          <p className="text-xs text-muted-foreground">
+            Smaller deposits are not paychecks and are left out; the floor is
+            set under{" "}
+            <Link href="/preferences" className="underline underline-offset-2">
+              Preferences
+            </Link>
+            .
+          </p>
         </CardHeader>
         <CardContent>
           {!data ? (

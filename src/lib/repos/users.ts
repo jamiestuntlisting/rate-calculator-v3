@@ -47,6 +47,8 @@ export interface UserPrefs {
   transcribeMode?: "form" | "guided";
   /** The performer's IMDb person id ("nm1234567"), set by an admin on /admin/imdb. */
   imdbId?: string;
+  /** The smallest bank deposit that could be a paycheck; default $500. */
+  depositFloor?: number;
 }
 
 /** The stored JSON, or {} for NULL, junk, or a non-object. */
@@ -335,4 +337,14 @@ export async function setUserRole(userId: string, role: "user" | "admin"): Promi
     .prepare("UPDATE users SET role = ?1, updatedAt = ?2 WHERE _id = ?3")
     .bind(role, nowIso(), userId)
     .run();
+}
+
+/** The stored preferences, or {} for none. */
+export async function getUserPrefs(userId: string): Promise<UserPrefs> {
+  const db = await getDb();
+  const row = await db
+    .prepare("SELECT prefs FROM users WHERE _id = ?1")
+    .bind(userId)
+    .first<{ prefs: string | null }>();
+  return parseUserPrefs(row?.prefs);
 }

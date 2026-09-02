@@ -56,6 +56,13 @@ export async function PUT(request: Request) {
       }
       patch.transcribeMode = value as UserPrefs["transcribeMode"];
     }
+    if (body.depositFloor !== undefined) {
+      const floor = Number(body.depositFloor);
+      if (!Number.isFinite(floor) || floor < 0 || floor > 100000) {
+        return NextResponse.json({ error: "depositFloor must be a dollar amount" }, { status: 400 });
+      }
+      patch.depositFloor = Math.round(floor * 100) / 100;
+    }
     const prefs = await mergeUserPrefs(auth.session.userId, patch);
     return NextResponse.json({ prefs });
   } catch (error) {

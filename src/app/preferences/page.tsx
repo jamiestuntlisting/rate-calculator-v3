@@ -223,6 +223,7 @@ export default function PreferencesPage() {
         </CardContent>
       </Card>
 
+      {user?.tester && <BankFloorCard />}
       {user?.tester && <CalendarCard />}
 
       <Card>
@@ -377,6 +378,83 @@ function CalendarCard() {
             {busy === "connect" ? "Sharing…" : "Share my work log to Google Calendar"}
           </Button>
         )}
+      </CardContent>
+    </Card>
+  );
+}
+
+
+/**
+ * Bank deposits (a feature under test): the one setting the matching
+ * has — the smallest deposit that could be a paycheck. The bank page
+ * itself is just Connect; the daily pull uses this floor.
+ */
+function BankFloorCard() {
+  const [floor, setFloor] = useState("500");
+  const [saving, setSaving] = useState(false);
+  useEffect(() => {
+    fetch("/api/me/prefs")
+      .then((r) => (r.ok ? r.json() : null))
+      .then((data: { prefs?: { depositFloor?: number } } | null) => {
+        const f = data?.prefs?.depositFloor;
+        if (typeof f === "number") setFloor(String(f));
+      })
+      .catch(() => undefined);
+  }, []);
+  const save = async () => {
+    setSaving(true);
+    try {
+      const res = await fetch("/api/me/prefs", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ depositFloor: parseFloat(floor) || 0 }),
+      });
+      if (!res.ok) throw new Error(String(res.status));
+      toast.success("Saved");
+    } catch {
+      toast.error("Couldn't save the floor");
+    } finally {
+      setSaving(false);
+    }
+  };
+  return (
+    <Card className="mb-4">
+      <CardHeader>
+        <CardTitle className="text-lg">Bank deposits</CardTitle>
+      </CardHeader>
+      <CardContent className="space-y-3">
+        <p className="text-sm text-muted-foreground">
+          A feature under test. The smallest deposit that could be a
+          paycheck: anything under it is left out when the daily pull
+          matches deposits to expected pay.{" "}
+          <Link href="/bank" className="underline underline-offset-2">
+            Bank deposits
+          </Link>
+          .
+        </p>
+        <div className="flex flex-wrap items-end gap-2">
+          <div className="space-y-1">
+            <Label htmlFor="pref-deposit-floor" className="text-xs text-muted-foreground">
+              Floor
+            </Label>
+            <div className="relative w-40">
+              <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground">$</span>
+              <Input
+                id="pref-deposit-floor"
+                type="number"
+                inputMode="decimal"
+                min="0"
+                step="50"
+                value={floor}
+                onChange={(e) => setFloor(e.target.value)}
+                className="pl-7"
+              />
+            </div>
+          </div>
+          <Button onClick={save} disabled={saving} className="h-11">
+            {saving ? "Saving…" : "Save"}
+          </Button>
+        </div>
       </CardContent>
     </Card>
   );

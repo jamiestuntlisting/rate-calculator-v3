@@ -134,3 +134,12 @@ export async function saveDepositMatches(userId: string, matches: DepositMatch[]
   );
   if (statements.length) await db.batch(statements);
 }
+
+/** Every member's connection — the daily sync walks these. */
+export async function listBankConnections(): Promise<BankConnection[]> {
+  const db = await getDb();
+  const { results } = await db
+    .prepare("SELECT * FROM bank_connections ORDER BY createdAt")
+    .all<BankConnection>();
+  return results;
+}
