@@ -69,6 +69,8 @@ interface GUpload {
    * there, and the Notes box opens on it so a save keeps it.
    */
   workRecordNotes?: string;
+  /** Claude may read this card: the owning account is a test user. */
+  readable?: boolean;
   /** Claude's reading of the card, for test users (src/lib/g-reader). */
   reading?: GReading | null;
 }
@@ -468,11 +470,11 @@ export default function TranscribePage({
   // or a background read that never ran) is read when it is opened.
   useEffect(() => {
     if (readAttempted.current || !upload || reading || doneAt) return;
-    if (!(user?.tester || viewingAs)) return;
+    if (!upload.readable) return;
     if (upload.transcription?.rows?.[0]) return;
     readAttempted.current = true;
     void readNow();
-  }, [upload, reading, doneAt, user, viewingAs, readNow]);
+  }, [upload, reading, doneAt, readNow]);
   // The highlight sits mid-pane on a phone, where the card is the top
   // half of the screen; on a desktop the pane is the full height and a
   // row reads better a little above the middle.
@@ -1788,12 +1790,12 @@ export default function TranscribePage({
                     })()}
                   </p>
                 )}
-                {!readingNow && reading?.error && (user?.tester || viewingAs) && (
+                {!readingNow && reading?.error && upload.readable && (
                   <p className="mt-1 text-xs text-amber-400">
                     Claude couldn&rsquo;t read this card: {reading.error}
                   </p>
                 )}
-                {!readingNow && (user?.tester || viewingAs) && !doneAt && (
+                {!readingNow && upload.readable && !doneAt && (
                   <button
                     type="button"
                     onClick={() => void readNow()}

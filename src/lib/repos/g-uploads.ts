@@ -62,7 +62,7 @@ export async function listTranscriptionQueue(): Promise<
   const db = await getDb();
   const { results } = await db
     .prepare(
-      `SELECT * FROM g_uploads WHERE transcribedAt IS NULL
+      `SELECT * FROM g_uploads WHERE transcribedAt IS NULL AND kind = 'exhibit_g'
        ORDER BY transcriptionRequested DESC, createdAt ASC LIMIT 100`
     )
     .all<GUploadRow>();
@@ -237,6 +237,16 @@ export async function findGUploadByFilename(
   const row = await db
     .prepare("SELECT * FROM g_uploads WHERE userId = ?1 AND filename = ?2")
     .bind(userId, filename)
+    .first<GUploadRow>();
+  return row ? toDoc(row) : null;
+}
+
+/** An upload by id alone — for admin tools that work across members. */
+export async function findGUploadById(id: string): Promise<GUpload | null> {
+  const db = await getDb();
+  const row = await db
+    .prepare("SELECT * FROM g_uploads WHERE _id = ?1")
+    .bind(id)
     .first<GUploadRow>();
   return row ? toDoc(row) : null;
 }

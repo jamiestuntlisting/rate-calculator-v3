@@ -16,6 +16,7 @@ import {
 } from "@/components/ui/select";
 import { toast } from "sonner";
 import { ArrowRight, FileText, Loader2 } from "lucide-react";
+import { UPLOAD_KINDS, UPLOAD_KIND_LABELS, type UploadKind } from "@/lib/upload-kind";
 /** An Exhibit G from the performer's Upload a G library. */
 interface GUploadItem {
   _id: string;
@@ -120,7 +121,11 @@ export default function AdminTranscribePage() {
     performer: string;
     displayTitle: string;
     requested: boolean;
-  }
+    path?: string;
+  contentType?: string;
+  rotation?: number;
+  kind?: string;
+}
   const [queue, setQueue] = useState<QueueItem[] | null>(null);
   /** The queue is the page's point — it loads itself. */
   // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -146,6 +151,32 @@ export default function AdminTranscribePage() {
       toast.error("Failed to load the queue");
     } finally {
       setLoadingQueue(false);
+    }
+  };
+
+  /** Reclassify a member's file from the queue; a non-G drops out of it. */
+  const reclassify = async (item: QueueItem, kind: UploadKind) => {
+    const before = item.kind;
+    setQueue((prev) =>
+      kind === "exhibit_g"
+        ? (prev ?? []).map((q) => (q._id === item._id ? { ...q, kind } : q))
+        : (prev ?? []).filter((q) => q._id !== item._id)
+    );
+    try {
+      const res = await fetch(`/api/admin/g-uploads/${item._id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ kind }),
+      });
+      if (!res.ok) throw new Error(String(res.status));
+      toast.success(`${item.displayTitle} is now ${UPLOAD_KIND_LABELS[kind].toLowerCase()}`);
+    } catch {
+      setQueue((prev) =>
+        (prev ?? []).some((q) => q._id === item._id)
+          ? (prev ?? []).map((q) => (q._id === item._id ? { ...q, kind: before } : q))
+          : [...(prev ?? []), { ...item, kind: before }]
+      );
+      toast.error("Couldn't change what this file is");
     }
   };
 
@@ -273,30 +304,65 @@ export default function AdminTranscribePage() {
                       ? queue.filter((i) => i.userId === selectedUserId)
                       : queue
                     ).map((item, index) => (
-                      <button
+                      <div
                         key={item._id}
-                        type="button"
-                        disabled={navigating}
-                        onClick={() => openQueueItem(item)}
-                        className="w-full text-left flex items-center gap-3 p-2 rounded border border-border/50 hover:bg-accent/40 disabled:opacity-50"
+                        className="flex flex-wrap items-center gap-2 rounded border border-border/50 p-2"
                       >
-                        <span className="text-xs text-muted-foreground tabular-nums w-6 shrink-0">
-                          {index + 1}.
-                        </span>
-                        <span className="flex-1 min-w-0">
-                          <span className="block text-sm truncate">
-                            {item.displayTitle}
+                        {/* The row opens the card; the pulldown beside it
+                            says what the file is — a select cannot live
+                            inside a button, so they are siblings. */}
+                        <button
+                          type="button"
+                          disabled={navigating}
+                          onClick={() => openQueueItem(item)}
+                          className="flex min-w-[14rem] flex-1 items-center gap-3 rounded text-left hover:bg-accent/40 disabled:opacity-50"
+                        >
+                          <span className="text-xs text-muted-foreground tabular-nums w-6 shrink-0">
+                            {index + 1}.
                           </span>
-                          <span className="block text-xs text-muted-foreground truncate">
-                            {item.performer}
+                          <span className="flex h-12 w-12 shrink-0 items-center justify-center overflow-hidden rounded border border-border bg-muted/40">
+                            {item.contentType === "application/pdf" || !item.path ? (
+                              <FileText className="h-5 w-5 text-muted-foreground" />
+                            ) : (
+                              // eslint-disable-next-line @next/next/no-img-element
+                              <img
+                                src={item.path}
+                                alt=""
+                                className="h-full w-full object-cover"
+                                style={{ transform: `rotate(${item.rotation ?? 0}deg)` }}
+                              />
+                            )}
                           </span>
-                        </span>
-                        {item.requested && (
-                          <span className="shrink-0 rounded px-1.5 py-0.5 text-[10px] uppercase tracking-wide border border-primary/50 text-primary">
-                            Requested
+                          <span className="flex-1 min-w-0">
+                            <span className="block text-sm truncate">
+                              {item.displayTitle}
+                            </span>
+                            <span className="block text-xs text-muted-foreground truncate">
+                              {item.performer}
+                            </span>
                           </span>
-                        )}
-                      </button>
+                          {item.requested && (
+                            <span className="shrink-0 rounded px-1.5 py-0.5 text-[10px] uppercase tracking-wide border border-primary/50 text-primary">
+                              Requested
+                            </span>
+                          )}
+                        </button>
+                        {/* Anything but an Exhibit G leaves the queue: there
+                            is nothing to transcribe on it. */}
+                        <select
+                          aria-label={`What ${item.displayTitle} is`}
+                          value={(item.kind as UploadKind) || "exhibit_g"}
+                          onChange={(e) => reclassify(item, e.target.value as UploadKind)}
+                          // Its own line on a phone, beside the row when there is room.
+                          className="h-8 w-full shrink-0 rounded-md border border-input bg-background px-2 text-xs sm:w-auto"
+                        >
+                          {UPLOAD_KINDS.map((k) => (
+                            <option key={k} value={k}>
+                              {UPLOAD_KIND_LABELS[k]}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
                     ))}
                   </>
                 )}

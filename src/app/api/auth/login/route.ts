@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { isTester } from "@/lib/test-users";
 import { upsertUserByStuntlistingId, findUserByStuntlistingId, setUserPhone } from "@/lib/repos/users";
 import { isPlausiblePhone, phoneDigits } from "@/lib/phone";
 import { resolveMembershipTier } from "@/lib/membership";
@@ -205,6 +206,7 @@ export async function POST(request: Request) {
         lastName: profile.last_name || "",
         tier: membershipTier,
         role: isAdmin ? "admin" : "user",
+        tester: isTester({ email: userEmail, tester: existing?.tester ?? 0 }),
       },
     });
 

@@ -11,6 +11,8 @@ import { doneBlockers, listMissing } from "@/lib/transcription-done";
 import { mirrorLater } from "@/lib/google-calendar";
 import { documentTypeForKind, isUploadKind } from "@/lib/upload-kind";
 import { latestGReading, replaceGReadingScores } from "@/lib/repos/g-readings";
+import { findUserById } from "@/lib/repos/users";
+import { autoReadsExhibitG } from "@/lib/test-users";
 import { scoreReading } from "@/lib/g-reader/score";
 import { requireAuth, getEffectiveUserId } from "@/lib/api-auth";
 
@@ -40,10 +42,16 @@ export async function GET(
     // Claude's reading of the card, when one was made (testers only):
     // the form opens pre-filled from it.
     const reading = await latestGReading(upload._id, upload.userId);
+    // Whether Claude may read this card: decided here for the account
+    // that owns it (an admin viewing as a member sees what the member
+    // would), never from the viewer's own flags.
+    const owner = await findUserById(upload.userId);
+    const readable = !!owner && autoReadsExhibitG(owner) && upload.kind === "exhibit_g";
     return NextResponse.json({
       ...upload,
       workRecordNotes: record?.notes ?? "",
       reading,
+      readable,
     });
   } catch (error) {
     console.error("Error fetching Exhibit G upload:", error);
