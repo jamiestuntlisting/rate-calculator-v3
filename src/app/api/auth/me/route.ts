@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { isTestUser } from "@/lib/test-users";
 import { getSession, isAdminEmail, createSession, setSessionCookie } from "@/lib/auth";
 import { findUserById } from "@/lib/repos/users";
 import { resolveMembershipTier } from "@/lib/membership";
@@ -93,6 +94,7 @@ export async function GET() {
       lastName: session.lastName,
       tier: session.tier,
       role: session.role,
+      tester: isTestUser(session.email),
     },
   });
 }

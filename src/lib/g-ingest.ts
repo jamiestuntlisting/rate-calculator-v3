@@ -1,5 +1,9 @@
 import { v4 as uuidv4 } from "uuid";
+import { getCloudflareContext } from "@opennextjs/cloudflare";
 import { getUploadsBucket } from "@/lib/db";
+import { findUserById } from "@/lib/repos/users";
+import { autoReadsExhibitG } from "@/lib/test-users";
+import { readExhibitG } from "@/lib/g-reader/read";
 import {
   createGUpload,
   findGUploadByHash,
@@ -82,6 +86,17 @@ export async function ingestGUploads(
   const created: GUpload[] = [];
   const duplicates: IngestResult["duplicates"] = [];
 
+  // A tester's G is read by Claude as it lands (the feature under test)
+  // — in the background, after the response, so the upload never waits
+  // on the model. The reading, or the error, is recorded either way.
+  const owner = await findUserById(userId);
+  const reader =
+    owner && autoReadsExhibitG(owner.email)
+      ? {
+          name: `${owner.firstName ?? ""} ${owner.lastName ?? ""}`.trim() || owner.email,
+        }
+      : null;
+
   let untranscribedCount = await maxUntranscribedTitle(userId);
 
   for (const file of files) {
@@ -131,19 +146,34 @@ export async function ingestGUploads(
       userId
     );
 
-    created.push(
-      await createGUpload({
-        userId,
-        title: "",
-        filename,
-        originalName: file.name,
-        contentType,
-        size: file.bytes.byteLength,
-        sha256: hash,
-        workRecordId: workRecord._id,
-      })
-    );
+    const upload = await createGUpload({
+      userId,
+      title: "",
+      filename,
+      originalName: file.name,
+      contentType,
+      size: file.bytes.byteLength,
+      sha256: hash,
+      workRecordId: workRecord._id,
+    });
+    created.push(upload);
+    if (reader) scheduleReading(upload, reader.name);
   }
 
   return { created, duplicates };
+}
+
+/**
+ * Run the reading after the response goes out. On the Worker that is
+ * ctx.waitUntil; in `next dev` there is no such context, so the promise
+ * simply runs on. Errors land in g_readings, never in the request.
+ */
+function scheduleReading(upload: GUpload, performerName: string): void {
+  const work = readExhibitG(upload, performerName).then(
+    () => undefined,
+    (e) => console.error("Exhibit G reading failed:", e)
+  );
+  getCloudflareContext({ async: true })
+    .then(({ ctx }) => ctx?.waitUntil?.(work))
+    .catch(() => undefined);
 }

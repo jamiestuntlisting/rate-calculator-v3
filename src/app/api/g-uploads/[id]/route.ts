@@ -8,6 +8,8 @@ import {
 import { findWorkRecord, updateWorkRecord } from "@/lib/repos/work-records";
 import { recalculateDay } from "@/lib/day-recalc";
 import { doneBlockers, listMissing } from "@/lib/transcription-done";
+import { latestGReading, replaceGReadingScores } from "@/lib/repos/g-readings";
+import { scoreReading } from "@/lib/g-reader/score";
 import { requireAuth, getEffectiveUserId } from "@/lib/api-auth";
 
 export async function GET(
@@ -33,9 +35,13 @@ export async function GET(
     const record = upload.workRecordId
       ? await findWorkRecord(upload.workRecordId, upload.userId)
       : null;
+    // Claude's reading of the card, when one was made (testers only):
+    // the form opens pre-filled from it.
+    const reading = await latestGReading(upload._id, upload.userId);
     return NextResponse.json({
       ...upload,
       workRecordNotes: record?.notes ?? "",
+      reading,
     });
   } catch (error) {
     console.error("Error fetching Exhibit G upload:", error);
@@ -84,6 +90,37 @@ export async function PATCH(
         return NextResponse.json(
           { error: `Enter ${listMissing(missing)} before marking it done.` },
           { status: 400 }
+        );
+      }
+    }
+
+    // Done is the final answer: score Claude's reading of the card
+    // against it, field by field. Reopening and finishing again
+    // replaces the scores, so the last word always counts.
+    if (body.done === true) {
+      const reading = await latestGReading(id, userId);
+      if (reading?.reading) {
+        const final = (body.transcription ?? existing.transcription) as {
+          details?: { showName?: string; workDate?: string };
+          rows?: Array<Record<string, string>>;
+        } | null;
+        const row = final?.rows?.[0] ?? {};
+        await replaceGReadingScores(
+          reading,
+          scoreReading(reading.reading, {
+            showName: final?.details?.showName,
+            workDate: final?.details?.workDate,
+            character: row.character,
+            callTime: row.callTime,
+            ndMealIn: row.ndMealIn,
+            firstMealStart: row.firstMealStart,
+            firstMealFinish: row.firstMealFinish,
+            secondMealStart: row.secondMealStart,
+            secondMealFinish: row.secondMealFinish,
+            dismissOnSet: row.dismissOnSet,
+            dismissMakeupWardrobe: row.dismissMakeupWardrobe,
+            stuntAdjustment: row.stuntAdjustment,
+          })
         );
       }
     }

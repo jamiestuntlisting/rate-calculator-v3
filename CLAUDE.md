@@ -439,3 +439,30 @@ This version has breaking changes — APIs, conventions, and file structure may 
 This block is written and re-added by `next dev` — verify at `node_modules/next/dist/server/lib/generate-agent-files.js`. Removing it from a diff only re-creates the uncommitted change; committing it with your work keeps the tree clean.
 
 <!-- END:nextjs-agent-rules -->
+
+## Features under test (test users)
+
+`src/lib/test-users.ts` names the test accounts (today
+`jamesdunnauthor@gmail.com`); they are performers whose own days
+exercise a feature before it launches, distinct from admins. The
+session's `/api/auth/me` carries `tester: true` for them.
+
+- **Claude reads the G** — a tester's Exhibit G is read by Claude Fable
+  5.1 as it lands (`src/lib/g-reader`, scheduled on `ctx.waitUntil`
+  from `ingestGUploads`; `POST /api/g-uploads/[id]/read` reads on
+  demand), the transcription form opens pre-filled from the reading
+  (empty boxes only), and Done scores each field against what was
+  saved (`score.ts`: exact / small / meridiem / large / missed /
+  spurious). `g_readings` and `g_reading_scores` (migration 0025);
+  `/admin/readings` is the batting average per field and per
+  rule-book version. The rule book is `prompt.ts` (`RULE_BOOK`,
+  `PROMPT_VERSION` — bump it whenever the words change) and is
+  explained in docs/exhibit-g-reading-rules.md. Needs
+  `ANTHROPIC_API_KEY` as a Worker secret or `app_config` row; until
+  then every reading records that error and the form opens empty.
+- **Audit a show** — an outline only: docs/audit-a-show.md and the
+  placeholder at `/admin/audits`. Nothing built.
+- **Bank deposits via Plaid** — asked for, not designed: connect a
+  tester's (business) bank account, pull deposits above a floor (~$500
+  to $1,000), classify them as residuals or match them to expected
+  checks. Needs Plaid keys and the rest of the spec (see Admin → Tasks).

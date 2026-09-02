@@ -18,6 +18,8 @@ export interface AuthUser {
   lastName: string;
   tier: string;
   role: string;
+  /** Sees features under test (src/lib/test-users.ts); not an admin. */
+  tester?: boolean;
 }
 
 export interface ViewAsUser {

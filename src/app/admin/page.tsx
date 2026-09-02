@@ -16,6 +16,7 @@ import {
   FlaskConical,
   CalendarClock,
   Undo2,
+  ScanText,
 } from "lucide-react";
 import { useAuth } from "@/context/auth-context";
 import { isAdminEmail } from "@/lib/admin-emails";
@@ -63,6 +64,13 @@ const ADMIN_PAGES = [
     title: "Reverse calculator",
     detail: "Start from what a check paid and work backwards to the day.",
     icon: Undo2,
+  },
+  {
+    href: "/admin/readings",
+    title: "Claude reads the G",
+    detail:
+      "The batting average of Claude's Exhibit G readings for test users, per field and per rule-book version.",
+    icon: ScanText,
   },
   {
     href: "/admin/weekly-bench",

@@ -43,6 +43,8 @@ import { wrapOrderWarning } from "@/lib/wrap-check";
 import { useAuth } from "@/context/auth-context";
 import { useFocalZoom } from "@/lib/use-focal-zoom";
 import { usePreventPageZoom } from "@/lib/use-prevent-page-zoom";
+import type { GReading } from "@/lib/repos/g-readings";
+import type { Reading } from "@/lib/g-reader/schema";
 import { ACTOR_DOUBLED_LABEL, isStuntDouble } from "@/lib/stunt-double";
 import {
   doneBlockers,
@@ -67,6 +69,8 @@ interface GUpload {
    * there, and the Notes box opens on it so a save keeps it.
    */
   workRecordNotes?: string;
+  /** Claude's reading of the card, for test users (src/lib/g-reader). */
+  reading?: GReading | null;
 }
 
 /** The performer's own line on the Exhibit G. */
@@ -392,6 +396,83 @@ export default function TranscribePage({
   const [lockedY, setLockedY] = useState(false);
   // The card zooms; the page must not.
   usePreventPageZoom();
+
+  /**
+   * Claude's reading of the card — the feature under test for test
+   * users. A fresh G opens pre-filled from it (empty boxes only, so a
+   * saved row is never overwritten); the performer checks every box,
+   * and Done scores the reading against what they saved.
+   */
+  const [reading, setReading] = useState<GReading | null>(null);
+  const [readingNow, setReadingNow] = useState(false);
+  const prefilled = useRef(false);
+  const readAttempted = useRef(false);
+  const applyReading = useCallback((r: Reading) => {
+    const has = (v: string | null | undefined) => !!(v && v.trim());
+    setDetails((d) => ({
+      showName: has(d.showName) ? d.showName : (r.showName ?? ""),
+      workDate: has(d.workDate) ? d.workDate : (r.workDate ?? ""),
+    }));
+    setRow((prev) => {
+      const pick = (mine: string, read: string | null) => (has(mine) ? mine : (read ?? ""));
+      const next = {
+        ...prev,
+        character: pick(prev.character, r.character),
+        callTime: pick(prev.callTime, r.callTime),
+        ndMealIn: pick(prev.ndMealIn, r.ndMealIn),
+        ndMealOut: pick(prev.ndMealOut, r.ndMealOut),
+        firstMealStart: pick(prev.firstMealStart, r.firstMealStart),
+        firstMealFinish: pick(prev.firstMealFinish, r.firstMealFinish),
+        secondMealStart: pick(prev.secondMealStart, r.secondMealStart),
+        secondMealFinish: pick(prev.secondMealFinish, r.secondMealFinish),
+        dismissOnSet: pick(prev.dismissOnSet, r.dismissOnSet),
+        dismissMakeupWardrobe: pick(prev.dismissMakeupWardrobe, r.dismissMakeupWardrobe),
+        stuntAdjustment: has(prev.stuntAdjustment)
+          ? prev.stuntAdjustment
+          : r.stuntAdjustment != null
+            ? String(r.stuntAdjustment)
+            : "",
+      };
+      // Lunch times read off the card answer the lunch question; a card
+      // with none leaves it for the performer, since a dash and an
+      // unreadable cell look the same.
+      if (!next.lunch && next.firstMealStart && next.firstMealFinish) next.lunch = "yes";
+      return next;
+    });
+    if (r.ndMealIn) setShowNdMeal(true);
+    if (r.firstMealStart) setShowFirstMeal(true);
+    if (r.secondMealStart) setShowSecondMeal(true);
+  }, []);
+  const readNow = useCallback(async () => {
+    setReadingNow(true);
+    try {
+      const res = await fetch(`/api/g-uploads/${id}/read`, { method: "POST" });
+      if (!res.ok) return;
+      const data = (await res.json()) as { reading: GReading | null };
+      setReading(data.reading);
+      if (data.reading?.reading) applyReading(data.reading.reading);
+    } catch {
+      // The reading is a convenience; the form is still the form.
+    } finally {
+      setReadingNow(false);
+    }
+  }, [id, applyReading]);
+  // A fresh card with a reading opens pre-filled from it, once.
+  useEffect(() => {
+    if (prefilled.current || !upload || !reading?.reading) return;
+    if (upload.transcription?.rows?.[0] || upload.transcribedAt) return;
+    prefilled.current = true;
+    applyReading(reading.reading);
+  }, [upload, reading, applyReading]);
+  // A tester's card with no reading yet (uploaded before the feature,
+  // or a background read that never ran) is read when it is opened.
+  useEffect(() => {
+    if (readAttempted.current || !upload || reading || doneAt) return;
+    if (!(user?.tester || viewingAs)) return;
+    if (upload.transcription?.rows?.[0]) return;
+    readAttempted.current = true;
+    void readNow();
+  }, [upload, reading, doneAt, user, viewingAs, readNow]);
   // The highlight sits mid-pane on a phone, where the card is the top
   // half of the screen; on a desktop the pane is the full height and a
   // row reads better a little above the middle.
@@ -467,6 +548,7 @@ export default function TranscribePage({
         if (!res.ok) throw new Error("Not found");
         const data = (await res.json()) as GUpload;
         setUpload(data);
+        setReading(data.reading ?? null);
         setRotation(data.rotation);
         setDoneAt(data.transcribedAt ?? null);
         if (data.transcription?.rows?.[0]) {
@@ -1684,6 +1766,41 @@ export default function TranscribePage({
                   <p className="text-xs text-muted-foreground">
                     Save as much or as little as you like — even just the date.
                   </p>
+                )}
+                {/* The reading, for test users: what Claude saw is in the
+                    boxes; the performer's job is to check them. */}
+                {readingNow && (
+                  <p className="mt-1 text-xs text-sky-300">
+                    Claude is reading the card…
+                  </p>
+                )}
+                {!readingNow && reading?.reading && !doneAt && (
+                  <p className="mt-1 text-xs text-sky-300">
+                    Claude read this card and filled in what it saw — check
+                    every box; Done scores it.
+                    {(() => {
+                      const unsure = reading.reading.fieldConfidence
+                        .filter((f) => f.confidence < 0.8)
+                        .map((f) => f.field);
+                      return unsure.length
+                        ? ` Unsure about: ${unsure.join(", ")}.`
+                        : "";
+                    })()}
+                  </p>
+                )}
+                {!readingNow && reading?.error && (user?.tester || viewingAs) && (
+                  <p className="mt-1 text-xs text-amber-400">
+                    Claude couldn&rsquo;t read this card: {reading.error}
+                  </p>
+                )}
+                {!readingNow && (user?.tester || viewingAs) && !doneAt && (
+                  <button
+                    type="button"
+                    onClick={() => void readNow()}
+                    className="mt-1 text-xs text-muted-foreground underline underline-offset-2"
+                  >
+                    {reading ? "Read it again" : "Read the card with Claude"}
+                  </button>
                 )}
               </div>
             </div>
