@@ -25,6 +25,7 @@ interface GUploadItem {
   createdAt: string;
   transcription: unknown | null;
   transcribedAt?: string | null;
+  kind?: string;
   transcriptionRequested?: number;
 }
 
@@ -100,7 +101,7 @@ export default function AdminTranscribePage() {
       // Not-done is the bar: a half-typed G still needs finishing.
       setRecords(
         (data.uploads || [])
-          .filter((u: GUploadItem) => !u.transcribedAt)
+          .filter((u: GUploadItem) => !u.transcribedAt && (u.kind ?? "exhibit_g") === "exhibit_g")
           .sort(
             (a: GUploadItem, b: GUploadItem) =>
               (b.transcriptionRequested ?? 0) - (a.transcriptionRequested ?? 0)

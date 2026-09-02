@@ -4,6 +4,7 @@ import { getUploadsBucket } from "@/lib/db";
 import { findUserById } from "@/lib/repos/users";
 import { autoReadsExhibitG } from "@/lib/test-users";
 import { readExhibitG } from "@/lib/g-reader/read";
+import { documentTypeForKind, kindForUpload } from "@/lib/upload-kind";
 import {
   createGUpload,
   findGUploadByHash,
@@ -109,6 +110,9 @@ export async function ingestGUploads(
     }
 
     const ext = file.name.split(".").pop()?.toLowerCase() || "jpg";
+    // A PDF is taken for the call sheet, a photo for the Exhibit G;
+    // either can be reclassified later. Both start a work day.
+    const kind = kindForUpload(file.type, file.name);
     // Flat key: /api/uploads/[filename] serves R2 objects and rejects
     // slashes in the path segment.
     const filename = `${uuidv4()}.${ext}`;
@@ -130,7 +134,10 @@ export async function ingestGUploads(
     const uploadedOn = new Date().toISOString();
     const workRecord = await createWorkRecord(
       {
-        showName: `Untranscribed Exhibit G ${untranscribedCount}`,
+        showName:
+          kind === "exhibit_g"
+            ? `Untranscribed Exhibit G ${untranscribedCount}`
+            : `${kind === "call_sheet" ? "Call sheet" : "File"} ${untranscribedCount}`,
         workDate: uploadedOn,
         recordStatus: "attachment_only",
         ...(origin ? { notes: origin } : {}),
@@ -138,7 +145,7 @@ export async function ingestGUploads(
           {
             filename,
             originalName: file.name,
-            documentType: "exhibit_g",
+            documentType: documentTypeForKind(kind),
             uploadedAt: uploadedOn,
           },
         ],
@@ -155,9 +162,11 @@ export async function ingestGUploads(
       size: file.bytes.byteLength,
       sha256: hash,
       workRecordId: workRecord._id,
+      kind,
     });
     created.push(upload);
-    if (reader) scheduleReading(upload, reader.name);
+    // Only an Exhibit G is read; a call sheet has no row to transcribe.
+    if (reader && kind === "exhibit_g") scheduleReading(upload, reader.name);
   }
 
   return { created, duplicates };

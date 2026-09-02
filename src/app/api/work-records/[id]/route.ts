@@ -1,4 +1,7 @@
 import { NextResponse } from "next/server";
+import { findGUploadByFilename, updateGUpload } from "@/lib/repos/g-uploads";
+import { kindForDocumentType } from "@/lib/upload-kind";
+import type { DocumentType } from "@/types";
 import {
   deleteWorkRecord,
   findWorkRecord,
@@ -69,6 +72,18 @@ export async function PUT(
         { error: "Work record not found" },
         { status: 404 }
       );
+    }
+
+    // A document retyped on the day (Exhibit G ↔ call sheet ↔ other)
+    // retypes the upload it came from, so the pile agrees with the day.
+    if (Array.isArray(data.documents)) {
+      for (const doc of data.documents as Array<{ filename?: string; documentType?: string }>) {
+        if (!doc?.filename || !kindForDocumentType(doc.documentType as DocumentType)) continue;
+        const upload = await findGUploadByFilename(userId, doc.filename);
+        if (upload && upload.kind !== doc.documentType) {
+          await updateGUpload(upload._id, userId, { kind: doc.documentType });
+        }
+      }
     }
 
     // Weekly-ness and membership move together: marking a day weekly

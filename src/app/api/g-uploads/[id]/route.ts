@@ -8,6 +8,7 @@ import {
 import { findWorkRecord, updateWorkRecord } from "@/lib/repos/work-records";
 import { recalculateDay } from "@/lib/day-recalc";
 import { doneBlockers, listMissing } from "@/lib/transcription-done";
+import { documentTypeForKind, isUploadKind } from "@/lib/upload-kind";
 import { latestGReading, replaceGReadingScores } from "@/lib/repos/g-readings";
 import { scoreReading } from "@/lib/g-reader/score";
 import { requireAuth, getEffectiveUserId } from "@/lib/api-auth";
@@ -94,6 +95,27 @@ export async function PATCH(
       }
     }
 
+    // Reclassify: the upload's kind and the day's matching document move
+    // together, so the pile and the tracker never disagree about what a
+    // file is. A call sheet made an Exhibit G joins the pile; an Exhibit
+    // G made a call sheet leaves it, keeping whatever was transcribed.
+    if (body.kind !== undefined) {
+      if (!isUploadKind(body.kind)) {
+        return NextResponse.json({ error: "Unknown kind" }, { status: 400 });
+      }
+      if (existing.workRecordId) {
+        const record = await findWorkRecord(existing.workRecordId, userId);
+        if (record) {
+          const documents = (record.documents ?? []).map((d) =>
+            d.filename === existing.filename
+              ? { ...d, documentType: documentTypeForKind(body.kind) }
+              : d
+          );
+          await updateWorkRecord(existing.workRecordId, userId, { documents });
+        }
+      }
+    }
+
     // Done is the final answer: score Claude's reading of the card
     // against it, field by field. Reopening and finishing again
     // replaces the scores, so the last word always counts.
@@ -139,6 +161,7 @@ export async function PATCH(
       ...(body.transcription !== undefined
         ? { transcription: body.transcription }
         : {}),
+      ...(body.kind !== undefined ? { kind: body.kind } : {}),
       // Saving and finishing are different acts: `done: true` stamps the
       // transcription finished, `done: false` reopens it for correction.
       ...(typeof body.done === "boolean"

@@ -179,6 +179,17 @@ state stays in step.
   with the character under it, the work date from the transcription's
   details, the transcribed-on date at md+, delete), a row tap opening
   the G. The to-do pile above keeps its cards.
+- **What a file is** — `g_uploads.kind` (migration 0026: exhibit_g |
+  call_sheet | other; `src/lib/upload-kind.ts`). A PDF arrives as the
+  call sheet, a photo as an Exhibit G (`kindForUpload`); both start a
+  work day, whose document carries the same type. Only an Exhibit G is
+  transcribed: call sheets and other files sit in their own table on
+  `/upload-g`, count in no to-do, are not read by Claude, and are left
+  out of transcription requests and the admin queue. Reclassify with
+  the pulldown on the pile's cards and tables (`PATCH /api/g-uploads/
+  [id]` with `kind`, which retypes the day's document) or on the day's
+  Photos & Documents (`PUT /api/work-records/[id]` with `documents`,
+  which retypes the upload) — never inside the transcription view.
 - **Where a G came from** — text and email intake pass an
   `originNote` into `ingestGUploads`, written into the new day's
   `notes` ("Received by text from (484) 978-8687 on Sep 2, 2026 at
@@ -290,7 +301,9 @@ state stays in step.
   `work_records.actorDoubled` (migration 0024, NULL on every other
   day) and the tracker shows "doubling X" under the character. It is
   for the résumé and the StuntListing profile — a card never carries
-  it, so it is asked, not transcribed.
+  it, so it is asked, not transcribed. The day's edit page (`/work/
+  [id]`) has its own copy of Job Details and asks it there too, and
+  has a Notes box at the end of its edit form like Log Work.
 - **Names** — show titles and character names autocomplete from
   `name_suggestions`. Saving a record records the name and resolves blocked
   spellings to their replacement, so admins can stop a production being
@@ -356,8 +369,8 @@ state stays in step.
 - Sum money at full precision and round once. Rounding per line is a cent
   out on roughly one weekly card in twenty.
 - Vitest needs `vitest.config.ts` for the `@/` alias and `jsx:
-  "automatic"` for the component tests. `npm test` runs 338 tests across
-  35 files; keep them green, and treat the count as a tripwire (a Write
+  "automatic"` for the component tests. `npm test` runs 351 tests across
+  38 files; keep them green, and treat the count as a tripwire (a Write
   once silently overwrote a test file — the count caught it).
 - **Log Work front-end bench** — `exhibit-g-form.test.tsx` renders the
   real form in jsdom (Testing Library; `// @vitest-environment jsdom`

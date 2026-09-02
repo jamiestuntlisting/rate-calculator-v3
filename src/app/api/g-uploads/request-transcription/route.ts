@@ -20,14 +20,14 @@ export async function POST() {
     const result = await db
       .prepare(
         "UPDATE g_uploads SET transcriptionRequested = 1, updatedAt = ?1 " +
-          "WHERE userId = ?2 AND transcription IS NULL AND transcriptionRequested = 0"
+          "WHERE userId = ?2 AND kind = 'exhibit_g' AND transcription IS NULL AND transcriptionRequested = 0"
       )
       .bind(new Date().toISOString(), auth.session.userId)
       .run();
 
     const row = await db
       .prepare(
-        "SELECT COUNT(*) AS n FROM g_uploads WHERE userId = ?1 AND transcriptionRequested = 1 AND transcription IS NULL"
+        "SELECT COUNT(*) AS n FROM g_uploads WHERE userId = ?1 AND kind = 'exhibit_g' AND transcriptionRequested = 1 AND transcription IS NULL"
       )
       .bind(auth.session.userId)
       .first<{ n: number }>();

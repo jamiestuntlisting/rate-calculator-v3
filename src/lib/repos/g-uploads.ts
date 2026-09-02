@@ -16,6 +16,8 @@ export interface GUploadRow {
   transcribedAt: string | null;
   /** The tracker row this Exhibit G belongs to — one G is one work day. */
   workRecordId: string | null;
+  /** exhibit_g | call_sheet | other — only an Exhibit G is transcribed. */
+  kind: string;
   createdAt: string;
   updatedAt: string;
 }
@@ -34,6 +36,7 @@ function toDoc(row: GUploadRow): GUpload {
     path: `/api/uploads/${row.filename}`,
     transcription: row.transcription ? JSON.parse(row.transcription) : null,
     transcriptionRequested: row.transcriptionRequested ?? 0,
+    kind: row.kind || "exhibit_g",
   };
 }
 
@@ -100,6 +103,8 @@ export interface CreateGUploadInput {
   size: number;
   sha256: string;
   workRecordId?: string | null;
+  /** exhibit_g (default) | call_sheet | other. */
+  kind?: string;
 }
 
 export async function createGUpload(
@@ -110,8 +115,8 @@ export async function createGUpload(
   const row = await db
     .prepare(
       `INSERT INTO g_uploads
-        (_id, userId, title, filename, originalName, contentType, size, sha256, rotation, transcription, workRecordId, createdAt, updatedAt)
-       VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, 0, NULL, ?9, ?10, ?10)
+        (_id, userId, title, filename, originalName, contentType, size, sha256, rotation, transcription, workRecordId, kind, createdAt, updatedAt)
+       VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, 0, NULL, ?9, ?10, ?11, ?11)
        RETURNING *`
     )
     .bind(
@@ -124,6 +129,7 @@ export async function createGUpload(
       input.size,
       input.sha256,
       input.workRecordId ?? null,
+      input.kind ?? "exhibit_g",
       now
     )
     .first<GUploadRow>();
@@ -139,6 +145,8 @@ export interface UpdateGUploadInput {
   /** Set to mark the transcription finished, null to reopen it. */
   transcribedAt?: string | null;
   workRecordId?: string | null;
+  /** Reclassify: exhibit_g | call_sheet | other. */
+  kind?: string;
 }
 
 export async function updateGUpload(
@@ -173,6 +181,10 @@ export async function updateGUpload(
   if (patch.transcribedAt !== undefined) {
     sets.push("transcribedAt = ?");
     params.push(patch.transcribedAt);
+  }
+  if (patch.kind !== undefined) {
+    sets.push("kind = ?");
+    params.push(patch.kind);
   }
 
   params.push(id, userId);
@@ -214,4 +226,17 @@ export async function countTranscribedSince(
     .bind(userId, sinceIso)
     .first<{ n: number }>();
   return row?.n ?? 0;
+}
+
+/** The upload a work record's document came from, by its stored filename. */
+export async function findGUploadByFilename(
+  userId: string,
+  filename: string
+): Promise<GUpload | null> {
+  const db = await getDb();
+  const row = await db
+    .prepare("SELECT * FROM g_uploads WHERE userId = ?1 AND filename = ?2")
+    .bind(userId, filename)
+    .first<GUploadRow>();
+  return row ? toDoc(row) : null;
 }

@@ -6,6 +6,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { shortDay } from "@/lib/format-date";
+import { UPLOAD_KINDS, UPLOAD_KIND_LABELS, type UploadKind } from "@/lib/upload-kind";
 import {
   Table,
   TableBody,
@@ -40,7 +41,47 @@ interface GUpload {
   transcription: unknown | null;
   /** Set when the member declared the transcription finished. */
   transcribedAt?: string | null;
+  /** exhibit_g | call_sheet | other — only an Exhibit G is transcribed. */
+  kind?: string;
   createdAt: string;
+}
+
+/** The kind an upload is, older rows counting as Exhibit Gs. */
+const kindOf = (u: { kind?: string }): UploadKind =>
+  (UPLOAD_KINDS as readonly string[]).includes(u.kind ?? "")
+    ? (u.kind as UploadKind)
+    : "exhibit_g";
+
+/**
+ * The reclassify pulldown: what this file is. The same control on the
+ * pile's cards, its tables and the day's Photos & Documents — and
+ * deliberately not in the transcription view.
+ */
+function KindSelect({
+  value,
+  onChange,
+  id,
+}: {
+  value: UploadKind;
+  onChange: (kind: UploadKind) => void;
+  id: string;
+}) {
+  return (
+    <select
+      id={id}
+      aria-label="What this file is"
+      value={value}
+      onChange={(e) => onChange(e.target.value as UploadKind)}
+      onClick={(e) => e.stopPropagation()}
+      className="h-8 rounded-md border border-input bg-background px-2 text-xs"
+    >
+      {UPLOAD_KINDS.map((k) => (
+        <option key={k} value={k}>
+          {UPLOAD_KIND_LABELS[k]}
+        </option>
+      ))}
+    </select>
+  );
 }
 
 /** What a finished transcription says about its day, for the table. */
@@ -196,6 +237,28 @@ export default function UploadGPage() {
     [load]
   );
 
+  /**
+   * Reclassify a file. The server retypes the day's document with it,
+   * so an Exhibit G made a call sheet leaves the pile and the day keeps
+   * it as its call sheet, and the other way round.
+   */
+  const reclassify = async (upload: GUpload, kind: UploadKind) => {
+    const before = upload.kind;
+    setUploads((prev) => prev.map((u) => (u._id === upload._id ? { ...u, kind } : u)));
+    try {
+      const res = await fetch(`/api/g-uploads/${upload._id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ kind }),
+      });
+      if (!res.ok) throw new Error(String(res.status));
+      toast.success(`Now a${kind === "exhibit_g" ? "n" : ""} ${UPLOAD_KIND_LABELS[kind].toLowerCase()}`);
+    } catch {
+      setUploads((prev) => prev.map((u) => (u._id === upload._id ? { ...u, kind: before } : u)));
+      toast.error("Couldn't change what this file is");
+    }
+  };
+
   const rotate = async (upload: GUpload) => {
     const rotation = (upload.rotation + 90) % 360;
     setUploads((prev) =>
@@ -250,7 +313,10 @@ export default function UploadGPage() {
 
   // The page is a to-do list; the number on the title is how long it
   // still is. Zero shows no badge — the empty pile says it better.
-  const todoCount = uploads.filter((u) => !u.transcribedAt).length;
+  // Only an Exhibit G is a to-do; call sheets and other files ride along.
+  const todoCount = uploads.filter(
+    (u) => !u.transcribedAt && kindOf(u) === "exhibit_g"
+  ).length;
 
   return (
     <div className="container mx-auto px-4 py-8 max-w-6xl">
@@ -340,8 +406,13 @@ export default function UploadGPage() {
         (() => {
           // A to-do list only lists the to-dos: finished cards drop to
           // their own section at the bottom, out of the pile.
-          const todo = uploads.filter((u) => !u.transcribedAt);
+          const todo = uploads.filter(
+            (u) => !u.transcribedAt && kindOf(u) === "exhibit_g"
+          );
           const done = uploads.filter((u) => u.transcribedAt);
+          const files = uploads.filter(
+            (u) => !u.transcribedAt && kindOf(u) !== "exhibit_g"
+          );
           const section = (items: GUpload[]) =>
             view === "grid" ? (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
@@ -406,9 +477,16 @@ export default function UploadGPage() {
                     <RotateCw className="h-6 w-6" />
                   </button>
 
-                  <span className="text-xs text-muted-foreground text-center truncate">
-                    {formatUploadDate(u.createdAt)}
-                    {transcriptionLabel(u)}
+                  <span className="flex min-w-0 flex-col items-center gap-1 text-xs text-muted-foreground">
+                    <span className="truncate">
+                      {formatUploadDate(u.createdAt)}
+                      {transcriptionLabel(u)}
+                    </span>
+                    <KindSelect
+                      id={`kind-${u._id}`}
+                      value={kindOf(u)}
+                      onChange={(k) => reclassify(u, k)}
+                    />
                   </span>
 
                   <button
@@ -478,6 +556,13 @@ export default function UploadGPage() {
                   Uploaded {formatUploadDate(u.createdAt)}
                   {transcriptionLabel(u)}
                 </p>
+                <div className="mt-1">
+                  <KindSelect
+                    id={`kind-list-${u._id}`}
+                    value={kindOf(u)}
+                    onChange={(k) => reclassify(u, k)}
+                  />
+                </div>
               </div>
 
               {/* Stacked controls take 36px of width instead of 100 —
@@ -515,6 +600,82 @@ export default function UploadGPage() {
               ) : (
                 section(todo)
               )}
+              {files.length > 0 && (
+                <div className="mt-10 space-y-3">
+                  <div>
+                    <h2 className="text-xl font-semibold">Call sheets &amp; other files</h2>
+                    <p className="text-sm text-muted-foreground">
+                      Each started a work day and rides along on it; nothing to
+                      transcribe. Change what a file is if it came in wrong.
+                    </p>
+                  </div>
+                  <Card className="p-0 overflow-hidden">
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead className="w-14" />
+                          <TableHead>File</TableHead>
+                          <TableHead>Uploaded</TableHead>
+                          <TableHead className="w-28">Kind</TableHead>
+                          <TableHead className="w-12" />
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {files.map((u) => (
+                          <TableRow key={u._id}>
+                            <TableCell className="py-2">
+                              <span className="flex h-10 w-10 items-center justify-center overflow-hidden rounded border border-border bg-muted/40">
+                                {isPdf(u) ? (
+                                  <FileText className="h-5 w-5 text-muted-foreground" />
+                                ) : (
+                                  // eslint-disable-next-line @next/next/no-img-element
+                                  <img
+                                    src={u.path}
+                                    alt=""
+                                    className="h-full w-full object-cover"
+                                    style={{ transform: `rotate(${u.rotation}deg)` }}
+                                  />
+                                )}
+                              </span>
+                            </TableCell>
+                            <TableCell className="max-w-[10rem] sm:max-w-none">
+                              <a
+                                href={u.path}
+                                target="_blank"
+                                rel="noreferrer"
+                                className="block truncate font-medium underline-offset-2 hover:underline"
+                              >
+                                {u.displayTitle}
+                              </a>
+                            </TableCell>
+                            <TableCell className="whitespace-nowrap">
+                              {formatUploadDate(u.createdAt)}
+                            </TableCell>
+                            <TableCell className="py-2">
+                              <KindSelect
+                                id={`kind-file-${u._id}`}
+                                value={kindOf(u)}
+                                onChange={(k) => reclassify(u, k)}
+                              />
+                            </TableCell>
+                            <TableCell className="py-2 text-right">
+                              <button
+                                type="button"
+                                onClick={() => remove(u)}
+                                aria-label="Delete"
+                                title="Delete"
+                                className="inline-flex h-9 w-9 items-center justify-center rounded-lg text-destructive hover:bg-destructive/10"
+                              >
+                                <Trash2 className="h-4 w-4" />
+                              </button>
+                            </TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  </Card>
+                </div>
+              )}
               {done.length > 0 && (
                 <div className="mt-10 space-y-3">
                   <div>
@@ -537,6 +698,7 @@ export default function UploadGPage() {
                           <TableHead className="hidden md:table-cell">
                             Transcribed
                           </TableHead>
+                          <TableHead className="w-28">File</TableHead>
                           <TableHead className="w-12" />
                         </TableRow>
                       </TableHeader>
@@ -583,6 +745,13 @@ export default function UploadGPage() {
                                 {u.transcribedAt
                                   ? `${formatUploadDate(u.transcribedAt)} ✓`
                                   : ""}
+                              </TableCell>
+                              <TableCell className="py-2">
+                                <KindSelect
+                                  id={`kind-done-${u._id}`}
+                                  value={kindOf(u)}
+                                  onChange={(k) => reclassify(u, k)}
+                                />
                               </TableCell>
                               <TableCell className="py-2 text-right">
                                 <button

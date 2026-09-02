@@ -24,6 +24,7 @@ import { CollapsibleSection } from "@/components/calculator/collapsible-section"
 import { checkNdMeal, ND_MEAL_WINDOW_HOURS, ND_MEAL_MINUTES } from "@/lib/nd-meal";
 import { shortDay } from "@/lib/format-date";
 import { SuggestInput } from "@/components/shared/suggest-input";
+import { ACTOR_DOUBLED_LABEL, isStuntDouble } from "@/lib/stunt-double";
 import { clampMealFinish, mealLengthWarning, secondMealOrderWarning } from "@/lib/meal-length";
 import { mealBoundsWarning } from "@/components/calculator/work-times-fields";
 import { WRAP_MINUTES, wrapOrderWarning } from "@/lib/wrap-check";
@@ -58,7 +59,7 @@ import { useAuth } from "@/context/auth-context";
 import { owedLinesFromRecord, type PayStubLine } from "@/lib/pay-stub";
 import { toast } from "sonner";
 import { toUploadableImage } from "@/lib/heic-to-jpeg";
-import type { WorkDocument, WorkRecord } from "@/types";
+import type { DocumentType, WorkDocument, WorkRecord } from "@/types";
 import { DOCUMENT_TYPE_LABELS } from "@/types";
 import { ExhibitGViewer } from "@/components/shared/exhibit-g-viewer";
 import { RotatableThumb } from "@/components/shared/rotatable-thumb";
@@ -124,6 +125,8 @@ export default function WorkDetailPage() {
     showName: "",
     workDate: "",
     characterName: "",
+    actorDoubled: "",
+    notes: "",
     callTime: "",
     dismissOnSet: "",
     dismissMakeupWardrobe: "" as string | null,
@@ -304,6 +307,8 @@ export default function WorkDetailPage() {
         showName: record.showName,
         workDate: record.workDate?.split("T")[0] || "",
         characterName: record.characterName || "",
+        actorDoubled: record.actorDoubled || "",
+        notes: record.notes || "",
         callTime: record.callTime || "",
         dismissOnSet: record.dismissOnSet || "",
         dismissMakeupWardrobe: record.dismissMakeupWardrobe || "",
@@ -522,7 +527,8 @@ export default function WorkDetailPage() {
             : null,
         weeklyContract: editData.contractLength === "weekly",
         characterName: editData.characterName,
-        notes: record?.notes || "",
+        actorDoubled: isStuntDouble(editData.characterName) ? editData.actorDoubled : "",
+        notes: editData.notes,
       };
 
       // Recalculate if we have the required time fields
@@ -648,6 +654,29 @@ export default function WorkDetailPage() {
       if (!res.ok) throw new Error();
     } catch {
       toast.error("Couldn't save the rotation");
+    }
+  };
+
+  /**
+   * Retype an attachment — Exhibit G, call sheet, other. The server
+   * retypes the upload it came from too, so the pile agrees.
+   */
+  const retypeDocument = async (index: number, documentType: DocumentType) => {
+    if (!record) return;
+    const documents = record.documents.map((doc, i) =>
+      i === index ? { ...doc, documentType } : doc
+    );
+    setRecord({ ...record, documents });
+    try {
+      const res = await fetch(`/api/work-records/${id}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ documents }),
+      });
+      if (!res.ok) throw new Error();
+      toast.success(`Now ${DOCUMENT_TYPE_LABELS[documentType].toLowerCase()}`);
+    } catch {
+      toast.error("Couldn't change what this file is");
     }
   };
 
@@ -974,6 +1003,11 @@ export default function WorkDetailPage() {
                     <div>
                       <p className="text-muted-foreground">Role</p>
                       <p className="font-semibold">{record.characterName}</p>
+                      {record.actorDoubled && (
+                        <p className="text-xs text-muted-foreground">
+                          doubling {record.actorDoubled}
+                        </p>
+                      )}
                     </div>
                   )}
                   {record.callTime && (
@@ -1053,6 +1087,25 @@ export default function WorkDetailPage() {
                             placeholder="e.g., Stunt Double - Lead"
                             className="text-lg h-12"
                           />
+                          {/* The same question Log Work and the transcription
+                              ask: a stunt double names the actor. */}
+                          {isStuntDouble(editData.characterName) && (
+                            <div className="space-y-1 pt-2">
+                              <Label htmlFor="edit-actorDoubled" className="text-base">
+                                {ACTOR_DOUBLED_LABEL}
+                              </Label>
+                              <Input
+                                id="edit-actorDoubled"
+                                value={editData.actorDoubled}
+                                onChange={(e) =>
+                                  setEditData((d) => ({ ...d, actorDoubled: e.target.value }))
+                                }
+                                placeholder="e.g., Adam Sandler"
+                                autoComplete="off"
+                                className="text-lg h-12"
+                              />
+                            </div>
+                          )}
                         </div>
                       )}
                       <div className="space-y-1 min-w-0">
@@ -1539,6 +1592,20 @@ export default function WorkDetailPage() {
                     </>
                   )}
 
+                  {/* The end of the day: anything to remember about it,
+                      the same box Log Work has. */}
+                  <div className="space-y-1">
+                    <Label htmlFor="edit-notes" className="text-base">Notes</Label>
+                    <Textarea
+                      id="edit-notes"
+                      value={editData.notes}
+                      onChange={(e) => setEditData((d) => ({ ...d, notes: e.target.value }))}
+                      placeholder="What do you need to remember about this work day?"
+                      rows={3}
+                      className="text-lg"
+                    />
+                  </div>
+
                   <Button
                     className="w-full"
                     onClick={() => handleSaveEdit()}
@@ -1568,6 +1635,11 @@ export default function WorkDetailPage() {
                     <div>
                       <p className="text-muted-foreground">Character</p>
                       <p className="font-semibold">{record.characterName || "—"}</p>
+                      {record.actorDoubled && (
+                        <p className="text-xs text-muted-foreground">
+                          doubling {record.actorDoubled}
+                        </p>
+                      )}
                     </div>
                   )}
                   {!isStuntCoordinator && (
@@ -1867,13 +1939,29 @@ export default function WorkDetailPage() {
 
                 return (
                   <div key={`${doc.filename}-${i}`} className="rounded-lg border overflow-hidden">
-                    <div className="p-2 bg-muted/30 min-w-0">
-                      <p className="text-sm font-semibold">
-                        {DOCUMENT_TYPE_LABELS[doc.documentType] ?? "Other"}
-                      </p>
-                      <p className="text-xs text-muted-foreground truncate">
-                        {doc.originalName}
-                      </p>
+                    <div className="flex items-center justify-between gap-2 p-2 bg-muted/30 min-w-0">
+                      <div className="min-w-0">
+                        <p className="text-sm font-semibold">
+                          {DOCUMENT_TYPE_LABELS[doc.documentType] ?? "Other"}
+                        </p>
+                        <p className="text-xs text-muted-foreground truncate">
+                          {doc.originalName}
+                        </p>
+                      </div>
+                      {/* Reclassify here, on the day — never inside the
+                          transcription view. */}
+                      <select
+                        aria-label="What this file is"
+                        value={doc.documentType}
+                        onChange={(e) => retypeDocument(i, e.target.value as DocumentType)}
+                        className="h-8 shrink-0 rounded-md border border-input bg-background px-2 text-xs"
+                      >
+                        {(Object.keys(DOCUMENT_TYPE_LABELS) as DocumentType[]).map((t) => (
+                          <option key={t} value={t}>
+                            {DOCUMENT_TYPE_LABELS[t]}
+                          </option>
+                        ))}
+                      </select>
                     </div>
                     {isImage && (
                       <div className="p-2">
