@@ -125,9 +125,9 @@ export function AppHeader() {
     sections.find((s) => s.children.some((c) => matchesChild(pathname, c.href))) ??
     sections[0];
 
-  // Fetch user list when admin opens the user menu
+  // Fetch user list when admin opens the user menu or the phone drawer
   useEffect(() => {
-    if (userMenuOpen && isAdmin && users.length === 0) {
+    if ((userMenuOpen || mobileOpen) && isAdmin && users.length === 0) {
       setLoadingUsers(true);
       fetch("/api/admin/users")
         .then((r) => r.json())
@@ -137,7 +137,7 @@ export function AppHeader() {
         .catch(() => {})
         .finally(() => setLoadingUsers(false));
     }
-  }, [userMenuOpen, isAdmin, users.length]);
+  }, [userMenuOpen, mobileOpen, isAdmin, users.length]);
 
   const handleSwitchUser = async (target: UserListItem) => {
     await switchUser({
@@ -355,7 +355,7 @@ export function AppHeader() {
                 {/* Mobile nav */}
                 <Sheet open={mobileOpen} onOpenChange={setMobileOpen}>
                   <SheetTrigger asChild className="md:hidden">
-                    <Button variant="ghost" size="icon" className="text-foreground">
+                    <Button variant="ghost" size="icon" className="text-foreground" aria-label="Menu">
                       <Menu className="h-5 w-5" />
                     </Button>
                   </SheetTrigger>
@@ -364,16 +364,58 @@ export function AppHeader() {
                       <SheetTitle>Navigation</SheetTitle>
                     </VisuallyHidden.Root>
 
-                    {/* Mobile user info */}
+                    {/* Mobile user info — for an admin, the name is the
+                        view-as pulldown: pick a member to see their data,
+                        pick yourself to come back. */}
                     <div className="flex items-center gap-2 mt-4 mb-6 px-1 text-sm">
                       {isAdmin ? (
-                        <Shield className="h-4 w-4 text-amber-500" />
+                        <Shield className="h-4 w-4 shrink-0 text-amber-500" />
                       ) : (
-                        <User className="h-4 w-4 text-muted-foreground" />
+                        <User className="h-4 w-4 shrink-0 text-muted-foreground" />
                       )}
-                      <span className="text-foreground truncate">
-                        {displayName(user)}
-                      </span>
+                      {isAdmin ? (
+                        <select
+                          aria-label="View as member"
+                          value={viewingAs?.id ?? user.id}
+                          onChange={(e) => {
+                            const id = e.target.value;
+                            if (id === user.id) {
+                              clearViewAs();
+                            } else {
+                              const u = users.find((x) => x.id === id);
+                              if (u) {
+                                switchUser({
+                                  id: u.id,
+                                  email: u.email,
+                                  firstName: u.firstName,
+                                  lastName: u.lastName,
+                                });
+                              }
+                            }
+                            setMobileOpen(false);
+                          }}
+                          className={cn(
+                            "h-9 min-w-0 flex-1 rounded-md border border-input bg-background px-2 text-sm",
+                            viewingAs && "border-amber-500/60 text-amber-300"
+                          )}
+                        >
+                          <option value={user.id}>{displayName(user)} (you)</option>
+                          {loadingUsers && users.length === 0 && (
+                            <option disabled>Loading members…</option>
+                          )}
+                          {users
+                            .filter((u) => u.id !== user.id)
+                            .map((u) => (
+                              <option key={u.id} value={u.id}>
+                                {displayName(u)}
+                              </option>
+                            ))}
+                        </select>
+                      ) : (
+                        <span className="text-foreground truncate">
+                          {displayName(user)}
+                        </span>
+                      )}
                     </div>
 
                     <nav className="flex flex-col gap-6">
@@ -425,62 +467,6 @@ export function AppHeader() {
                         </div>
                       </div>
                     </nav>
-
-                    {/* Mobile admin: user switcher */}
-                    {isAdmin && (
-                      <div className="mt-6 pt-4 border-t border-border/50">
-                        <p className="text-xs text-muted-foreground font-medium uppercase tracking-wider mb-2 px-1">
-                          View as member
-                        </p>
-                        {viewingAs && (
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => {
-                              clearViewAs();
-                              setMobileOpen(false);
-                            }}
-                            className="w-full justify-start text-amber-400 hover:text-amber-300 mb-2"
-                          >
-                            <X className="h-3 w-3 mr-2" />
-                            Back to my data
-                          </Button>
-                        )}
-                        <div className="max-h-40 overflow-y-auto space-y-1">
-                          {users.map((u) => {
-                            const isCurrentUser = u.id === user.id;
-                            const isViewedUser = viewingAs?.id === u.id;
-                            return (
-                              <button
-                                key={u.id}
-                                onClick={() => {
-                                  if (isCurrentUser) {
-                                    clearViewAs();
-                                  } else {
-                                    switchUser({
-                                      id: u.id,
-                                      email: u.email,
-                                      firstName: u.firstName,
-                                      lastName: u.lastName,
-                                    });
-                                  }
-                                  setMobileOpen(false);
-                                }}
-                                className={cn(
-                                  "w-full px-2 py-1.5 text-left text-sm rounded hover:bg-[#222] transition-colors",
-                                  isViewedUser && "bg-amber-600/10"
-                                )}
-                              >
-                                <span className="text-foreground text-xs">
-                                  {displayName(u)}
-                                  {isCurrentUser && " (you)"}
-                                </span>
-                              </button>
-                            );
-                          })}
-                        </div>
-                      </div>
-                    )}
 
                     <div className="mt-6 pt-4 border-t border-border/50">
                       <Button
