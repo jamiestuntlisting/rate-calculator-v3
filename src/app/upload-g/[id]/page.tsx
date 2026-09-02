@@ -33,10 +33,10 @@ import {
   ndMealWarning,
 } from "@/components/calculator/work-times-fields";
 import { TimeSelect } from "@/components/calculator/time-select";
-import { followedTime, offerAfterIfEmpty } from "@/lib/follow-time";
+import { followedTime } from "@/lib/follow-time";
 import { MEAL_MINUTES, WorkDateContext, toDisplay } from "@/components/calculator/time-select";
 import { checkNdMeal, ND_MEAL_MINUTES } from "@/lib/nd-meal";
-import { mealLengthWarning, secondMealOrderWarning } from "@/lib/meal-length";
+import { clampMealFinish, mealLengthWarning, secondMealOrderWarning } from "@/lib/meal-length";
 import { wrapOrderWarning } from "@/lib/wrap-check";
 import { useAuth } from "@/context/auth-context";
 import { useFocalZoom } from "@/lib/use-focal-zoom";
@@ -690,16 +690,16 @@ export default function TranscribePage({
             label="In"
             value={row.firstMealStart}
             onChange={(v) =>
-              // Setting the In offers the Out half an hour on —
-              // what a meal usually is — so the picker opens
-              // there instead of at whatever time it is now. It
-              // only ever fills an EMPTY Out; a time read off
-              // the card never moves.
+              // The Out follows the In, as on Log Work: offered
+              // half an hour on when empty, dragged to In + 30
+              // when the new In lands too close — a lunch is at
+              // least half an hour — and kept wherever later it
+              // already sits.
               setRow((prev) => ({
                 ...prev,
                 firstMealStart: v,
                 firstMealFinish: v
-                  ? (offerAfterIfEmpty(v, prev.firstMealFinish, MEAL_MINUTES) ?? "")
+                  ? (clampMealFinish(v, followedTime(v, prev.firstMealFinish, MEAL_MINUTES)) ?? "")
                   : prev.firstMealFinish,
               }))
             }
@@ -752,7 +752,7 @@ export default function TranscribePage({
                   ...prev,
                   secondMealStart: v,
                   secondMealFinish: v
-                    ? (offerAfterIfEmpty(v, prev.secondMealFinish, MEAL_MINUTES) ?? "")
+                    ? (clampMealFinish(v, followedTime(v, prev.secondMealFinish, MEAL_MINUTES)) ?? "")
                     : prev.secondMealFinish,
                 }))
               }
@@ -915,7 +915,7 @@ export default function TranscribePage({
           ...p,
           firstMealStart: v,
           firstMealFinish: v
-            ? (offerAfterIfEmpty(v, p.firstMealFinish, MEAL_MINUTES) ?? "")
+            ? (clampMealFinish(v, followedTime(v, p.firstMealFinish, MEAL_MINUTES)) ?? "")
             : p.firstMealFinish,
         }));
       },
@@ -947,7 +947,7 @@ export default function TranscribePage({
           ...p,
           secondMealStart: v,
           secondMealFinish: v
-            ? (offerAfterIfEmpty(v, p.secondMealFinish, MEAL_MINUTES) ?? "")
+            ? (clampMealFinish(v, followedTime(v, p.secondMealFinish, MEAL_MINUTES)) ?? "")
             : p.secondMealFinish,
         }));
       },
