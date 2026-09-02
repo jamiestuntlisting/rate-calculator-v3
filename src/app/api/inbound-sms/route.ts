@@ -1,8 +1,8 @@
 import { getDb } from "@/lib/db";
-import { ingestGUploads, type IngestFile } from "@/lib/g-ingest";
+import { ingestGUploads, originNote, type IngestFile } from "@/lib/g-ingest";
 import { isUploadable } from "@/lib/uploadable";
 import { findUserByPhoneKey } from "@/lib/repos/users";
-import { phoneKey } from "@/lib/phone";
+import { formatPhone, phoneKey } from "@/lib/phone";
 import { twilioSignature, twimlMessage, validateTwilioSignature } from "@/lib/twilio";
 
 /**
@@ -177,7 +177,11 @@ export async function POST(request: Request) {
       );
     }
 
-    const { created, duplicates } = await ingestGUploads(user._id, files);
+    const { created, duplicates } = await ingestGUploads(
+      user._id,
+      files,
+      originNote("text", formatPhone(from))
+    );
     if (created.length === 0 && duplicates.length > 0) {
       return reply(
         "Got it — you'd already sent this one, so it's not added twice."

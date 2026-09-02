@@ -23,3 +23,16 @@ export function phoneKey(raw: string): string {
 export function isPlausiblePhone(raw: string): boolean {
   return phoneDigits(raw).length >= 10;
 }
+
+/**
+ * A US number the way people write it, "(484) 978-8687", from whatever
+ * Twilio or a person handed over. Anything that is not ten digits (with
+ * or without the country code) comes back as it was.
+ */
+export function formatPhone(raw: string): string {
+  const digits = phoneDigits(raw);
+  const ten =
+    digits.length === 11 && digits.startsWith("1") ? digits.slice(1) : digits;
+  if (ten.length !== 10) return raw.trim();
+  return `(${ten.slice(0, 3)}) ${ten.slice(3, 6)}-${ten.slice(6)}`;
+}

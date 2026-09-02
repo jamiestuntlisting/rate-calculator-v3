@@ -47,9 +47,36 @@ export interface IngestResult {
   duplicates: Array<{ originalName: string; existing: GUpload }>;
 }
 
+/**
+ * How a G arrived, written into the day's notes so the tracker row and
+ * the transcription form both say so: "Received by text from (484)
+ * 978-8687 on Sep 2, 2026 at 9:20 PM." A G that came through the
+ * Upload button carries no note — the app is where it came from.
+ */
+export function originNote(
+  channel: "text" | "email",
+  sender: string,
+  when: Date = new Date()
+): string {
+  const stamp = when.toLocaleString("en-US", {
+    timeZone: "America/New_York",
+    month: "short",
+    day: "numeric",
+    year: "numeric",
+    hour: "numeric",
+    minute: "2-digit",
+  });
+  // "Sep 2, 2026, 9:20 PM" → "Sep 2, 2026 at 9:20 PM"
+  const [date, time] = stamp.split(/,\s(?=\d{1,2}:\d{2})/);
+  const at = time ? `${date} at ${time}` : stamp;
+  return `Received by ${channel} from ${sender} on ${at}.`;
+}
+
 export async function ingestGUploads(
   userId: string,
-  files: IngestFile[]
+  files: IngestFile[],
+  /** A note on where the G came from, kept on the day (see originNote). */
+  origin?: string
 ): Promise<IngestResult> {
   const bucket = await getUploadsBucket();
   const created: GUpload[] = [];
@@ -91,6 +118,7 @@ export async function ingestGUploads(
         showName: `Untranscribed Exhibit G ${untranscribedCount}`,
         workDate: uploadedOn,
         recordStatus: "attachment_only",
+        ...(origin ? { notes: origin } : {}),
         documents: [
           {
             filename,

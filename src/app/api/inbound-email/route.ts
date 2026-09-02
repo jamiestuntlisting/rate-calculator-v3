@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { getDb } from "@/lib/db";
-import { ingestGUploads, type IngestFile } from "@/lib/g-ingest";
+import { ingestGUploads, originNote, type IngestFile } from "@/lib/g-ingest";
 import { isUploadable } from "@/lib/uploadable";
 
 /**
@@ -106,7 +106,11 @@ export async function POST(request: Request) {
       );
     }
 
-    const { created, duplicates } = await ingestGUploads(user._id, files);
+    const { created, duplicates } = await ingestGUploads(
+      user._id,
+      files,
+      originNote("email", from)
+    );
     return NextResponse.json(
       {
         created: created.length,

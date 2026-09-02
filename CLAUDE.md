@@ -148,6 +148,26 @@ state stays in step.
   adjustment columns: 202 is per-day stunt adjustments and feeds the overtime
   rate, 190 is allowances and meal penalties landing after the subtotal, and
   swapping them still yields a plausible gross.
+- **Transcription row lock** — the `/upload-g/[id]` card pane draws a
+  translucent yellow highlighter line (30px) across its vertical
+  middle; a lock button in the pane's bottom-right corner freezes
+  vertical scrolling (sideways still pans) so the performer lines
+  their row up under the highlight and transcribes without the card
+  drifting. Locked, `useFocalZoom` takes an `anchorY` (the line as a
+  fraction of the card's height): every zoom — buttons, pinch, ⌘+wheel
+  — anchors on that line, a pane resize re-applies it
+  (`applyAnchor`), Fit and Rotate hide, and the lock rides the saved
+  view (`view.lockedY`) so the G reopens locked on the same line.
+  `use-focal-zoom.test.ts` pins the arithmetic.
+- **Where a G came from** — text and email intake pass an
+  `originNote` into `ingestGUploads`, written into the new day's
+  `notes` ("Received by text from (484) 978-8687 on Sep 2, 2026 at
+  9:20 PM."). The upload GET returns `workRecordNotes` and the
+  transcription form opens its Notes box on it, so a save keeps it
+  (the PATCH copies row notes onto the record). It is deliberately not
+  seeded into `g_uploads.transcription`: a non-null transcription
+  reads as "in progress" on the pile and drops the G from the
+  transcription-request count.
 - **Transcription shares Log Work's views** — the `/upload-g/[id]`
   fields pane renders the same vertical rows as Log Work through
   `src/components/calculator/work-times-fields.tsx` (TimeRow,
@@ -298,8 +318,8 @@ state stays in step.
 - Sum money at full precision and round once. Rounding per line is a cent
   out on roughly one weekly card in twenty.
 - Vitest needs `vitest.config.ts` for the `@/` alias and `jsx:
-  "automatic"` for the component tests. `npm test` runs 320 tests across
-  31 files; keep them green, and treat the count as a tripwire (a Write
+  "automatic"` for the component tests. `npm test` runs 327 tests across
+  33 files; keep them green, and treat the count as a tripwire (a Write
   once silently overwrote a test file — the count caught it).
 - **Log Work front-end bench** — `exhibit-g-form.test.tsx` renders the
   real form in jsdom (Testing Library; `// @vitest-environment jsdom`

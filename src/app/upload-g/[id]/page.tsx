@@ -9,6 +9,8 @@ import {
   ChevronLeft,
   ChevronRight,
   Loader2,
+  Lock,
+  LockOpen,
   Maximize,
   RotateCw,
   Save,
@@ -53,6 +55,11 @@ interface GUpload {
   transcription: Transcription | null;
   /** When the member declared the transcription finished; null = not yet. */
   transcribedAt: string | null;
+  /**
+   * The linked day's notes. A G that arrived by text or email says so
+   * there, and the Notes box opens on it so a save keeps it.
+   */
+  workRecordNotes?: string;
 }
 
 /** The performer's own line on the Exhibit G. */
@@ -98,6 +105,8 @@ interface Transcription {
     y?: number;
     headerY?: number;
     rowY?: number;
+    /** The row lock was on: the line under the highlight stays put. */
+    lockedY?: boolean;
   };
 }
 
@@ -334,14 +343,50 @@ export default function TranscribePage({
   const formPaneRef = useRef<HTMLDivElement>(null);
   /** The sized box the card lives in — what the zoom actually grows. */
   const cardBoxRef = useRef<HTMLDivElement>(null);
-  const { paneRef, paneEl, onTouchStart, onTouchEnd, zoomAtCenter } =
-    useFocalZoom({
-      contentRef: cardBoxRef,
-      zoom,
-      setZoom,
-      minZoom: 0.02,
-      maxZoom: 8,
-    });
+  /**
+   * The row lock. A translucent highlighter line sits across the middle
+   * of the card pane; the performer scrolls their row under it and locks.
+   * Locked, the pane stops scrolling vertically (sideways still works),
+   * the line under the highlight rides out resizes, and every zoom
+   * anchors on that line — so pinching zooms in on the row, never away
+   * from it. The hook holds the locked line; this state draws it.
+   */
+  const [lockedY, setLockedY] = useState(false);
+  const {
+    paneRef,
+    paneEl,
+    onTouchStart,
+    onTouchEnd,
+    zoomAtCenter,
+    applyAnchor,
+    lockLine,
+    unlockLine,
+  } = useFocalZoom({
+    contentRef: cardBoxRef,
+    zoom,
+    setZoom,
+    minZoom: 0.02,
+    maxZoom: 8,
+  });
+  const lockRow = useCallback(() => {
+    lockLine();
+    setLockedY(true);
+  }, [lockLine]);
+  const unlockRow = useCallback(() => {
+    unlockLine();
+    setLockedY(false);
+  }, [unlockLine]);
+  // The pane changing size (a phone turning, a window resized) keeps the
+  // locked line under the highlight rather than wherever the old scroll
+  // now lands.
+  useEffect(() => {
+    const pane = paneEl.current;
+    if (!lockedY || !pane) return;
+    applyAnchor();
+    const observer = new ResizeObserver(() => applyAnchor());
+    observer.observe(pane);
+    return () => observer.disconnect();
+  }, [lockedY, paneEl, applyAnchor]);
   const restored = useRef(false);
   const savedView = useRef<Transcription["view"] | null>(null);
 
@@ -358,9 +403,16 @@ export default function TranscribePage({
           // Older saves may miss keys; the empty row fills them so every
           // field stays a controlled input.
           const saved = { ...emptyRow(), ...data.transcription.rows[0] };
+          // The day's own notes fill an empty Notes box — where a texted
+          // or emailed G says how it arrived.
+          if (!saved.notes && data.workRecordNotes) {
+            saved.notes = data.workRecordNotes;
+          }
           setRow(saved);
           setShowNdMeal(!!(saved.ndMealIn || saved.ndMealOut));
           setShowSecondMeal(!!(saved.secondMealStart || saved.secondMealFinish));
+        } else if (data.workRecordNotes) {
+          setRow((prev) => ({ ...prev, notes: data.workRecordNotes || "" }));
         }
         if (data.transcription?.details) {
           // Same courtesy as the row: a save missing keys (an API
@@ -473,11 +525,13 @@ export default function TranscribePage({
           left: view.scrollX,
           top: view.y ?? view.rowY ?? 0,
         });
+        // Left locked, it reopens locked on the same line.
+        if (view.lockedY) lockRow();
       });
     } else {
       fitToPane();
     }
-  }, [natural, fitToPane, paneEl]);
+  }, [natural, fitToPane, paneEl, lockRow]);
 
   const baseW = natural.w * zoom;
   const baseH = natural.h * zoom;
@@ -529,6 +583,7 @@ export default function TranscribePage({
                 zoom,
                 scrollX: paneEl.current?.scrollLeft ?? 0,
                 y: paneEl.current?.scrollTop ?? 0,
+                lockedY,
               },
             },
           }),
@@ -555,7 +610,7 @@ export default function TranscribePage({
         setSaving(false);
       }
     },
-    [id, row, details, zoom, performerName, paneEl, router]
+    [id, row, details, zoom, lockedY, performerName, paneEl, router]
   );
 
   const rotate = async () => {
@@ -1304,8 +1359,16 @@ export default function TranscribePage({
               ref={paneRef}
               onTouchStart={onTouchStart}
               onTouchEnd={onTouchEnd}
-              className="h-full w-full overflow-auto overscroll-contain"
-              style={{ touchAction: "pan-x pan-y" }}
+              // Locked, the pane gives up vertical scrolling altogether
+              // (sideways still pans) and anything that slips through —
+              // a scroll-into-view, a keyboard — is put straight back.
+              onScroll={lockedY ? applyAnchor : undefined}
+              className="h-full w-full overscroll-contain"
+              style={{
+                overflowX: "auto",
+                overflowY: lockedY ? "hidden" : "auto",
+                touchAction: lockedY ? "pan-x" : "pan-x pan-y",
+              }}
             >
               <div
                 ref={cardBoxRef}
@@ -1337,6 +1400,47 @@ export default function TranscribePage({
                 />
               </div>
             </div>
+            {/* The highlighter: one translucent line across the middle of
+                the pane, about a row of the card tall, so the eye has a
+                horizontal cue for the row being transcribed. Stronger
+                once locked, when it is holding a row. */}
+            <div
+              aria-hidden
+              data-testid="row-highlight"
+              className={`pointer-events-none absolute inset-x-0 h-[30px] ${
+                lockedY ? "bg-yellow-300/45" : "bg-yellow-300/25"
+              }`}
+              style={{ top: "calc(50% - 15px)" }}
+            />
+            {/* The lock lives in the bottom-right corner of the card
+                window: line the row up under the highlight, tap, and
+                transcribe without the card drifting. */}
+            <div className="absolute bottom-2 right-2">
+              <button
+                type="button"
+                onClick={lockedY ? unlockRow : lockRow}
+                aria-label={
+                  lockedY ? "Unlock vertical scroll" : "Lock vertical scroll"
+                }
+                aria-pressed={lockedY}
+                title={
+                  lockedY
+                    ? "Unlock — the card scrolls up and down again"
+                    : "Lock the row under the highlight — only sideways scrolling and zoom"
+                }
+                className={`rounded p-2 ${
+                  lockedY
+                    ? "bg-yellow-300/90 text-black"
+                    : "bg-black/50 text-white/90 hover:bg-black/70"
+                }`}
+              >
+                {lockedY ? (
+                  <Lock className="h-5 w-5" />
+                ) : (
+                  <LockOpen className="h-5 w-5" />
+                )}
+              </button>
+            </div>
             {/* The viewer's controls float on the image, out of the way. */}
             <div className="pointer-events-none absolute inset-x-0 top-0 flex items-center justify-between p-2">
               <span className="pointer-events-auto rounded bg-black/50 px-2 py-1 text-xs tabular-nums text-white/90">
@@ -1349,12 +1453,16 @@ export default function TranscribePage({
                 {zoomButton("Zoom in", <ZoomIn className="h-4 w-4" />, () =>
                   zoomAtCenter(1.25)
                 )}
-                {zoomButton(
-                  "Fit the whole card",
-                  <Maximize className="h-4 w-4" />,
-                  fitToPane
+                {!lockedY && (
+                  <>
+                    {zoomButton(
+                      "Fit the whole card",
+                      <Maximize className="h-4 w-4" />,
+                      fitToPane
+                    )}
+                    {zoomButton("Rotate", <RotateCw className="h-4 w-4" />, rotate)}
+                  </>
                 )}
-                {zoomButton("Rotate", <RotateCw className="h-4 w-4" />, rotate)}
               </span>
             </div>
           </>

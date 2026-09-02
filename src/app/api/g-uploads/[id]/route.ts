@@ -26,7 +26,16 @@ export async function GET(
     if (!upload) {
       return NextResponse.json({ error: "Upload not found" }, { status: 404 });
     }
-    return NextResponse.json(upload);
+    // The day's notes ride along: a G that came in by text or email
+    // carries where it came from there, and the transcription form
+    // shows it in its Notes box so a save keeps it.
+    const record = upload.workRecordId
+      ? await findWorkRecord(upload.workRecordId, upload.userId)
+      : null;
+    return NextResponse.json({
+      ...upload,
+      workRecordNotes: record?.notes ?? "",
+    });
   } catch (error) {
     console.error("Error fetching Exhibit G upload:", error);
     return NextResponse.json(

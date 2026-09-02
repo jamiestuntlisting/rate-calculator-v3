@@ -32,6 +32,31 @@ interface FocalZoomOptions {
   maxZoom: number;
 }
 
+/**
+ * The scrollTop that puts a content line (a fraction of the content's
+ * height) under the pane's vertical centre.
+ */
+export function lockedScrollTop(
+  fraction: number,
+  contentHeight: number,
+  paneHeight: number
+): number {
+  return Math.max(0, fraction * contentHeight - paneHeight / 2);
+}
+
+/**
+ * Which line of the content sits under the pane's vertical centre now —
+ * what the lock grabs when it closes.
+ */
+export function anchorFraction(
+  scrollTop: number,
+  paneHeight: number,
+  contentHeight: number
+): number {
+  if (contentHeight < 1) return 0;
+  return Math.min(1, Math.max(0, (scrollTop + paneHeight / 2) / contentHeight));
+}
+
 interface PendingFocal {
   /** Where on the content the anchor sits, as fractions of its size. */
   fracX: number;
@@ -61,6 +86,14 @@ export function useFocalZoom({
   maxZoom,
 }: FocalZoomOptions) {
   const paneEl = useRef<HTMLElement | null>(null);
+  /**
+   * The row lock: a line of the content held under the pane's vertical
+   * centre, as a fraction of the content's height, or null when free.
+   * While set, every zoom anchors on that line instead of the gesture's
+   * own height, so pinching or pressing the buttons zooms in on the row
+   * being read and the row never leaves the highlight.
+   */
+  const anchorY = useRef<number | null>(null);
   const cleanup = useRef<(() => void) | null>(null);
   /** The committed zoom — what the DOM is currently laid out at. */
   const zoomRef = useRef(zoom);
@@ -86,11 +119,17 @@ export function useFocalZoom({
       const paneRect = pane.getBoundingClientRect();
       const contentRect = content.getBoundingClientRect();
       if (contentRect.width < 1 || contentRect.height < 1) return null;
+      const locked = anchorY.current;
       return {
         fracX: (clientX - contentRect.left) / contentRect.width,
-        fracY: (clientY - contentRect.top) / contentRect.height,
+        // Locked, the anchored line stays under the pane's centre
+        // whatever height the fingers are at.
+        fracY:
+          locked != null
+            ? locked
+            : (clientY - contentRect.top) / contentRect.height,
         focalX: clientX - paneRect.left,
-        focalY: clientY - paneRect.top,
+        focalY: locked != null ? pane.clientHeight / 2 : clientY - paneRect.top,
       };
     },
     [contentRef]
@@ -150,11 +189,12 @@ export function useFocalZoom({
         const next = clamp(pinch.current.zoom * ratio);
         const mid = midpoint(touchPair(e.touches));
         const paneRect = el.getBoundingClientRect();
+        const locked = anchorY.current;
         pending.current = {
           fracX: pinch.current.fracX,
-          fracY: pinch.current.fracY,
+          fracY: locked != null ? locked : pinch.current.fracY,
           focalX: mid.x - paneRect.left,
-          focalY: mid.y - paneRect.top,
+          focalY: locked != null ? el.clientHeight / 2 : mid.y - paneRect.top,
         };
         if (next !== zoomRef.current) {
           setZoom(next);
@@ -193,6 +233,37 @@ export function useFocalZoom({
     pinch.current = null;
   }, []);
 
+  /**
+   * Put the locked line back under the pane's centre — after the lock
+   * closes, after the pane resizes, and whenever a scroll slips past
+   * the hidden overflow. Does nothing while unlocked.
+   */
+  const applyAnchor = useCallback(() => {
+    const pane = paneEl.current;
+    const content = contentRef.current;
+    const locked = anchorY.current;
+    if (!pane || !content || locked == null) return;
+    const top = lockedScrollTop(locked, content.offsetHeight, pane.clientHeight);
+    if (Math.abs(pane.scrollTop - top) > 0.5) pane.scrollTop = top;
+  }, [contentRef]);
+
+  /** Close the lock on whatever line is under the pane's centre now. */
+  const lockLine = useCallback(() => {
+    const pane = paneEl.current;
+    const content = contentRef.current;
+    if (!pane || !content) return;
+    anchorY.current = anchorFraction(
+      pane.scrollTop,
+      pane.clientHeight,
+      content.offsetHeight
+    );
+  }, [contentRef]);
+
+  /** Open the lock: the pane scrolls freely again. */
+  const unlockLine = useCallback(() => {
+    anchorY.current = null;
+  }, []);
+
   /** The zoom buttons anchor to the middle of what is on screen. */
   const zoomAtCenter = useCallback(
     (factor: number) => {
@@ -208,5 +279,14 @@ export function useFocalZoom({
     [zoomTo]
   );
 
-  return { paneRef, paneEl, onTouchStart, onTouchEnd, zoomAtCenter };
+  return {
+    paneRef,
+    paneEl,
+    onTouchStart,
+    onTouchEnd,
+    zoomAtCenter,
+    applyAnchor,
+    lockLine,
+    unlockLine,
+  };
 }
