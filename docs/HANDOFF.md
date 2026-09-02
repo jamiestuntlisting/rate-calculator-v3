@@ -121,12 +121,15 @@ delete it.
   from a smoke run makes it enoent.
 - Deploy waits are background `sleep ~260` then verify; a doc-only push
   restarts the build clock too.
-- **Rapid successive pushes can drop a build**: the 721834c (meal-drag)
-  build never deployed while the push before it did — three identical
-  bundle fetches over twelve minutes proved it. The kick is simply the
-  next commit. When a change has no greppable literal, verify by the
-  bundle's byte size changing between fetches; identical size means the
-  same artifact is still serving.
+- **A missing marker is not a missing build.** `clampMealFinish` greps
+  to ZERO in the bundle even for code deployed weeks ago — imported lib
+  identifiers minify at call sites; only some exported names and string
+  literals survive. This briefly read as "the meal-drag build never
+  deployed" when it had. The reliable check when a change carries no
+  greppable literal: the bundle's byte size, which moves with every
+  real code change (it went 9,462,357 → 9,485,913 for that build) and
+  stays identical across doc-only rebuilds. Establish the size of a
+  known build before declaring a later one missing.
 
 ## Live-state notes
 
