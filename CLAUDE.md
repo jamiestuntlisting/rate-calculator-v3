@@ -174,6 +174,11 @@ state stays in step.
   card zooms the card or nothing, never the page. Only pages with a
   zoom of their own should mount it; page zoom is accessibility
   elsewhere.
+- **The pile's Transcribed section is a table** — finished Gs on
+  `/upload-g` render tracker-style (`Table`, a 40px thumbnail, the show
+  with the character under it, the work date from the transcription's
+  details, the transcribed-on date at md+, delete), a row tap opening
+  the G. The to-do pile above keeps its cards.
 - **Where a G came from** — text and email intake pass an
   `originNote` into `ingestGUploads`, written into the new day's
   `notes` ("Received by text from (484) 978-8687 on Sep 2, 2026 at

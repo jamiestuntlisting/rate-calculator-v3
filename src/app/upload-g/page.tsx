@@ -4,6 +4,16 @@ import { isUploadable } from "@/lib/uploadable";
 import { toUploadableImage } from "@/lib/heic-to-jpeg";
 import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
+import { shortDay } from "@/lib/format-date";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
 import {
   Grid3x3,
   List,
@@ -33,6 +43,18 @@ interface GUpload {
   createdAt: string;
 }
 
+/** What a finished transcription says about its day, for the table. */
+function transcribedFacts(u: GUpload): { workDate: string; character: string } {
+  const t = u.transcription as {
+    details?: { workDate?: string };
+    rows?: Array<{ character?: string }>;
+  } | null;
+  return {
+    workDate: t?.details?.workDate || "",
+    character: t?.rows?.[0]?.character || "",
+  };
+}
+
 /** Finished beats started: the label says which one this G actually is. */
 const transcriptionLabel = (u: {
   transcription: unknown | null;
@@ -58,6 +80,7 @@ function formatUploadDate(iso: string): string {
 }
 
 export default function UploadGPage() {
+  const router = useRouter();
   const [uploads, setUploads] = useState<GUpload[]>([]);
   const [loading, setLoading] = useState(true);
   const [uploading, setUploading] = useState(false);
@@ -497,11 +520,90 @@ export default function UploadGPage() {
                   <div>
                     <h2 className="text-xl font-semibold">Transcribed ✓</h2>
                     <p className="text-sm text-muted-foreground">
-                      Out of the pile. Tap one to review it — reopen it from
-                      inside if something needs correcting.
+                      Out of the pile. Tap a row to review it — reopen it
+                      from inside if something needs correcting.
                     </p>
                   </div>
-                  {section(done)}
+                  {/* Finished Gs are records now, not a pile: a table
+                      like the tracker's, a thumbnail for the card, the
+                      day it was for, and the day it was finished. */}
+                  <Card className="p-0 overflow-hidden">
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead className="w-14" />
+                          <TableHead>Show</TableHead>
+                          <TableHead>Work date</TableHead>
+                          <TableHead className="hidden md:table-cell">
+                            Transcribed
+                          </TableHead>
+                          <TableHead className="w-12" />
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {done.map((u) => {
+                          const facts = transcribedFacts(u);
+                          return (
+                            <TableRow
+                              key={u._id}
+                              className="cursor-pointer hover:bg-muted/50"
+                              onClick={() => router.push(`/upload-g/${u._id}`)}
+                            >
+                              <TableCell className="py-2">
+                                <span className="flex h-10 w-10 items-center justify-center overflow-hidden rounded border border-border bg-muted/40">
+                                  {isPdf(u) ? (
+                                    <FileText className="h-5 w-5 text-muted-foreground" />
+                                  ) : (
+                                    // eslint-disable-next-line @next/next/no-img-element
+                                    <img
+                                      src={u.path}
+                                      alt=""
+                                      className="h-full w-full object-cover"
+                                      style={{ transform: `rotate(${u.rotation}deg)` }}
+                                    />
+                                  )}
+                                </span>
+                              </TableCell>
+                              <TableCell className="max-w-[10rem] sm:max-w-none">
+                                <span className="block truncate font-medium">
+                                  {u.displayTitle}
+                                </span>
+                                {facts.character && (
+                                  <span className="block truncate text-xs text-muted-foreground">
+                                    {facts.character}
+                                  </span>
+                                )}
+                              </TableCell>
+                              <TableCell className="whitespace-nowrap">
+                                {facts.workDate
+                                  ? shortDay(facts.workDate)
+                                  : formatUploadDate(u.createdAt)}
+                              </TableCell>
+                              <TableCell className="hidden md:table-cell whitespace-nowrap text-muted-foreground">
+                                {u.transcribedAt
+                                  ? `${formatUploadDate(u.transcribedAt)} ✓`
+                                  : ""}
+                              </TableCell>
+                              <TableCell className="py-2 text-right">
+                                <button
+                                  type="button"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    remove(u);
+                                  }}
+                                  aria-label="Delete"
+                                  title="Delete"
+                                  className="inline-flex h-9 w-9 items-center justify-center rounded-lg text-destructive hover:bg-destructive/10"
+                                >
+                                  <Trash2 className="h-4 w-4" />
+                                </button>
+                              </TableCell>
+                            </TableRow>
+                          );
+                        })}
+                      </TableBody>
+                    </Table>
+                  </Card>
                 </div>
               )}
             </>
