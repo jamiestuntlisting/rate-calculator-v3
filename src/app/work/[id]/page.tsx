@@ -1084,7 +1084,7 @@ export default function WorkDetailPage() {
                             id="edit-characterName"
                             value={editData.characterName}
                             onChange={(v) => setEditData(d => ({ ...d, characterName: v }))}
-                            placeholder="e.g., Stunt Double - Lead"
+                            placeholder="e.g., Stunt Double"
                             className="text-lg h-12"
                           />
                           {/* The same question Log Work and the transcription

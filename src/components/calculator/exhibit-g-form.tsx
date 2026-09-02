@@ -911,7 +911,7 @@ export function ExhibitGForm() {
                     id="characterName"
                     value={input.characterName}
                     onChange={(v) => update("characterName", v)}
-                    placeholder="e.g., Stunt Double - Lead"
+                    placeholder="e.g., Stunt Double"
                     className="text-lg h-12"
                   />
                   {/* A stunt double has an actor behind them — the line a

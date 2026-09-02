@@ -27,12 +27,21 @@ export async function listSuggestions(kind: SuggestionKind): Promise<string[]> {
   const db = await getDb();
   const where =
     kind === "character"
-      ? "kind = ?1 AND blocked = 0 AND status = 'approved'"
-      : "kind = ?1 AND blocked = 0 AND status != 'ignored'";
+      ? "s.kind = ?1 AND s.blocked = 0 AND s.status = 'approved'"
+      : "s.kind = ?1 AND s.blocked = 0 AND s.status != 'ignored'";
+  // Most-used first: the roles people actually log rise to the top of
+  // the list, the rare ones sit under them, and ties fall to the name.
+  const column = kind === "character" ? "characterName" : "showName";
   const { results } = await db
-    .prepare(`SELECT name FROM name_suggestions WHERE ${where} ORDER BY name`)
+    .prepare(
+      `SELECT s.name,
+              (SELECT COUNT(*) FROM work_records w WHERE lower(w.${column}) = lower(s.name)) AS uses
+         FROM name_suggestions s
+        WHERE ${where}
+        ORDER BY uses DESC, s.name`
+    )
     .bind(kind)
-    .all<{ name: string }>();
+    .all<{ name: string; uses: number }>();
   return results.map((r) => r.name);
 }
 
