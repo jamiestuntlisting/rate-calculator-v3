@@ -1,4 +1,4 @@
-# Session handoff — 2026-09-01
+# Session handoff — 2026-09-02
 
 Read `CLAUDE.md` first; it is the standing project brief and was kept
 current all session. This file is the delta: what this session shipped,
@@ -7,123 +7,130 @@ to learn. Overwrite it at the next handoff.
 
 ## Where things stand
 
-Everything below is merged to `main` and deployed (push = deploy, ~3 min).
-Work branch: `claude/rate-calculator-cloudflare-migration-qdcjow`,
-fast-forwarded into `main` per change. 260 vitest green; CI
-(`.github/workflows/tests.yml`) runs tsc + the suite on every push and
-every Monday.
+Everything below is merged to `main` and deployed (push = deploy, ~3–4
+min via Workers Builds). Work branch:
+`claude/exhibit-g-layout-date-picker-mnc3dj`, fast-forwarded into `main`
+per change (`git push origin HEAD:main` after the branch push). 294
+vitest green across 29 files — the count is a tripwire, see the Write
+hazard below. Deploys verified by fetching the worker bundle with the
+Cloudflare MCP `workers_get_worker_code` tool and grepping for a
+commit-unique string: the SSR chunks keep exported identifiers and
+string literals (`WorkDateContext`, `localISODate`, UI copy), while
+function bodies and module-private names minify away, so pick markers
+accordingly. The result is ~9.4 MB and lands in a file — grep it, then
+delete it.
 
-### Money rules (all researched, sourced, and pinned by tests)
-- **15-minute rule** (8d16c27, df138e3): overtime runs to final dismissal
-  at full tiers — no drop to 1.5×; meal penalties/turnaround measure to
-  the *set* dismissal. Live counter runs after Dismiss On Set until any
-  Wrapped time exists (typed or offered); while counting, dismissal does
-  not auto-offer the wrap.
-- **Weekly floor** (3c12bde): a signed weekly pays at least the full week;
-  "Weekly guarantee" top-up line; penalties land after; ShowBiz bench
-  never floored (cards are facts).
-- **Prorated weeklies** (869879f): a continuation week (same engagement,
-  the calendar week immediately before was worked) skips the floor —
-  days at weekly/5, labelled "prorated weekly" on /weekly and the tracker.
-- **Late is an equation** (a7ed1dc): due by the Wednesday of the second
-  week after the work week (`src/lib/payment-due.ts`); derived, never
-  hand-marked; `paymentFlag` holds only the human `done`.
-- **Commercial session fee** (a2c6477): own April-1 ladder — 783.10 →
-  822.30 (04/01/25) → 855.20 (04/01/26), verified against union rate
-  sheets; prefills the Commercial pick by date; on /admin/rates.
-- **Contract length is three-way** (8480b89, migration 0019): NULL =
-  never stated (offered to weeklies), 'daily' = deliberate exclusion.
-- **Day-joins-weekly reprices itself** (3ebb672): every stamp path calls
-  `recalculateDay`; week cards show per-day hours/OT lines.
+## Shipped this session
 
-### UX shipped
-- Weekly page: autosaves as you go (7f347bf) + localStorage draft; days
-  already in a weekly are hidden from the picker unless picked here
-  (95b1fbf); day list cuts mid-row to show scrollability (2340006);
-  popup Show/Date autosave (02f2ef8).
-- Log Work: offers only fill EMPTY fields (`offerAfterIfEmpty` /
-  `offerBeforeIfEmpty`); ND meal Out derived (always 15 min); join-this-
-  weekly card; combobox autocomplete everywhere (iOS datalist was
-  invisible); show suggestions = own last-60-days jobs; date-aware
-  agreement labels; all selects h-12 (9c067dd).
-- Resolve (/analytics): pipeline card (G only → Logged → Received →
-  Correct → Done), no auto-"Unpaid", triangle rows open the paycheck
-  breakdown with Done button, phone-readable two-line rows (1566de7,
-  9a22f98); unlogged days link into edit mode via `?edit=1` (5b17136).
-- Transcription (/upload-g/[id]): 50/50 split view — image left/top,
-  fields right/bottom, fit-to-pane open, zoom buttons + pinch +
-  ctrl-wheel, header height measured at runtime (0c2a034).
-- HEIC→JPEG in-browser on all six upload paths; bulk uploads chunked
-  (4 files / 24MB) and extension-fallback filtered (631eb7a, a0649ae).
-- Membership: Max $100/mo ($999/yr — James confirmed 999), Bookkeeper
-  Plus $40/mo with 10 credits then $2/G, monthly/yearly toggle. Stored
-  plan ids unchanged.
-- Sample export anonymized ("Real Life Example NN", 01c1fe0); old names
-  remain in git history (public repo — James knows; offer a history
-  rewrite if he asks). Dates display as "Thu 8/26" (`shortDay`).
-- Benches: /admin/time-bench is titled **Daily tests** (14 live rule
-  checks); Weekly bench has a **Contract rules** card (5 live checks) and
-  the bundle has an end-to-end vitest (decode → parse → engine →
-  132/133). The bench sample API is `no-store` (a cached truncated
-  response once read "24 cards, 0 weekly" on a healthy deploy).
+- **A2P compliance pages** — `/privacy` and `/terms`, written to the
+  carrier checklist (program name, frequency, "message and data rates
+  may apply", bold HELP/STOP, the no-marketing-sharing clause), linked
+  from the footer. Public needs BOTH the middleware `PUBLIC_PATHS` and
+  the client `SIGNED_OUT_PATHS` in `auth-context.tsx` — the client
+  guard alone bounced logged-out reviewers to the sign-in page.
+- **Times toggle** (`transcribeTimeOrder`): the transcription page runs
+  its time fields in day order or the G's column order (call, both
+  dismissals, then meals). Small segmented control on the times box.
+- **One-at-a-time rail** (`transcribeMode`): Typeform-style guided mode
+  beside the form — 14 steps, same state, flipping loses nothing, the
+  card never moves. Steps advance ONLY on human acts: picker dismissal
+  (blur with a value), Enter, or the arrows. Never on a timer — two
+  real-world bugs came from timers racing open pickers (below).
+- **User preferences plumbing** — `users.prefs` JSON column (migration
+  0023, applied to prod and recorded, id 23), `/api/me/prefs` GET/PUT
+  (deliberately the signed-in user, never the viewed-as member),
+  localStorage mirrors `stl_transcribe_order` / `stl_transcribe_mode`
+  for first paint, rows on the Preferences page. Add future prefs here.
+- **Transcribe page counter** — a to-do badge on the title; transcribed
+  cards don't count, zero shows nothing.
+- **Done gate** — marking a G transcribed requires call time + wrap
+  (the day's brackets): standing hint, arguing toast, and a server-side
+  400 in the g-uploads PATCH judged on the request's transcription (or
+  stored, for a bare `done` flag). Save still keeps any fragment.
+- **Field-truth rules, all shared and pinned by tests:**
+  - Wrap may equal the on-set dismissal (the card writes a dash);
+    only strictly-before warns. `calculateDuration` reads an equal
+    pair as 24 hours — never compare through it for order.
+  - `isClockStamp` (time-select) + `WorkDateContext`: iOS stamps the
+    current clock into an EMPTY time field on tap; refused when the
+    form's day isn't today. All four times forms provide the context.
+  - `isTodayStamp` (date-field): iOS stamps today into an empty DATE
+    field on focus — even programmatic focus. Refused when no pointer
+    was involved; a tapped-open picker is the person's own act.
+  - `starts_before_call` (nd-meal): an ND In before call used to read
+    forward as tomorrow and warn "ends before it starts".
+  - `mealBoundsWarning` (work-times-fields): a meal sits between call
+    and wrap, inclusive. With an end the check is exact and quotes
+    both ends; without one, only the back half of the clock argues, so
+    night shoots stop warning once the wrap lands. Offers the meridiem
+    flip when the flipped time would fit — the wheel on the wrong half
+    is almost always the real story.
+  - Meal In drags a too-close Out to In + 30
+    (`clampMealFinish(v, followedTime(v, out, MEAL_MINUTES))`) — now on
+    ALL meal entries; the transcription form and rail were the last on
+    the offer-only path.
+- **Rail-specific mechanics worth knowing before touching it:** each
+  step's input carries `key={currentStep.key}` so React mounts a fresh
+  DOM node — without it the open iOS wheel from the previous step kept
+  writing into the next field. Nav arrows act on pointerdown (before
+  the blur they cause) and stamp `navTapped`; the blur handler honours
+  it, or Next would double-advance. TimeSelect's clear ✕ clears on
+  pointerdown for the same reason.
+- **ND Out renders on one line** (`whitespace-nowrap`, note wraps below).
 
-### Production data actions taken
-- Migrations applied to prod AND recorded in `d1_migrations` through
-  **0020** (paymentFlag). 0019 reset 26 default-'daily' rows to NULL.
-- Aug 20 Grown Ups 3 day repriced to weekly scale ($2,330.46 incl. $560
-  no-meal penalties — lunch missing; recalculates when James fills it).
-  Aug 18's malformed dismissal "430p" normalized to 16:30.
-- **INBOUND_EMAIL_SECRET was rotated** (James pasted the old one into
-  chat). The current one is only in `app_config`; he reads it in the D1
-  console. Never echo it.
+## Waiting on James / external
 
-## Waiting on James
-1. **Commercial overtime decision**: the union cheat sheet says
-   commercial days DO earn 1.5×/2× past 8h (and doubles on weekends) —
-   the flat treatment understates long days. Switching commercial from
-   flat to session+OT (via dayRateOverride) changes logged days; flagged
-   twice, awaiting his go-ahead.
-2. **Gmail Apps Script install** (email intake): he was mid-install with
-   full instructions; check whether actorsbookkeeper@gmail.com now has
-   the trigger and whether his test image imported.
-3. Pre-2025 wage tables; Stripe key + price ids (note: new plan names
-   need Stripe products eventually); StuntListing org GitHub app.
-4. Floated, unaccepted: delete/swipe for saved weeklies (empty shells
-   accumulate — no DELETE API exists for weeklies).
+1. **A2P 10DLC campaign approval** — submitted 2026-09-02 (evening).
+   Twilio's own review runs ~10–15 days right now; carriers add more.
+   Inbound texting works throughout; only the outbound "Got it" reply is
+   blocked (error 30034). **After approval:** add (484) 978-8687 to the
+   campaign's Messaging Service AND set the service's inbound to "Defer
+   to sender's webhook" (or the same POST URL) — otherwise the service
+   swallows inbound and the working intake breaks. Consent/copy answers
+   used on the form are in the session transcript; the policy URLs are
+   the live `/privacy` and `/terms`.
+2. The standing CLAUDE.md list is unchanged: Stripe key, pre-2025 wage
+   tables, StuntListing org GitHub app, the commercial-overtime
+   decision.
 
-## Environment lessons (cost hours; read before debugging)
-- **Zombie dev servers**: a stale `next dev` can squat on :3000 for the
-  whole session — every later `npm run dev &` dies on EADDRINUSE while
-  probes "pass" against stale code. Before trusting any UI verification:
-  `pgrep -af "next dev"`, kill by PID (never `pkill -f` in a compound
-  command — it kills its own shell, exit 144). HMR also silently misses
-  edits: if a change doesn't show, restart dev (and `rm -rf .next`).
-- **`wrangler d1 execute --local` writes a DIFFERENT sqlite state than
-  the dev server's D1** — cleanup via wrangler does not touch what the
-  app sees. Local test debris (shows/weeklies named "ZZ …") may linger.
-- **Python-written `\uXXXX` inside JSX text renders literally.** Use
-  real characters (— – ’ ←) in generated TSX; escapes are only valid in
-  JS string literals.
-- Egress: api.cloudflare.com + workers.dev blocked (use Cloudflare MCP
-  for D1/worker inspection — `workers_get_worker_code` can pull deployed
-  code); WebSearch works; npm/pip work.
-- Verification harness: jose at `node_modules/jose/dist/webapi/index.js`,
-  JWT HS256 secret `stuntlisting-bookkeeper-dev-secret-change-in-production`,
-  cookie `stl_session`, payload {userId:"nav-check", email, tier:"plus",
-  role}; admin = email in `src/lib/admin-emails.ts` (use
-  jamie@stuntlisting.com locally). Local R2 GET 404s — route-fulfill
-  images in Playwright. Playwright at
-  `/opt/node22/lib/node_modules/playwright/index.mjs`; chromium at
-  `/opt/pw-browsers/chromium`. `waitForFunction(fn, null, {timeout})` —
-  options are the THIRD argument.
-- The app header is one sticky `<header>` whose height changes when the
-  auth-dependent second nav bar mounts; measure with a ResizeObserver
-  (upload-g/[id] does this).
+## Environment lessons (cost real time)
 
-## House norms (unchanged, restated)
-Never guess money — research, cross-check arithmetic (3% ladders,
-ratio checks, real contracts), pin with tests, and say when something
-can't be verified. Every UI change verified in the browser at 390px
-before shipping. One commit per change with a narrative message; push
-branch → ff-only merge main → push. Check the Active deployment when a
-deploy matters.
+- **Playwright auth recipe** (scratchpad dies with the container — this
+  is the whole trick, keep it): global playwright at
+  `/opt/node22/lib/node_modules/playwright/index.mjs`, jose from the
+  repo's node_modules. Sign a dev JWT and set the cookie:
+  `new SignJWT({userId:"nav-check",email:"jamie@stuntlisting.com",firstName:"Jamie",lastName:"Northrup",tier:"plus",role:"admin"}).setProtectedHeader({alg:"HS256"}).setIssuedAt().setExpirationTime("2h").sign(new TextEncoder().encode("stuntlisting-bookkeeper-dev-secret-change-in-production"))`
+  → cookie `stl_session` on `localhost`. Route `**/api/uploads/**` to a
+  stub JPEG so image fetches don't hang. Field ids: `#row-*` on the
+  transcription form, `#guided-*` on the rail, `#g-work-date`,
+  `#g-show-nd-meal`. The dev D1 carries junk from smoke runs (the first
+  upload has test times saved on it) — clear fields in-test, don't
+  assume a clean fixture.
+- **Dev server**: often already running on 3000 from a keeper script
+  ("Another next dev server is already running" — use it); warm a cold
+  page with `curl --retry 40 --retry-all-errors --retry-delay 3`; the
+  transcription page can take >30 s to compile cold.
+- **Hooks trap**: `upload-g/[id]/page.tsx` has early returns (~line
+  530); any new hook must live ABOVE them or React throws "more hooks
+  than during the previous render".
+- **Write-tool hazard**: writing a "new" test file overwrote
+  `time-select.test.ts` and silently dropped 18 tests — the suite count
+  catching it is why the count is stated above. Check for an existing
+  file before Write; recover with `git show HEAD:<path>`.
+- **`npm run build` must run from the repo root** — a `cd` left over
+  from a smoke run makes it enoent.
+- Deploy waits are background `sleep ~260` then verify; a doc-only push
+  restarts the build clock too.
+- **Rapid successive pushes can drop a build**: the 721834c (meal-drag)
+  build never deployed while the push before it did — three identical
+  bundle fetches over twelve minutes proved it. The kick is simply the
+  next commit. When a change has no greppable literal, verify by the
+  bundle's byte size changing between fetches; identical size means the
+  same artifact is still serving.
+
+## Live-state notes
+
+- James's texted-in G (`text-2026-09-01-1.jpg`) is a real tracker row —
+  the text-in pipeline is proven end to end inbound.
+- Prod `d1_migrations` is current through id 23. Migrations still do
+  not run in CI; apply by hand via MCP and record the row.
