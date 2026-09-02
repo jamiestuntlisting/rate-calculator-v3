@@ -49,7 +49,8 @@ import {
   weeklyEquivalentDayRate,
 } from "@/lib/agreements";
 import { toast } from "sonner";
-import type { ExhibitGInput, WorkDocument, CalculationBreakdown } from "@/types";
+import type { LoggedDayInput, WorkDocument, CalculationBreakdown } from "@/types";
+import { ACTOR_DOUBLED_LABEL, isStuntDouble } from "@/lib/stunt-double";
 import { MEAL_PENALTIES, commercialSessionFee, ratesForDate } from "@/lib/rate-constants";
 import { Save } from "lucide-react";
 import { snapToSixMinutes, formatCurrency } from "@/lib/time-utils";
@@ -80,7 +81,7 @@ function isToday(dateStr: string): boolean {
   return dateStr === new Date().toISOString().split("T")[0];
 }
 
-const defaultInput: ExhibitGInput = {
+const defaultInput: LoggedDayInput = {
   showName: "",
   workDate: new Date().toISOString().split("T")[0],
   callTime: "",
@@ -100,6 +101,7 @@ const defaultInput: ExhibitGInput = {
   isHoliday: false,
   workStatus: "theatrical_basic",
   characterName: "",
+  actorDoubled: "",
   notes: "",
 };
 
@@ -142,7 +144,7 @@ function AnimatedCurrency({ value }: { value: number }) {
 
 export function ExhibitGForm() {
   const router = useRouter();
-  const [input, setInput] = useState<ExhibitGInput>(defaultInput);
+  const [input, setInput] = useState<LoggedDayInput>(defaultInput);
   const [documents, setDocuments] = useState<WorkDocument[]>([]);
   const [exhibitGDocs, setExhibitGDocs] = useState<WorkDocument[]>([]);
   const [savingDraft, setSavingDraft] = useState(false);
@@ -247,15 +249,15 @@ export function ExhibitGForm() {
    * tracking until a hand touches them.
    */
   const reofferMeals = (
-    prev: ExhibitGInput,
+    prev: LoggedDayInput,
     anchor: string | null
-  ): Partial<ExhibitGInput> => {
+  ): Partial<LoggedDayInput> => {
     if (!anchor || firstMealTouched.current || !showFirstMealRef.current) {
       return {};
     }
     const start = followedTime(anchor, null, MEAL_PENALTIES.maxHoursBeforeFirstMeal * 60);
     const finish = followedTime(start, null, MEAL_MINUTES);
-    const patch: Partial<ExhibitGInput> = {
+    const patch: Partial<LoggedDayInput> = {
       firstMealStart: start,
       firstMealFinish: finish,
     };
@@ -292,7 +294,7 @@ export function ExhibitGForm() {
 
   const isStuntCoordinator = input.workStatus === "stunt_coordinator";
 
-  const update = useCallback((field: keyof ExhibitGInput, value: unknown) => {
+  const update = useCallback((field: keyof LoggedDayInput, value: unknown) => {
     setInput((prev) => ({ ...prev, [field]: value }));
   }, []);
 
@@ -407,7 +409,7 @@ export function ExhibitGForm() {
    * approximation, marked with an asterisk wherever the result shows.
    * A flat deal still wins: the flat number is the whole deal.
    */
-  const calcInput: ExhibitGInput = useMemo(() => {
+  const calcInput: LoggedDayInput = useMemo(() => {
     if (weeklyContract) {
       return {
         ...input,
@@ -456,7 +458,7 @@ export function ExhibitGForm() {
       // means as of this second, and the engine prices the removal
       // stretch at whatever overtime tier the clock is in, because
       // overtime runs to the final dismissal.
-      const liveEnd = (nowTime: string): ExhibitGInput =>
+      const liveEnd = (nowTime: string): LoggedDayInput =>
         calcInput.dismissOnSet
           ? { ...calcInput, dismissMakeupWardrobe: nowTime }
           : { ...calcInput, dismissOnSet: nowTime };
@@ -858,6 +860,9 @@ export function ExhibitGForm() {
                 input.showName,
                 input.workDate,
                 input.characterName,
+                isStuntDouble(input.characterName) && input.actorDoubled
+                  ? `doubling ${input.actorDoubled}`
+                  : "",
                 input.flatDayRate
                   ? `${input.workStatus === "commercial" ? "Commercial" : "Flat"} ${dayRate(input.flatDayRate)}`
                   : threeDayContract
@@ -909,6 +914,25 @@ export function ExhibitGForm() {
                     placeholder="e.g., Stunt Double - Lead"
                     className="text-lg h-12"
                   />
+                  {/* A stunt double has an actor behind them — the line a
+                      résumé and a StuntListing profile want. Asked only
+                      when the character says so; the answer stays on the
+                      record if the character is edited back and forth. */}
+                  {isStuntDouble(input.characterName) && (
+                    <div className="space-y-1 pt-2">
+                      <Label htmlFor="actorDoubled" className="text-base">
+                        {ACTOR_DOUBLED_LABEL}
+                      </Label>
+                      <Input
+                        id="actorDoubled"
+                        value={input.actorDoubled ?? ""}
+                        onChange={(e) => update("actorDoubled", e.target.value)}
+                        placeholder="e.g., Adam Sandler"
+                        autoComplete="off"
+                        className="text-lg h-12"
+                      />
+                    </div>
+                  )}
                 </div>
               )}
               <div className="space-y-1 min-w-0">

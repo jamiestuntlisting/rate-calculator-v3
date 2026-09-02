@@ -187,6 +187,30 @@ describe("Log Work — a meal outside the day argues", () => {
   });
 });
 
+describe("Log Work — a stunt double names the actor", () => {
+  const openJobDetails = () => fireEvent.click(screen.getByText("Job Details"));
+
+  it("the field appears only once the character reads as a stunt double", () => {
+    render(<ExhibitGForm />);
+    openJobDetails();
+    expect(document.getElementById("actorDoubled")).toBeNull();
+    fireEvent.change(field("characterName"), { target: { value: "Stunt Double" } });
+    expect(screen.getByLabelText("Name of Actor Doubled")).toBeTruthy();
+    fireEvent.change(field("actorDoubled"), { target: { value: "Adam Sandler" } });
+    expect(field("actorDoubled").value).toBe("Adam Sandler");
+    // Another role puts the question away again.
+    fireEvent.change(field("characterName"), { target: { value: "Stunt Performer" } });
+    expect(document.getElementById("actorDoubled")).toBeNull();
+  });
+
+  it("a card's abbreviation counts", () => {
+    render(<ExhibitGForm />);
+    openJobDetails();
+    fireEvent.change(field("characterName"), { target: { value: "#X4 Marcus Stunt Dbl" } });
+    expect(document.getElementById("actorDoubled")).not.toBeNull();
+  });
+});
+
 describe("Log Work — the platform's clock stamp", () => {
   it("on another day's form, the current minute arriving on focus is refused", () => {
     render(<ExhibitGForm />);

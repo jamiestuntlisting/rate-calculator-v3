@@ -67,6 +67,16 @@ export type {
   CalculationBreakdown,
 } from "@/lib/rate-calculator";
 
+/**
+ * A day as Log Work asks for it: the engine's input plus the facts the
+ * app keeps that the engine never prices. The engine's own type is
+ * vendored verbatim, so the app's additions live here.
+ */
+export interface LoggedDayInput extends ExhibitGInput {
+  /** The actor stood in for, asked only when the character is a stunt double. */
+  actorDoubled?: string | null;
+}
+
 // ---- Payment Status ----
 
 export type PaymentStatus =
@@ -121,6 +131,8 @@ export interface WorkRecord {
   /** The saved weekly this day is grouped under in the tracker. */
   weeklyId?: string | null;
   characterName: string;
+  /** Who a stunt double stood in for; null on every other kind of day. */
+  actorDoubled?: string | null;
   notes: string;
   recordStatus: RecordStatus;
   documents: WorkDocument[];

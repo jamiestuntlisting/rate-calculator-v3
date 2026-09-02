@@ -33,6 +33,7 @@ interface WorkRecordRow {
   isHoliday: number;
   workStatus: string | null;
   characterName: string;
+  actorDoubled: string | null;
   notes: string;
   recordStatus: string;
   documents: string;
@@ -82,6 +83,7 @@ export interface WorkRecordDoc {
   isHoliday: boolean;
   workStatus: string | null;
   characterName: string;
+  actorDoubled: string | null;
   notes: string;
   recordStatus: string;
   documents: WorkDocument[];
@@ -139,6 +141,7 @@ function toDoc(row: WorkRecordRow): WorkRecordDoc {
     isHoliday: i2b(row.isHoliday),
     workStatus: row.workStatus,
     characterName: row.characterName,
+    actorDoubled: row.actorDoubled ?? null,
     notes: row.notes,
     recordStatus: row.recordStatus,
     documents: JSON.parse(row.documents || "[]"),
@@ -192,6 +195,11 @@ const FIELD_SERIALIZERS: Record<string, (v: unknown) => unknown> = {
   isHoliday: (v) => b2i(v),
   workStatus: (v) => (v == null || v === "" ? null : String(v)),
   characterName: (v) => String(v ?? ""),
+  // Only a stunt double has one; an empty box stores as nothing.
+  actorDoubled: (v) => {
+    const s = String(v ?? "").trim();
+    return s ? s : null;
+  },
   notes: (v) => String(v ?? ""),
   recordStatus: (v) => (v == null ? "complete" : String(v)),
   documents: (v) => JSON.stringify(Array.isArray(v) ? v : []),

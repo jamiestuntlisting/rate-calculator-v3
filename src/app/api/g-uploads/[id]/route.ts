@@ -139,6 +139,9 @@ export async function PATCH(
       // The transcription row calls it "character"; the work record calls
       // it "characterName".
       if (row?.character) patch.characterName = row.character;
+      // Who a stunt double stood in for. Copied whenever the row carries
+      // the key, so clearing the box clears the record too.
+      if (row && "actorDoubled" in row) patch.actorDoubled = row.actorDoubled;
       // The adjustment is typed as text on the form; the record stores
       // dollars. An explicit 0 lands too — only an empty box is silence.
       const adjustment = parseFloat(String(row?.stuntAdjustment ?? ""));

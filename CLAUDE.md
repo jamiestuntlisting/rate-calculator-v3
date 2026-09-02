@@ -254,6 +254,14 @@ state stays in step.
   `work_records` row (`g_uploads.workRecordId`) so it appears in the
   Tracker; transcribing updates that row with whatever has been filled in.
   Partial saves are expected and supported.
+- **Actor doubled** — when the character reads as a stunt double
+  (`isStuntDouble`: "Stunt Double", "Stunt Dbl", with or without a
+  prefix or suffix), Log Work and both transcription modes open a
+  "Name of Actor Doubled" box under Character; it stores in
+  `work_records.actorDoubled` (migration 0024, NULL on every other
+  day) and the tracker shows "doubling X" under the character. It is
+  for the résumé and the StuntListing profile — a card never carries
+  it, so it is asked, not transcribed.
 - **Names** — show titles and character names autocomplete from
   `name_suggestions`. Saving a record records the name and resolves blocked
   spellings to their replacement, so admins can stop a production being
@@ -318,8 +326,8 @@ state stays in step.
 - Sum money at full precision and round once. Rounding per line is a cent
   out on roughly one weekly card in twenty.
 - Vitest needs `vitest.config.ts` for the `@/` alias and `jsx:
-  "automatic"` for the component tests. `npm test` runs 327 tests across
-  33 files; keep them green, and treat the count as a tripwire (a Write
+  "automatic"` for the component tests. `npm test` runs 331 tests across
+  34 files; keep them green, and treat the count as a tripwire (a Write
   once silently overwrote a test file — the count caught it).
 - **Log Work front-end bench** — `exhibit-g-form.test.tsx` renders the
   real form in jsdom (Testing Library; `// @vitest-environment jsdom`

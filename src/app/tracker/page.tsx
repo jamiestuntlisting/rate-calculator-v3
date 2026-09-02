@@ -372,7 +372,14 @@ export default function TrackerPage() {
                         {record.workType === "other" ? (
                           <Badge variant="outline" className="bg-gray-800 text-gray-300 border-gray-600">Other</Badge>
                         ) : (
-                          record.characterName || "SAG-AFTRA"
+                          <>
+                            {record.characterName || "SAG-AFTRA"}
+                            {record.actorDoubled && (
+                              <span className="block text-xs text-muted-foreground">
+                                doubling {record.actorDoubled}
+                              </span>
+                            )}
+                          </>
                         )}
                       </TableCell>
                       <TableCell className="text-right">

@@ -42,6 +42,7 @@ import { clampMealFinish, mealLengthWarning, secondMealOrderWarning } from "@/li
 import { wrapOrderWarning } from "@/lib/wrap-check";
 import { useAuth } from "@/context/auth-context";
 import { useFocalZoom } from "@/lib/use-focal-zoom";
+import { ACTOR_DOUBLED_LABEL, isStuntDouble } from "@/lib/stunt-double";
 import { calculateRate } from "@/lib/rate-engine";
 import { formatCurrency } from "@/lib/time-utils";
 import { toast } from "sonner";
@@ -66,6 +67,8 @@ interface GUpload {
 interface TranscriptionRow {
   performer: string;
   character: string;
+  /** Who a stunt double stood in for — asked only when the character says so. */
+  actorDoubled: string;
   /** The card's MAKE-UP / HAIR / WRDRBE column — where the day's clock starts. */
   callTime: string;
   dismissOnSet: string;
@@ -114,6 +117,7 @@ function emptyRow(): TranscriptionRow {
   return {
     performer: "",
     character: "",
+    actorDoubled: "",
     callTime: "",
     dismissOnSet: "",
     dismissMakeupWardrobe: "",
@@ -920,6 +924,7 @@ export default function TranscribePage({
     kind:
       | "show"
       | "character"
+      | "text"
       | "date"
       | "time"
       | "money"
@@ -1063,6 +1068,19 @@ export default function TranscribePage({
       value: row.character,
       set: (v) => setRow((p) => ({ ...p, character: v })),
     },
+    // Only a stunt double is asked who they doubled.
+    ...(isStuntDouble(row.character)
+      ? [
+          {
+            key: "actorDoubled",
+            label: ACTOR_DOUBLED_LABEL,
+            hint: "For your résumé and StuntListing profile — the card never says",
+            kind: "text" as const,
+            value: row.actorDoubled,
+            set: (v: string) => setRow((p) => ({ ...p, actorDoubled: v })),
+          },
+        ]
+      : []),
     ...guidedTimeSteps,
     {
       key: "stuntAdjustment",
@@ -1190,6 +1208,16 @@ export default function TranscribePage({
                 onChange={(v) => currentStep.set?.(v)}
               />
             </div>
+          ) : currentStep.kind === "text" ? (
+            <Input
+              key={currentStep.key}
+              id={`guided-${currentStep.key}`}
+              value={currentStep.value ?? ""}
+              onChange={(e) => currentStep.set?.(e.target.value)}
+              placeholder="e.g., Adam Sandler"
+              autoComplete="off"
+              className="h-14 text-xl"
+            />
           ) : currentStep.kind === "money" ? (
             <div key={currentStep.key} className="relative max-w-[15rem]">
               <span className="absolute left-3 top-1/2 -translate-y-1/2 text-lg text-muted-foreground">
@@ -1611,6 +1639,26 @@ export default function TranscribePage({
                 className="h-12 text-lg"
               />
             </div>
+            {isStuntDouble(row.character) && (
+              <div className="space-y-1 min-w-0">
+                <Label htmlFor="g-actor-doubled" className="text-base">
+                  {ACTOR_DOUBLED_LABEL}
+                </Label>
+                <Input
+                  id="g-actor-doubled"
+                  value={row.actorDoubled}
+                  onChange={(e) =>
+                    setRow((prev) => ({ ...prev, actorDoubled: e.target.value }))
+                  }
+                  placeholder="e.g., Adam Sandler"
+                  autoComplete="off"
+                  className="h-12 text-lg"
+                />
+                <p className="text-xs text-muted-foreground">
+                  For your résumé and StuntListing profile — the card never says.
+                </p>
+              </div>
+            )}
           </div>
 
           {/* The same rows as Log Work — the card read into the day's
