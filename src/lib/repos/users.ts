@@ -40,6 +40,8 @@ export interface UserPrefs {
    * the default) or one question at a time ("guided").
    */
   transcribeMode?: "form" | "guided";
+  /** The performer's IMDb person id ("nm1234567"), set by an admin on /admin/imdb. */
+  imdbId?: string;
 }
 
 /** The stored JSON, or {} for NULL, junk, or a non-object. */

@@ -460,6 +460,15 @@ session's `/api/auth/me` carries `tester: true` for them.
   explained in docs/exhibit-g-reading-rules.md. Needs
   `ANTHROPIC_API_KEY` as a Worker secret or `app_config` row; until
   then every reading records that error and the form opens empty.
+- **IMDb credits** (`/admin/imdb`, admin, not tester-gated) — IMDb has
+  no API for writing credits; it documents a contribution URL that
+  opens a person's form with N stunt-credit slots
+  (`contribute.imdb.com/updates?update=<nm>:stunts.add.N`). The page
+  takes a member, their `prefs.imdbId` (set there, pasted id or URL,
+  `PATCH /api/admin/users/[userId]/imdb`), and lists their SAG shows
+  as credits (`src/lib/imdb.ts` `showCredits`: one per show, every
+  character and actor doubled) beside that link and an IMDb title
+  search per show. Matching shows to tt ids is a separate feature.
 - **Audit a show** — an outline only: docs/audit-a-show.md and the
   placeholder at `/admin/audits`. Nothing built.
 - **Bank deposits via Plaid** — asked for, not designed: connect a

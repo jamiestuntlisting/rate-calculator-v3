@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { listUsers } from "@/lib/repos/users";
+import { listUsers, parseUserPrefs } from "@/lib/repos/users";
 import { getSession } from "@/lib/auth";
 
 /**
@@ -25,6 +25,7 @@ export async function GET() {
         tier: u.tier,
         role: u.role,
         lastLogin: u.lastLogin,
+        imdbId: parseUserPrefs(u.prefs).imdbId ?? null,
       })),
     });
   } catch (error) {

@@ -17,6 +17,7 @@ import {
   CalendarClock,
   Undo2,
   ScanText,
+  Clapperboard,
 } from "lucide-react";
 import { useAuth } from "@/context/auth-context";
 import { isAdminEmail } from "@/lib/admin-emails";
@@ -64,6 +65,13 @@ const ADMIN_PAGES = [
     title: "Reverse calculator",
     detail: "Start from what a check paid and work backwards to the day.",
     icon: Undo2,
+  },
+  {
+    href: "/admin/imdb",
+    title: "IMDb credits",
+    detail:
+      "A member's shows as IMDb stunt credits, with the contribution link that opens their form.",
+    icon: Clapperboard,
   },
   {
     href: "/admin/readings",
