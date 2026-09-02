@@ -70,6 +70,7 @@ interface ReadingRow {
 interface Payload {
   model: string;
   promptVersion: string;
+  prompt: { system: string; instruction: string; schema: unknown };
   overall: Average;
   rolling10: Average;
   rolling20: Average;
@@ -149,6 +150,7 @@ export default function AdminReadingsPage() {
   const [data, setData] = useState<Payload | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [open, setOpen] = useState<string | null>(null);
+  const [showPrompt, setShowPrompt] = useState(false);
 
   useEffect(() => {
     (async () => {
@@ -203,6 +205,44 @@ export default function AdminReadingsPage() {
 
       {data && (
         <>
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-lg">What is sent to Claude</CardTitle>
+              <p className="text-xs text-muted-foreground">
+                Rule book {data.promptVersion}, model {data.model}. The rule
+                book is the system prompt (cached across cards); each call
+                adds the card as an image and the instruction below, and the
+                answer is forced into the schema. Edit the words in
+                src/lib/g-reader/prompt.ts and bump the version.
+              </p>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              <button
+                type="button"
+                onClick={() => setShowPrompt((v) => !v)}
+                className="text-sm underline underline-offset-2"
+              >
+                {showPrompt ? "Hide the prompt" : "Show the prompt"}
+              </button>
+              {showPrompt && (
+                <>
+                  <p className="text-xs font-medium text-muted-foreground">System prompt — the rule book</p>
+                  <pre className="max-h-[32rem] overflow-auto whitespace-pre-wrap rounded border border-border bg-muted/30 p-3 text-xs">
+                    {data.prompt.system}
+                  </pre>
+                  <p className="text-xs font-medium text-muted-foreground">The instruction with the card</p>
+                  <pre className="overflow-auto whitespace-pre-wrap rounded border border-border bg-muted/30 p-3 text-xs">
+                    {data.prompt.instruction}
+                  </pre>
+                  <p className="text-xs font-medium text-muted-foreground">The answer&rsquo;s schema</p>
+                  <pre className="max-h-[24rem] overflow-auto whitespace-pre-wrap rounded border border-border bg-muted/30 p-3 text-xs">
+                    {JSON.stringify(data.prompt.schema, null, 2)}
+                  </pre>
+                </>
+              )}
+            </CardContent>
+          </Card>
+
           <Card>
             <CardHeader>
               <CardTitle className="text-lg">Batting average</CardTitle>

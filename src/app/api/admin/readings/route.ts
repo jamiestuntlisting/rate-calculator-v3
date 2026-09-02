@@ -2,7 +2,14 @@ import { NextResponse } from "next/server";
 import { getSession } from "@/lib/auth";
 import { listGReadingScores, listGReadings } from "@/lib/repos/g-readings";
 import { battingAverage } from "@/lib/g-reader/score";
-import { PROMPT_VERSION, READER_MODEL } from "@/lib/g-reader/prompt";
+import {
+  PROMPT_VERSION,
+  READER_MODEL,
+  RULE_BOOK,
+  readingInstruction,
+} from "@/lib/g-reader/prompt";
+import { ReadingSchema } from "@/lib/g-reader/schema";
+import { z } from "zod";
 
 /**
  * GET /api/admin/readings — the batting average of Claude's Exhibit G
@@ -37,6 +44,14 @@ export async function GET() {
     return NextResponse.json({
       model: READER_MODEL,
       promptVersion: PROMPT_VERSION,
+      // What actually goes to the API: the rule book as the system
+      // prompt, the card as an image, and this instruction naming the
+      // performer; the answer is forced into the schema.
+      prompt: {
+        system: RULE_BOOK,
+        instruction: readingInstruction("<the performer's name>"),
+        schema: z.toJSONSchema(ReadingSchema),
+      },
       overall: battingAverage(scores),
       rolling10: rolling(10),
       rolling20: rolling(20),
