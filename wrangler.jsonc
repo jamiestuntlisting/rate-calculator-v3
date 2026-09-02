@@ -18,6 +18,12 @@
   "observability": {
     "enabled": true
   },
+  // Once a day, 7:00 AM New York (11:00 UTC): pull every connected
+  // member's bank deposits and match them to expected pay. The build's
+  // last step (scripts/add-cron.mjs) gives the Worker its scheduled handler.
+  "triggers": {
+    "crons": ["0 11 * * *"]
+  },
   "d1_databases": [
     {
       "binding": "DB",

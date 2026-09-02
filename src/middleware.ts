@@ -19,6 +19,8 @@ const PUBLIC_PATHS = [
   // inside its route (shared secret, request signature), not a session.
   "/api/inbound-email",
   "/api/inbound-sms",
+  // The daily cron calls this in-process with its own token; the route checks it.
+  "/api/cron/bank-sync",
   "/api/auth/logout",
   "/api/auth/me",
 ];

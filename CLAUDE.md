@@ -511,16 +511,17 @@ session's `/api/auth/me` carries `tester: true` for them.
   `src/lib/bank-match.ts` is the rule, tested; `src/lib/plaid.ts` is
   the client (plain fetch); `src/lib/bank-sync.ts` pulls and matches
   one member or all of them. The page is just Connect; the floor is a
-  preference (`prefs.depositFloor`, default $500); and a daily cron is
-  built but **not wired**: `npm run build:cron` runs the normal build
-  then `scripts/add-cron.mjs`, which wraps OpenNext's output with
-  `scripts/cron-worker.js` (a `scheduled` handler calling
-  `POST /api/cron/bank-sync` in-process with a token minted at
-  startup). Production stopped deploying the moment the cron wiring
-  went into the build and wrangler config (09/2026), so both were
-  taken back out until the build log explains why; wiring it back
-  means `"build": "... && node scripts/add-cron.mjs"` in package.json
-  and `"triggers": { "crons": ["0 11 * * *"] }` in wrangler.jsonc. Needs
+  preference (`prefs.depositFloor`, default $500); and **a daily cron
+  does the looking**: `npm run build` ends with `scripts/add-cron.mjs`,
+  which renames OpenNext's output to `app-worker.js` and installs
+  `scripts/cron-worker.js` as the Worker entry — a `scheduled` handler
+  (`triggers.crons`, 11:00 UTC) calling `POST /api/cron/bank-sync`
+  in-process with a token minted on first use. **Never mint that token
+  at module load**: a top-level `crypto.randomUUID()` is a Workers
+  validation error (10021, "disallowed operation in global scope") and
+  it silently failed every deploy for an afternoon until the build log
+  was read. Check a wrapper change with `npx wrangler dev --local
+  --test-scheduled` before pushing. Needs
   `PLAID_CLIENT_ID`, `PLAID_SECRET`, `PLAID_ENV`; docs/bank-deposits.md
   has the setup and the two open decisions (auto-write residuals?
   auto-mark paid?).

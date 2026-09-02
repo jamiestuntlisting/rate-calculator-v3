@@ -15,18 +15,31 @@ import handler from "./app-worker.js";
 
 export { DOQueueHandler, DOShardedTagCache, BucketCachePurge } from "./app-worker.js";
 
-const CRON_TOKEN = crypto.randomUUID();
-globalThis.__cronToken = CRON_TOKEN;
+/**
+ * Minted on first use, never at module load: Workers forbid random
+ * values in global scope (validation error 10021), and that is exactly
+ * what a top-level randomUUID() was, which kept every build from
+ * deploying until the log said so.
+ */
+let cronToken = null;
+const token = () => {
+  if (!cronToken) {
+    cronToken = crypto.randomUUID();
+    globalThis.__cronToken = cronToken;
+  }
+  return cronToken;
+};
 
 const CRON_ROUTES = ["/api/cron/bank-sync"];
 
 export default {
   ...handler,
   async scheduled(event, env, ctx) {
+    const secret = token();
     for (const path of CRON_ROUTES) {
       const request = new Request(`https://rate-calculator.jamie-181.workers.dev${path}`, {
         method: "POST",
-        headers: { "x-cron-token": CRON_TOKEN, "user-agent": "rate-calculator-cron" },
+        headers: { "x-cron-token": secret, "user-agent": "rate-calculator-cron" },
       });
       ctx.waitUntil(
         handler.fetch(request, env, ctx).then(
