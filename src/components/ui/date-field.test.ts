@@ -31,3 +31,14 @@ describe("the platform stamping today into an empty date field", () => {
     );
   });
 });
+
+describe("the picker's Reset leaves the field empty", () => {
+  it("refuses today arriving a moment after a clear, not later", async () => {
+    const { isStampAfterClear } = await import("./date-field");
+    const now = new Date(2026, 8, 2, 16, 12);
+    const today = "2026-09-02";
+    expect(isStampAfterClear(today, 30, now)).toBe(true);
+    expect(isStampAfterClear("2014-09-02", 30, now)).toBe(false);
+    expect(isStampAfterClear(today, 10_000, now)).toBe(false);
+  });
+});

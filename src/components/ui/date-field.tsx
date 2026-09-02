@@ -1,6 +1,7 @@
 "use client";
 
 import { useRef } from "react";
+import { X } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import {
   CLOCK_STAMP_MS,
@@ -43,6 +44,21 @@ export function isTodayStamp(
   return next === localISODate(now);
 }
 
+/**
+ * True when today arrives on a field that was cleared a moment ago —
+ * the picker's Reset emptied it and iOS, still focused on an empty
+ * date field, stamped today straight back. Reset should leave the
+ * field empty; the stamp is refused so it does.
+ */
+export function isStampAfterClear(
+  next: string,
+  msSinceClear: number,
+  now: Date = new Date()
+): boolean {
+  if (msSinceClear > CLOCK_STAMP_MS) return false;
+  return next === localISODate(now);
+}
+
 export function DateField(
   props: Omit<React.ComponentProps<typeof Input>, "type">
 ) {
@@ -50,37 +66,75 @@ export function DateField(
   // A tap's pointerdown lands BEFORE the focus it causes, so "was this
   // a person" is a recency question, not a per-focus flag.
   const lastPointer = useRef(0);
+  // When the field was last emptied (the picker's Reset, or the ✕).
+  const clearedAt = useRef(0);
+  const filled = !!props.value;
+  const { className, onChange, onFocus, onPointerDown, ...rest } = props;
+  const clear = () => {
+    clearedAt.current = Date.now();
+    onChange?.({ target: { value: "" } } as React.ChangeEvent<HTMLInputElement>);
+  };
   return (
-    <Input
-      {...props}
-      type="date"
-      onFocus={(e) => {
-        focusedAt.current = Date.now();
-        props.onFocus?.(e);
-      }}
-      onChange={(e) => {
-        if (
-          isTodayStamp(
-            props.value,
-            e.target.value,
-            Date.now() - focusedAt.current,
-            Date.now() - lastPointer.current < CLOCK_STAMP_MS
-          )
-        ) {
-          return;
-        }
-        props.onChange?.(e);
-      }}
-      onPointerDown={(e) => {
-        lastPointer.current = Date.now();
-        props.onPointerDown?.(e);
-        try {
-          e.currentTarget.showPicker?.();
-        } catch {
-          // Not allowed here (already open, or no gesture) — focus still
-          // lets the date be typed.
-        }
-      }}
-    />
+    <div className="relative w-full min-w-0">
+      <Input
+        {...rest}
+        type="date"
+        className={`${className ?? ""}${filled ? " pr-9" : ""}`}
+        onFocus={(e) => {
+          focusedAt.current = Date.now();
+          onFocus?.(e);
+        }}
+        onChange={(e) => {
+          const next = e.target.value;
+          if (next === "") {
+            // The picker's Reset: the field goes empty and stays empty.
+            clearedAt.current = Date.now();
+            onChange?.(e);
+            return;
+          }
+          if (isStampAfterClear(next, Date.now() - clearedAt.current)) return;
+          if (
+            isTodayStamp(
+              props.value,
+              next,
+              Date.now() - focusedAt.current,
+              Date.now() - lastPointer.current < CLOCK_STAMP_MS
+            )
+          ) {
+            return;
+          }
+          onChange?.(e);
+        }}
+        onPointerDown={(e) => {
+          lastPointer.current = Date.now();
+          onPointerDown?.(e);
+          try {
+            e.currentTarget.showPicker?.();
+          } catch {
+            // Not allowed here (already open, or no gesture) — focus still
+            // lands, and the glyph still works.
+          }
+        }}
+      />
+      {/* A set date can be unset here too: the platform's own Reset is
+          honoured above, but on iOS it tends to stamp today straight
+          back, and this ✕ is the affordance that reads as "clear". Out
+          of the Tab order like TimeSelect's. */}
+      {filled && !rest.disabled && (
+        <button
+          type="button"
+          aria-label="Clear date"
+          tabIndex={-1}
+          onPointerDown={(e) => {
+            e.preventDefault();
+            clear();
+          }}
+          onClick={clear}
+          className="absolute right-1 top-1/2 -translate-y-1/2 rounded p-1.5 text-muted-foreground hover:text-foreground"
+        >
+          <X className="h-4 w-4" />
+        </button>
+      )}
+    </div>
   );
 }
