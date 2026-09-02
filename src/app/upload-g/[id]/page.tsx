@@ -275,6 +275,24 @@ export default function TranscribePage({
     if (mode !== "guided") return;
     document.querySelector<HTMLElement>('input[id^="guided-"]')?.focus();
   }, [mode, guidedStep]);
+  /**
+   * A time step advances when its picker is dismissed (blur), never on
+   * a timer: an advance under a still-open wheel moves the rail while
+   * the wheel keeps writing — and React reusing the input node across
+   * steps once let a correction spin land in the NEXT field. The nav
+   * arrows act on pointerdown (before the blur they cause) and stamp
+   * this ref so the blur that follows doesn't advance a second time;
+   * their click handlers honour the same stamp for keyboard use.
+   */
+  const navTapped = useRef(0);
+  const navDo = (action: () => void) => {
+    navTapped.current = Date.now();
+    action();
+  };
+  const navClick = (action: () => void) => {
+    if (Date.now() - navTapped.current < 500) return;
+    navDo(action);
+  };
 
   /**
    * The Cast box is not asked: this G is the signed-in performer's (or,
@@ -957,6 +975,7 @@ export default function TranscribePage({
   const currentStep = guidedSteps[stepIndex];
   const advanceNow = () =>
     goToStep((s) => Math.min(s + 1, guidedSteps.length - 1));
+  const back = () => goToStep((s) => Math.max(s - 1, 0));
 
   const guidedPanel = (
     <div
@@ -976,7 +995,8 @@ export default function TranscribePage({
         <div className="flex items-center gap-1">
           <button
             type="button"
-            onClick={() => goToStep((s) => Math.max(s - 1, 0))}
+            onPointerDown={() => navDo(back)}
+            onClick={() => navClick(back)}
             disabled={stepIndex === 0}
             aria-label="Back"
             className="rounded-md border border-border p-2 hover:bg-accent disabled:opacity-40"
@@ -985,7 +1005,8 @@ export default function TranscribePage({
           </button>
           <button
             type="button"
-            onClick={advanceNow}
+            onPointerDown={() => navDo(advanceNow)}
+            onClick={() => navClick(advanceNow)}
             disabled={stepIndex === guidedSteps.length - 1}
             aria-label="Next"
             className="rounded-md border border-border p-2 hover:bg-accent disabled:opacity-40"
@@ -1004,6 +1025,7 @@ export default function TranscribePage({
         <div className="mt-4">
           {currentStep.kind === "show" || currentStep.kind === "character" ? (
             <SuggestInput
+              key={currentStep.key}
               kind={currentStep.kind}
               id={`guided-${currentStep.key}`}
               value={currentStep.value ?? ""}
@@ -1017,6 +1039,7 @@ export default function TranscribePage({
             />
           ) : currentStep.kind === "date" ? (
             <DateField
+              key={currentStep.key}
               id={`guided-${currentStep.key}`}
               value={currentStep.value ?? ""}
               onChange={(e) => {
@@ -1027,17 +1050,28 @@ export default function TranscribePage({
               className="h-14 text-xl w-full max-w-full"
             />
           ) : currentStep.kind === "time" ? (
-            <TimeSelect
-              id={`guided-${currentStep.key}`}
-              value={currentStep.value ?? ""}
-              onChange={(v) => {
-                currentStep.set?.(v);
-                if (v) queueAdvance(900, guidedSteps.length);
-                else cancelAdvance();
+            // key: a NEW input per step, so the picker a finger still
+            // holds open on the previous step dies with its node
+            // instead of writing into this one. Advance on dismissal
+            // (blur with a value), never on a timer under the wheel.
+            <div
+              key={currentStep.key}
+              onBlurCapture={(e) => {
+                if (Date.now() - navTapped.current < 600) return;
+                if ((e.target as HTMLInputElement).value) {
+                  navTapped.current = Date.now();
+                  advanceNow();
+                }
               }}
-            />
+            >
+              <TimeSelect
+                id={`guided-${currentStep.key}`}
+                value={currentStep.value ?? ""}
+                onChange={(v) => currentStep.set?.(v)}
+              />
+            </div>
           ) : currentStep.kind === "money" ? (
-            <div className="relative max-w-[15rem]">
+            <div key={currentStep.key} className="relative max-w-[15rem]">
               <span className="absolute left-3 top-1/2 -translate-y-1/2 text-lg text-muted-foreground">
                 $
               </span>

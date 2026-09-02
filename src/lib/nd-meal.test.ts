@@ -24,13 +24,23 @@ describe("an ND meal has to sit in the two hours after call", () => {
   });
 
   it.each([
-    ["before the call", "11:00", "09:00", "09:30"],
     ["finishing past the window", "11:00", "12:45", "13:30"],
     ["starting past the window", "11:00", "14:00", "14:30"],
   ])("rejects one %s", (_why, call, inTime, outTime) => {
     const result = check(call, inTime, outTime);
     expect(result.ok).toBe(false);
     expect(result.problem).toBe("outside_window");
+  });
+
+  it("names a meal before the call as exactly that", () => {
+    expect(check("11:00", "09:00", "09:30").problem).toBe(
+      "starts_before_call"
+    );
+    // Six minutes before a 5:54 call: the Out lands after call, so the
+    // forward reading used to call this "ends before it starts".
+    expect(check("05:54", "05:48", "06:03").problem).toBe(
+      "starts_before_call"
+    );
   });
 
   it("rejects one that ends before it starts", () => {

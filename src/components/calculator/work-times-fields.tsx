@@ -173,6 +173,12 @@ export function ndMealWarning(
   ndMealIn?: string | null
 ): string | null {
   if (check.ok) return null;
+  if (check.problem === "starts_before_call") {
+    const entered = ndMealIn ? toDisplay(ndMealIn) : "";
+    return `An ND meal can't start before your ${toDisplay(callTime)} call${
+      entered ? ` — this one starts at ${entered}` : ""
+    }. It has to fall inside the ${ND_MEAL_WINDOW_HOURS} hours after call.`;
+  }
   if (check.problem === "ends_before_it_starts") {
     return "An ND meal has to end after it starts.";
   }

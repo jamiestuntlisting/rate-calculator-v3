@@ -187,6 +187,11 @@ export function TimeSelect({
         <button
           type="button"
           aria-label="Clear time"
+          // Clear on pointerdown, before the blur the tap causes: a
+          // listener advancing on blur-with-value (the guided rail)
+          // must see the field already empty, or a clear turns into a
+          // move-on. Click stays for the keyboard; both are idempotent.
+          onPointerDown={() => onChange("")}
           onClick={() => onChange("")}
           className="absolute right-1 top-1/2 -translate-y-1/2 rounded p-1.5 text-muted-foreground hover:text-foreground"
         >

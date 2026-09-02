@@ -25,7 +25,10 @@ export const ND_MEAL_MINUTES = 15;
 
 const DAY = 24 * 60;
 
-export type NdMealProblem = "outside_window" | "ends_before_it_starts";
+export type NdMealProblem =
+  | "outside_window"
+  | "starts_before_call"
+  | "ends_before_it_starts";
 
 export interface NdMealCheck {
   ok: boolean;
@@ -65,6 +68,16 @@ export function checkNdMeal(
   const end = since(ndMealOut);
   const window = ND_MEAL_WINDOW_HOURS * 60;
 
+  // A start in the back half of the clock relative to call reads as
+  // "shortly before call", not as a breakfast twelve-plus hours into
+  // the day — nobody's ND meal is either, but the first is what a
+  // mis-tap writes. Catch it before the order check, or a meal six
+  // minutes before call gets called "ends before it starts" (its Out,
+  // fifteen minutes on, lands after call and reads as earlier) and
+  // the warning argues about the wrong thing.
+  if (start > DAY / 2) {
+    return { ok: false, problem: "starts_before_call", windowEnd };
+  }
   if (end < start) {
     return { ok: false, problem: "ends_before_it_starts", windowEnd };
   }
