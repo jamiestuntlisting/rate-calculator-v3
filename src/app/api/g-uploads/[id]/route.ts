@@ -7,6 +7,7 @@ import {
 } from "@/lib/repos/g-uploads";
 import { findWorkRecord, updateWorkRecord } from "@/lib/repos/work-records";
 import { recalculateDay } from "@/lib/day-recalc";
+import { doneBlockers, listMissing } from "@/lib/transcription-done";
 import { requireAuth, getEffectiveUserId } from "@/lib/api-auth";
 
 export async function GET(
@@ -68,21 +69,20 @@ export async function PATCH(
       return NextResponse.json({ error: "Upload not found" }, { status: 404 });
     }
 
-    // Done needs the day's brackets — a call time and a wrap — whatever
-    // else is partial. Judged on the transcription this request carries
-    // (or the stored one, for a bare done flag), and enforced here as
-    // well as on the form, so no client can stamp a G finished empty.
+    // Done needs the minimum (transcription-done.ts): the show, the
+    // date, the day's brackets, and the lunch answer with its times.
+    // Judged on the transcription this request carries (or the stored
+    // one, for a bare done flag), and enforced here as well as on the
+    // form, so no client can stamp a G finished short of it.
     if (body.done === true) {
-      const finalRow = ((body.transcription ?? existing.transcription) as {
+      const final = (body.transcription ?? existing.transcription) as {
+        details?: { showName?: string; workDate?: string };
         rows?: Array<Record<string, string>>;
-      } | null)?.rows?.[0];
-      const missing = [
-        !finalRow?.callTime ? "the call time" : null,
-        !finalRow?.dismissMakeupWardrobe ? "the wrap" : null,
-      ].filter((m): m is string => !!m);
+      } | null;
+      const missing = doneBlockers({ ...final?.details, ...final?.rows?.[0] });
       if (missing.length > 0) {
         return NextResponse.json(
-          { error: `Enter ${missing.join(" and ")} before marking it done.` },
+          { error: `Enter ${listMissing(missing)} before marking it done.` },
           { status: 400 }
         );
       }

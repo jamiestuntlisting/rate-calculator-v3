@@ -176,6 +176,15 @@ state stays in step.
   seeded into `g_uploads.transcription`: a non-null transcription
   reads as "in progress" on the pile and drops the G from the
   transcription-request count.
+- **Done gate** — marking a G transcribed needs the show, the work
+  date, the call time, the wrap, and an answer to "Did you get lunch?"
+  — Yes needs the 1st Meal In and Out, No does not (a no-lunch day
+  prices with its meal penalties, which is why it is asked outright).
+  `src/lib/transcription-done.ts` is the one statement of the rule; the
+  form's hint, its toast, and the g-uploads PATCH (400) all read it.
+  The answer lives on the transcription row (`lunch`: yes/no/""); a
+  row saved before the question existed counts lunch times as yes and
+  none as unanswered, never as no. Save is never gated.
 - **Transcription shares Log Work's views** — the `/upload-g/[id]`
   fields pane renders the same vertical rows as Log Work through
   `src/components/calculator/work-times-fields.tsx` (TimeRow,
@@ -335,8 +344,8 @@ state stays in step.
 - Sum money at full precision and round once. Rounding per line is a cent
   out on roughly one weekly card in twenty.
 - Vitest needs `vitest.config.ts` for the `@/` alias and `jsx:
-  "automatic"` for the component tests. `npm test` runs 332 tests across
-  34 files; keep them green, and treat the count as a tripwire (a Write
+  "automatic"` for the component tests. `npm test` runs 338 tests across
+  35 files; keep them green, and treat the count as a tripwire (a Write
   once silently overwrote a test file — the count caught it).
 - **Log Work front-end bench** — `exhibit-g-form.test.tsx` renders the
   real form in jsdom (Testing Library; `// @vitest-environment jsdom`

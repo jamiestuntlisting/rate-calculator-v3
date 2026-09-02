@@ -43,6 +43,11 @@ import { wrapOrderWarning } from "@/lib/wrap-check";
 import { useAuth } from "@/context/auth-context";
 import { useFocalZoom } from "@/lib/use-focal-zoom";
 import { ACTOR_DOUBLED_LABEL, isStuntDouble } from "@/lib/stunt-double";
+import {
+  doneBlockers,
+  listMissing,
+  type LunchAnswer,
+} from "@/lib/transcription-done";
 import { calculateRate } from "@/lib/rate-engine";
 import { formatCurrency } from "@/lib/time-utils";
 import { toast } from "sonner";
@@ -69,6 +74,12 @@ interface TranscriptionRow {
   character: string;
   /** Who a stunt double stood in for — asked only when the character says so. */
   actorDoubled: string;
+  /**
+   * Did you get lunch? Empty until answered; Done needs an answer, and
+   * "yes" needs the 1st Meal times. A day with no lunch prices with its
+   * meal penalties, which is why the question is asked outright.
+   */
+  lunch: LunchAnswer;
   /** The card's MAKE-UP / HAIR / WRDRBE column — where the day's clock starts. */
   callTime: string;
   dismissOnSet: string;
@@ -139,6 +150,7 @@ function emptyRow(): TranscriptionRow {
     performer: "",
     character: "",
     actorDoubled: "",
+    lunch: "",
     callTime: "",
     dismissOnSet: "",
     dismissMakeupWardrobe: "",
@@ -420,6 +432,28 @@ export default function TranscribePage({
     observer.observe(pane);
     return () => observer.disconnect();
   }, [lockedY, paneEl, applyAnchor, releaseLine]);
+
+  /**
+   * Answer the lunch question. Yes opens the 1st Meal times; No closes
+   * them and clears both meals — no lunch means no second meal either.
+   */
+  const setLunch = useCallback((answer: LunchAnswer) => {
+    setShowFirstMeal(answer !== "no");
+    if (answer === "no") {
+      setShowSecondMeal(false);
+      setRow((prev) => ({
+        ...prev,
+        lunch: "no",
+        firstMealStart: "",
+        firstMealFinish: "",
+        secondMealStart: "",
+        secondMealFinish: "",
+      }));
+    } else {
+      setRow((prev) => ({ ...prev, lunch: answer }));
+    }
+  }, []);
+
   const restored = useRef(false);
   const savedView = useRef<Transcription["view"] | null>(null);
 
@@ -588,19 +622,16 @@ export default function TranscribePage({
    */
   const save = useCallback(
     async (done?: boolean) => {
-      // Done needs the day's brackets. Anything less stays a save —
-      // a G without a call and a wrap isn't finished, it's parked.
-      if (done === true && (!row.callTime || !row.dismissMakeupWardrobe)) {
-        const missing = [
-          !row.callTime ? "the call time" : null,
-          !row.dismissMakeupWardrobe ? "the wrap" : null,
-        ]
-          .filter((m): m is string => !!m)
-          .join(" and ");
-        toast.error(
-          `Enter ${missing} before marking it done — Save keeps it in progress.`
-        );
-        return;
+      // Done needs the minimum (transcription-done.ts). Anything less
+      // stays a save — a G short of it isn't finished, it's parked.
+      if (done === true) {
+        const missing = doneBlockers({ ...details, ...row });
+        if (missing.length > 0) {
+          toast.error(
+            `Enter ${listMissing(missing)} before marking it done — Save keeps it in progress.`
+          );
+          return;
+        }
       }
       setSaving(true);
       try {
@@ -749,23 +780,38 @@ export default function TranscribePage({
           <NdMealOut value={row.ndMealOut || null} />
         </MealTimes>
       </MealSection>
+      {/* Asked outright, because the answer changes the money: no
+          lunch is a day of meal penalties, and Done needs to know. */}
+      <div className="flex flex-wrap items-center justify-between gap-2 px-2 py-1">
+        <span className="text-base">Did you get lunch?</span>
+        <div
+          role="group"
+          aria-label="Did you get lunch?"
+          className="inline-flex rounded-md border border-border p-0.5"
+        >
+          {(["yes", "no"] as const).map((v) => (
+            <button
+              key={v}
+              type="button"
+              id={`g-lunch-${v}`}
+              aria-pressed={row.lunch === v}
+              onClick={() => setLunch(v)}
+              className={`rounded px-4 py-1.5 text-sm ${
+                row.lunch === v
+                  ? "bg-foreground text-background"
+                  : "text-muted-foreground hover:text-foreground"
+              }`}
+            >
+              {v === "yes" ? "Yes" : "No"}
+            </button>
+          ))}
+        </div>
+      </div>
       <MealSection
         id="g-show-first-meal"
         title="1st Meal"
         checked={showFirstMeal}
-        onCheckedChange={(v) => {
-          setShowFirstMeal(v);
-          if (!v) {
-            setShowSecondMeal(false);
-            setRow((prev) => ({
-              ...prev,
-              firstMealStart: "",
-              firstMealFinish: "",
-              secondMealStart: "",
-              secondMealFinish: "",
-            }));
-          }
-        }}
+        onCheckedChange={(v) => setLunch(v ? "yes" : "no")}
         warnings={[
           boundsWarn("The 1st Meal In", row.firstMealStart),
           boundsWarn("The 1st Meal Out", row.firstMealFinish),
@@ -785,6 +831,7 @@ export default function TranscribePage({
               // already sits.
               setRow((prev) => ({
                 ...prev,
+                lunch: v ? "yes" : prev.lunch,
                 firstMealStart: v,
                 firstMealFinish: v
                   ? (clampMealFinish(v, followedTime(v, prev.firstMealFinish, MEAL_MINUTES)) ?? "")
@@ -888,18 +935,15 @@ export default function TranscribePage({
   );
 
   /**
-   * Why Done is not yet on offer, or null when it is. The day's
-   * brackets — call and wrap — are the minimum for a G to count as
-   * transcribed; everything else can be partial.
+   * Why Done is not yet on offer, or null when it is: the show, the
+   * date, the day's brackets and the lunch answer are the minimum for
+   * a G to count as transcribed (transcription-done.ts); everything
+   * else can be partial.
    */
+  const missingForDone = doneBlockers({ ...details, ...row });
   const doneBlocker =
-    !row.callTime || !row.dismissMakeupWardrobe
-      ? `Done needs ${[
-          !row.callTime ? "the call time" : null,
-          !row.dismissMakeupWardrobe ? "the wrap" : null,
-        ]
-          .filter((m): m is string => !!m)
-          .join(" and ")} first — Save keeps it in progress.`
+    missingForDone.length > 0
+      ? `Done needs ${listMissing(missingForDone)} first — Save keeps it in progress.`
       : null;
 
   /**
@@ -954,6 +998,7 @@ export default function TranscribePage({
       | "show"
       | "character"
       | "text"
+      | "choice"
       | "date"
       | "time"
       | "money"
@@ -1002,6 +1047,7 @@ export default function TranscribePage({
         if (v) setShowFirstMeal(true);
         setRow((p) => ({
           ...p,
+          lunch: v ? "yes" : p.lunch,
           firstMealStart: v,
           firstMealFinish: v
             ? (clampMealFinish(v, followedTime(v, p.firstMealFinish, MEAL_MINUTES)) ?? "")
@@ -1070,7 +1116,17 @@ export default function TranscribePage({
       set: (v) => setRow((p) => ({ ...p, dismissMakeupWardrobe: v })),
       warning: wrapOrderWarning(row.dismissOnSet, row.dismissMakeupWardrobe),
     };
-    const meals = [nd, m1In, m1Out, m2In, m2Out];
+    const lunch: GuidedStep = {
+      key: "lunch",
+      label: "Did you get lunch?",
+      hint: "No lunch is a day of meal penalties — say so and Next skips the meal times",
+      kind: "choice",
+      value: row.lunch,
+      set: (v) => setLunch(v as LunchAnswer),
+    };
+    // No lunch: the meal steps fall away, and Done no longer waits on them.
+    const meals =
+      row.lunch === "no" ? [nd, lunch] : [nd, lunch, m1In, m1Out, m2In, m2Out];
     return timeOrder === "card"
       ? [call, dismiss, wrap, ...meals]
       : [call, ...meals, dismiss, wrap];
@@ -1236,6 +1292,39 @@ export default function TranscribePage({
                 value={currentStep.value ?? ""}
                 onChange={(v) => currentStep.set?.(v)}
               />
+            </div>
+          ) : currentStep.kind === "choice" ? (
+            <div key={currentStep.key} className="grid grid-cols-2 gap-3">
+              {(["yes", "no"] as const).map((v) => (
+                <button
+                  key={v}
+                  type="button"
+                  id={`guided-${currentStep.key}-${v}`}
+                  aria-pressed={currentStep.value === v}
+                  // The answer is the tap: set it and move on, on
+                  // pointerdown like the arrows so a blur cannot
+                  // advance a second time.
+                  onPointerDown={() =>
+                    navDo(() => {
+                      currentStep.set?.(v);
+                      goToStep((s) => s + 1);
+                    })
+                  }
+                  onClick={() =>
+                    navClick(() => {
+                      currentStep.set?.(v);
+                      goToStep((s) => s + 1);
+                    })
+                  }
+                  className={`h-14 rounded-md border text-xl ${
+                    currentStep.value === v
+                      ? "border-foreground bg-foreground text-background"
+                      : "border-border"
+                  }`}
+                >
+                  {v === "yes" ? "Yes" : "No"}
+                </button>
+              ))}
             </div>
           ) : currentStep.kind === "text" ? (
             <Input
