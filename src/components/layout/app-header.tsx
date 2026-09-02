@@ -359,7 +359,7 @@ export function AppHeader() {
                       <Menu className="h-5 w-5" />
                     </Button>
                   </SheetTrigger>
-                  <SheetContent side="right" className="w-72">
+                  <SheetContent side="right" className="w-72 overflow-y-auto">
                     <VisuallyHidden.Root>
                       <SheetTitle>Navigation</SheetTitle>
                     </VisuallyHidden.Root>
@@ -367,7 +367,7 @@ export function AppHeader() {
                     {/* Mobile user info — for an admin, the name is the
                         view-as pulldown: pick a member to see their data,
                         pick yourself to come back. */}
-                    <div className="flex items-center gap-2 mt-4 mb-6 pl-1 pr-8 text-sm">
+                    <div className="flex items-center gap-2 mt-3 mb-4 pl-1 pr-8 text-sm">
                       {isAdmin ? (
                         <Shield className="h-4 w-4 shrink-0 text-amber-500" />
                       ) : (
@@ -418,7 +418,7 @@ export function AppHeader() {
                       )}
                     </div>
 
-                    <nav className="flex flex-col gap-6">
+                    <nav className="flex flex-col gap-4">
                       {sections.map((section) => (
                         <div key={section.id} className="flex flex-col">
                           <p className="text-[11px] text-muted-foreground/60 font-semibold uppercase tracking-[0.14em] border-b border-border/60 pb-1.5 mb-2">
@@ -431,7 +431,7 @@ export function AppHeader() {
                                 href={child.href}
                                 onClick={() => setMobileOpen(false)}
                                 className={cn(
-                                  "text-lg font-medium py-0.5 transition-colors hover:text-primary",
+                                  "text-base font-medium leading-6 transition-colors hover:text-primary",
                                   matchesChild(pathname, child.href)
                                     ? "text-primary"
                                     : "text-foreground/90"
@@ -455,7 +455,7 @@ export function AppHeader() {
                             href={link.href}
                             onClick={() => setMobileOpen(false)}
                             className={cn(
-                              "text-lg font-medium py-0.5 transition-colors hover:text-primary",
+                              "text-base font-medium leading-6 transition-colors hover:text-primary",
                               matchesChild(pathname, link.href)
                                 ? "text-primary"
                                 : "text-foreground/90"
@@ -468,7 +468,7 @@ export function AppHeader() {
                       </div>
                     </nav>
 
-                    <div className="mt-6 pt-4 border-t border-border/50">
+                    <div className="mt-4 pt-3 border-t border-border/50">
                       <Button
                         variant="ghost"
                         className="w-full justify-start text-muted-foreground hover:text-foreground"
