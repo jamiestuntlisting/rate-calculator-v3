@@ -42,6 +42,7 @@ import { clampMealFinish, mealLengthWarning, secondMealOrderWarning } from "@/li
 import { wrapOrderWarning } from "@/lib/wrap-check";
 import { useAuth } from "@/context/auth-context";
 import { useFocalZoom } from "@/lib/use-focal-zoom";
+import { usePreventPageZoom } from "@/lib/use-prevent-page-zoom";
 import { ACTOR_DOUBLED_LABEL, isStuntDouble } from "@/lib/stunt-double";
 import {
   doneBlockers,
@@ -389,6 +390,8 @@ export default function TranscribePage({
    * from it. The hook holds the locked line; this state draws it.
    */
   const [lockedY, setLockedY] = useState(false);
+  // The card zooms; the page must not.
+  usePreventPageZoom();
   // The highlight sits mid-pane on a phone, where the card is the top
   // half of the screen; on a desktop the pane is the full height and a
   // row reads better a little above the middle.

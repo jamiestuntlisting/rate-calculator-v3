@@ -167,6 +167,13 @@ state stays in step.
   ⌘+wheel — anchor on the line. Fit and Rotate hide while locked; the
   lock rides the saved view (`view.lockedY`). `use-focal-zoom.test.ts`
   pins the arithmetic.
+- **No page zoom on the transcription screen** — the root layout's
+  `viewport` sets `minimumScale: 1`, and `usePreventPageZoom` (mounted
+  by `/upload-g/[id]`) swallows two-finger touchmoves and Safari's
+  `gesturestart`/`gesturechange` document-wide, so a pinch beside the
+  card zooms the card or nothing, never the page. Only pages with a
+  zoom of their own should mount it; page zoom is accessibility
+  elsewhere.
 - **Where a G came from** — text and email intake pass an
   `originNote` into `ingestGUploads`, written into the new day's
   `notes` ("Received by text from (484) 978-8687 on Sep 2, 2026 at
