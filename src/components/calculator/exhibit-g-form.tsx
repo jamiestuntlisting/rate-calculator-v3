@@ -31,6 +31,7 @@ import {
   MealTimes,
   NdMealOut,
   TimeRow,
+  mealBoundsWarning,
   ndMealWarning,
 } from "@/components/calculator/work-times-fields";
 import { DateField } from "@/components/ui/date-field";
@@ -710,6 +711,13 @@ export function ExhibitGForm() {
 
   const hasExhibitGPreview = exhibitGDocs.length > 0;
 
+  // A meal sits between call and the day's end. Until an end is
+  // entered only the clearly-backwards half of the clock argues.
+  const dayEnd = input.dismissMakeupWardrobe || input.dismissOnSet || null;
+  const dayEndName = input.dismissMakeupWardrobe ? "wrap" : "on-set dismissal";
+  const boundsWarn = (label: string, t: string | null) =>
+    mealBoundsWarning(input.callTime, dayEnd, dayEndName, label, t);
+
   return (
     // Every time field on the form belongs to the picked work day; on
     // any day but today, TimeSelect uses this to refuse the clock the
@@ -1162,7 +1170,11 @@ export function ExhibitGForm() {
                   title="1st Meal"
                   checked={showFirstMeal}
                   onCheckedChange={(v) => { setShowFirstMeal(v); showFirstMealRef.current = v; if (!v) { firstMealTouched.current = false; update("firstMealStart", null); update("firstMealFinish", null); setShowSecondMeal(false); update("secondMealStart", null); update("secondMealFinish", null); } else { setInput((prev) => ({ ...prev, ...reofferMeals(prev, prev.ndMealOut || prev.callTime || null) })); } }}
-                  warnings={[mealLengthWarning(input.firstMealStart, input.firstMealFinish)]}
+                  warnings={[
+                    boundsWarn("The 1st Meal In", input.firstMealStart),
+                    boundsWarn("The 1st Meal Out", input.firstMealFinish),
+                    mealLengthWarning(input.firstMealStart, input.firstMealFinish),
+                  ]}
                 >
                   <MealTimes>
                     <MealTime id="firstMealStart" label="In" value={input.firstMealStart || ""} onChange={(v) => setMealStart("firstMealStart", "firstMealFinish", v)} />
@@ -1177,6 +1189,8 @@ export function ExhibitGForm() {
                     checked={showSecondMeal}
                     onCheckedChange={(v) => { setShowSecondMeal(v); if (!v) { secondMealTouched.current = false; update("secondMealStart", null); update("secondMealFinish", null); } else { setInput((prev) => { const start = followedTime(prev.firstMealFinish, prev.secondMealStart, MEAL_PENALTIES.maxHoursBeforeSecondMeal * 60); return { ...prev, secondMealStart: start, secondMealFinish: followedTime(start, prev.secondMealFinish, MEAL_MINUTES) }; }); } }}
                     warnings={[
+                      boundsWarn("The 2nd Meal In", input.secondMealStart),
+                      boundsWarn("The 2nd Meal Out", input.secondMealFinish),
                       secondMealOrderWarning(input.firstMealFinish, input.secondMealStart),
                       mealLengthWarning(input.secondMealStart, input.secondMealFinish),
                     ]}

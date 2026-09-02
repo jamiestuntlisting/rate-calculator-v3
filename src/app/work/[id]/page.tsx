@@ -25,6 +25,7 @@ import { checkNdMeal, ND_MEAL_WINDOW_HOURS, ND_MEAL_MINUTES } from "@/lib/nd-mea
 import { shortDay } from "@/lib/format-date";
 import { SuggestInput } from "@/components/shared/suggest-input";
 import { clampMealFinish, mealLengthWarning, secondMealOrderWarning } from "@/lib/meal-length";
+import { mealBoundsWarning } from "@/components/calculator/work-times-fields";
 import { WRAP_MINUTES, wrapOrderWarning } from "@/lib/wrap-check";
 import { ShowCombobox } from "@/components/shared/show-combobox";
 import { effectiveHourlyRate, workHoursFor } from "@/lib/work-hours";
@@ -735,6 +736,16 @@ export default function WorkDetailPage() {
 
   if (!record) return null;
 
+  // A meal sits between call and the day's end; until an end is
+  // entered, only the clearly-backwards half of the clock argues.
+  const editDayEnd =
+    editData.dismissMakeupWardrobe || editData.dismissOnSet || null;
+  const editDayEndName = editData.dismissMakeupWardrobe
+    ? "wrap"
+    : "on-set dismissal";
+  const editBoundsWarn = (label: string, t: string | null) =>
+    mealBoundsWarning(editData.callTime, editDayEnd, editDayEndName, label, t);
+
   return (
     // Every time field here belongs to the record's day; on any day but
     // today, TimeSelect uses this to refuse the clock the platform
@@ -1301,6 +1312,14 @@ export default function WorkDetailPage() {
                                 </div>
                               )}
                               {editMeals.first &&
+                                (editBoundsWarn("The 1st Meal In", editData.firstMealStart) ||
+                                  editBoundsWarn("The 1st Meal Out", editData.firstMealFinish)) && (
+                                  <p className="px-2 pb-2 text-xs text-amber-400">
+                                    {editBoundsWarn("The 1st Meal In", editData.firstMealStart) ||
+                                      editBoundsWarn("The 1st Meal Out", editData.firstMealFinish)}
+                                  </p>
+                                )}
+                              {editMeals.first &&
                                 mealLengthWarning(editData.firstMealStart, editData.firstMealFinish) && (
                                   <p className="px-2 pb-2 text-xs text-amber-400">
                                     {mealLengthWarning(editData.firstMealStart, editData.firstMealFinish)}
@@ -1370,6 +1389,14 @@ export default function WorkDetailPage() {
                                     </div>
                                   </div>
                                 )}
+                                {editMeals.second &&
+                                  (editBoundsWarn("The 2nd Meal In", editData.secondMealStart) ||
+                                    editBoundsWarn("The 2nd Meal Out", editData.secondMealFinish)) && (
+                                    <p className="px-2 pb-2 text-xs text-amber-400">
+                                      {editBoundsWarn("The 2nd Meal In", editData.secondMealStart) ||
+                                        editBoundsWarn("The 2nd Meal Out", editData.secondMealFinish)}
+                                    </p>
+                                  )}
                                 {editMeals.second &&
                                   secondMealOrderWarning(editData.firstMealFinish, editData.secondMealStart) && (
                                     <p className="px-2 pb-2 text-xs text-amber-400">

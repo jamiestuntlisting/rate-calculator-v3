@@ -29,6 +29,7 @@ import {
   MealTimes,
   NdMealOut,
   TimeRow,
+  mealBoundsWarning,
   ndMealWarning,
 } from "@/components/calculator/work-times-fields";
 import { TimeSelect } from "@/components/calculator/time-select";
@@ -601,6 +602,13 @@ export default function TranscribePage({
 
   const isPdf = upload.contentType === "application/pdf";
 
+  // A meal sits between call and the day's end. Until an end is read
+  // off the card, only the clearly-backwards half of the clock argues.
+  const dayEnd = row.dismissMakeupWardrobe || row.dismissOnSet || null;
+  const dayEndName = row.dismissMakeupWardrobe ? "wrap" : "on-set dismissal";
+  const boundsWarn = (label: string, t: string | null) =>
+    mealBoundsWarning(row.callTime, dayEnd, dayEndName, label, t);
+
   /**
    * The times rows, built once and ordered by the toggle. Day order
    * runs chronologically: call, the meals, the dismissals. Card order
@@ -680,6 +688,8 @@ export default function TranscribePage({
           }
         }}
         warnings={[
+          boundsWarn("The 1st Meal In", row.firstMealStart),
+          boundsWarn("The 1st Meal Out", row.firstMealFinish),
           mealLengthWarning(row.firstMealStart, row.firstMealFinish),
         ]}
       >
@@ -729,6 +739,8 @@ export default function TranscribePage({
               }));
           }}
           warnings={[
+            boundsWarn("The 2nd Meal In", row.secondMealStart),
+            boundsWarn("The 2nd Meal Out", row.secondMealFinish),
             secondMealOrderWarning(
               row.firstMealFinish,
               row.secondMealStart
@@ -917,6 +929,7 @@ export default function TranscribePage({
         }));
       },
       note: "Half an hour is offered as the Out — change it if the card differs",
+      warning: boundsWarn("The 1st Meal In", row.firstMealStart),
     };
     const m1Out: GuidedStep = {
       key: "firstMealFinish",
@@ -924,7 +937,9 @@ export default function TranscribePage({
       kind: "time",
       value: row.firstMealFinish,
       set: (v) => setRow((p) => ({ ...p, firstMealFinish: v })),
-      warning: mealLengthWarning(row.firstMealStart, row.firstMealFinish),
+      warning:
+        boundsWarn("The 1st Meal Out", row.firstMealFinish) ??
+        mealLengthWarning(row.firstMealStart, row.firstMealFinish),
     };
     const m2In: GuidedStep = {
       key: "secondMealStart",
@@ -945,7 +960,9 @@ export default function TranscribePage({
             : p.secondMealFinish,
         }));
       },
-      warning: secondMealOrderWarning(row.firstMealFinish, row.secondMealStart),
+      warning:
+        boundsWarn("The 2nd Meal In", row.secondMealStart) ??
+        secondMealOrderWarning(row.firstMealFinish, row.secondMealStart),
     };
     const m2Out: GuidedStep = {
       key: "secondMealFinish",
@@ -953,7 +970,9 @@ export default function TranscribePage({
       kind: "time",
       value: row.secondMealFinish,
       set: (v) => setRow((p) => ({ ...p, secondMealFinish: v })),
-      warning: mealLengthWarning(row.secondMealStart, row.secondMealFinish),
+      warning:
+        boundsWarn("The 2nd Meal Out", row.secondMealFinish) ??
+        mealLengthWarning(row.secondMealStart, row.secondMealFinish),
     };
     const dismiss: GuidedStep = {
       key: "dismissOnSet",

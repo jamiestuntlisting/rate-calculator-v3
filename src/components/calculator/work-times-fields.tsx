@@ -164,6 +164,51 @@ const flipMeridiem = (time: string): string | null => {
 };
 
 /**
+ * A meal sits inside the day. Call is always the start and wrap always
+ * the end, so every meal time lies between them — equal to either is
+ * fine. Times run forward from call, which means a meal whose clock
+ * reads earlier than call is either tomorrow (an eighteen-hour day
+ * really does write one) or, far more often, the platform's wheel on
+ * the wrong meridiem — so when the flipped time would sit inside the
+ * day, the warning offers it. Until the day has an end, only the
+ * clearly-backwards half of the clock argues, so a genuinely long
+ * night shoot stops warning the moment its wrap is entered.
+ */
+export function mealBoundsWarning(
+  callTime: string | null | undefined,
+  endTime: string | null | undefined,
+  endName: string,
+  mealLabel: string,
+  time: string | null | undefined
+): string | null {
+  const call = toFieldValue(callTime ?? "");
+  const t = toFieldValue(time ?? "");
+  if (!call || !t) return null;
+  const minutes = (v: string) => {
+    const [h, m] = v.split(":").map(Number);
+    return h * 60 + m;
+  };
+  const DAY = 24 * 60;
+  const since = (v: string) => (minutes(v) - minutes(call) + DAY) % DAY;
+  const end = toFieldValue(endTime ?? "");
+  const limit = end ? since(end) : DAY / 2;
+  if (since(t) <= limit) return null;
+  const flipped = flipMeridiem(t);
+  const offer =
+    flipped && since(flipped) <= limit
+      ? ` Did you mean ${toDisplay(flipped)}?`
+      : "";
+  const base = end
+    ? `${mealLabel} at ${toDisplay(t)} isn't between your ${toDisplay(
+        call
+      )} call and the ${toDisplay(end)} ${endName}.`
+    : `${mealLabel} at ${toDisplay(t)} reads as before your ${toDisplay(
+        call
+      )} call — the day runs forward from call.`;
+  return `${base}${offer}`;
+}
+
+/**
  * The warning line for an ND meal outside its rule, or null when fine.
  * It quotes the time as entered, because the usual culprit is not the
  * meal — it is the platform's time wheel opening on the wrong half of
