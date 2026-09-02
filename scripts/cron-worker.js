@@ -1,20 +1,19 @@
 /**
  * The Worker's entry: the OpenNext handler plus a daily cron.
  *
- * wrangler.jsonc points `main` here instead of at the generated
- * `.open-next/worker.js`, so the app is untouched and the Worker gains
- * a `scheduled` handler. The cron (see `triggers.crons`) calls the
+ * scripts/add-cron.mjs installs this as `.open-next/worker.js` at the
+ * end of `npm run build`, after renaming the generated OpenNext worker
+ * to `.open-next/app-worker.js` — so whatever command deploys, and
+ * whichever script path it names, the Worker carries the `scheduled`
+ * handler. The cron (`triggers.crons` in wrangler.jsonc) calls the
  * app's own `/api/cron/bank-sync` route in-process — no network hop —
  * carrying a token this module minted when the isolate started, which
  * the route compares against the same global. Nothing outside the
  * Worker can present that token.
- *
- * Plain JavaScript, because `.open-next/worker.js` only exists after a
- * build and the app's typecheck must not depend on it.
  */
-import handler from "./.open-next/worker.js";
+import handler from "./app-worker.js";
 
-export { DOQueueHandler, DOShardedTagCache, BucketCachePurge } from "./.open-next/worker.js";
+export { DOQueueHandler, DOShardedTagCache, BucketCachePurge } from "./app-worker.js";
 
 const CRON_TOKEN = crypto.randomUUID();
 globalThis.__cronToken = CRON_TOKEN;

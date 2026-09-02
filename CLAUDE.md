@@ -512,9 +512,9 @@ session's `/api/auth/me` carries `tester: true` for them.
   the client (plain fetch); `src/lib/bank-sync.ts` pulls and matches
   one member or all of them. The page is just Connect; the floor is a
   preference (`prefs.depositFloor`, default $500); and **a daily cron
-  does the looking**: `worker.js` is the Worker entry (wrangler `main`),
-  wrapping the generated OpenNext worker and adding a `scheduled`
-  handler that calls `POST /api/cron/bank-sync` in-process with a
+  does the looking**: `scripts/cron-worker.js` becomes the Worker entry at the end of
+  `npm run build` (`scripts/add-cron.mjs` renames OpenNext's output to
+  `app-worker.js` and wraps it), adding a `scheduled` handler that calls `POST /api/cron/bank-sync` in-process with a
   token minted at startup (`triggers.crons`, 11:00 UTC). Needs
   `PLAID_CLIENT_ID`, `PLAID_SECRET`, `PLAID_ENV`; docs/bank-deposits.md
   has the setup and the two open decisions (auto-write residuals?

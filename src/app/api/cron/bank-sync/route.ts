@@ -4,7 +4,7 @@ import { syncAllBanks } from "@/lib/bank-sync";
 
 /**
  * POST /api/cron/bank-sync — every connected member's bank, pulled and
- * matched. Called once a day by the Worker's cron (worker.js), which
+ * matched. Called once a day by the Worker's cron (scripts/cron-worker.js), which
  * hands the OpenNext handler this request in-process with a token it
  * minted at startup — nothing to configure, nothing reachable from
  * outside. An admin can also run it by hand from a signed-in session.

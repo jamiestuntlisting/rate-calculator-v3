@@ -16,7 +16,7 @@ expected.
 - **Pull** — `src/lib/bank-sync.ts` walks `transactions/sync` from the
   stored cursor, keeps the credits (Plaid signs money in as negative),
   and stores them in `bank_deposits`. `POST /api/bank/sync` runs it for
-  the signed-in member; **once a day** the Worker's cron (`worker.js`,
+  the signed-in member; **once a day** the Worker's cron (`scripts/cron-worker.js`, installed by the build,
   `triggers.crons` in wrangler.jsonc, 11:00 UTC) calls
   `POST /api/cron/bank-sync`, which runs it for every connected member.
   The cron request is made in-process with a token the Worker minted at

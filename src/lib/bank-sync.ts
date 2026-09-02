@@ -18,7 +18,7 @@ import { shortDay } from "@/lib/format-date";
  * Pull a member's new bank transactions, keep the deposits, and match
  * every deposit to the calculated pay it lines up with. Run for one
  * member from the page, and for every connected member by the daily
- * cron (worker.js → /api/cron/bank-sync). Matching re-runs over all
+ * cron (scripts/cron-worker.js → /api/cron/bank-sync). Matching re-runs over all
  * deposits each time, because a day priced after the money landed
  * still deserves its match.
  */

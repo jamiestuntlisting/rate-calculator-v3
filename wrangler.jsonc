@@ -8,9 +8,9 @@
 {
   "$schema": "node_modules/wrangler/config-schema.json",
   "name": "rate-calculator",
-  // worker.js wraps the generated .open-next/worker.js and adds the
-  // scheduled handler for the cron below.
-  "main": "worker.js",
+  // The build's last step (scripts/add-cron.mjs) wraps OpenNext's output
+  // so this entry also carries the scheduled handler for the cron below.
+  "main": ".open-next/worker.js",
   "compatibility_date": "2026-07-01",
   "compatibility_flags": ["nodejs_compat"],
   "assets": {
