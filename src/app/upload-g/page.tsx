@@ -125,6 +125,13 @@ export default function UploadGPage() {
   const [uploads, setUploads] = useState<GUpload[]>([]);
   const [loading, setLoading] = useState(true);
   const [uploading, setUploading] = useState(false);
+  /** Where a batch upload is: "Uploading file 3 of 12 — IMG_7031.jpeg". */
+  const [progress, setProgress] = useState<{
+    index: number;
+    total: number;
+    name: string;
+    phase: "preparing" | "uploading";
+  } | null>(null);
   const [view, setView] = useState<ViewMode>("grid");
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editingTitle, setEditingTitle] = useState("");
@@ -175,63 +182,56 @@ export default function UploadGPage() {
         );
       }
       setUploading(true);
+      // One file per request, in order. A batch of phone photos in one
+      // request is tens of megabytes and dies without a useful error; one
+      // at a time each lands on its own, the count says where we are, and
+      // a bad file costs only itself.
+      const total = usable.length;
+      let added = 0;
+      const dupeNames: string[] = [];
+      const failed: string[] = [];
       try {
-        // Chunked: one giant request full of phone JPEGs can exceed the
-        // platform's request size limit and die without a useful error.
-        const MAX_CHUNK_FILES = 4;
-        const MAX_CHUNK_BYTES = 24 * 1024 * 1024;
-        let added = 0;
-        let dupes = 0;
-        const dupeNames: string[] = [];
-        let queue: File[] = [];
-        let queueBytes = 0;
-        const flush = async () => {
-          if (queue.length === 0) return;
-          const form = new FormData();
-          for (const file of queue) form.append("file", file);
-          queue = [];
-          queueBytes = 0;
-          const res = await fetch("/api/g-uploads", { method: "POST", body: form });
-          const data = (await res.json()) as {
-            created?: GUpload[];
-            duplicates?: Array<{ originalName: string }>;
-            error?: string;
-          };
-          if (!res.ok) throw new Error(data.error || "Upload failed");
-          added += data.created?.length ?? 0;
-          dupes += data.duplicates?.length ?? 0;
-          for (const d of data.duplicates ?? []) dupeNames.push(d.originalName);
-        };
-        for (const original of usable) {
-          // An iPhone HEIC becomes a JPEG here, so the preview can draw it.
-          const file = await toUploadableImage(original);
-          if (
-            queue.length >= MAX_CHUNK_FILES ||
-            (queueBytes + file.size > MAX_CHUNK_BYTES && queue.length > 0)
-          ) {
-            await flush();
+        for (let i = 0; i < total; i++) {
+          const original = usable[i];
+          setProgress({ index: i + 1, total, name: original.name, phase: "preparing" });
+          try {
+            // An iPhone HEIC becomes a JPEG here, so the preview can draw it.
+            const file = await toUploadableImage(original);
+            setProgress({ index: i + 1, total, name: original.name, phase: "uploading" });
+            const form = new FormData();
+            form.append("file", file);
+            const res = await fetch("/api/g-uploads", { method: "POST", body: form });
+            const data = (await res.json().catch(() => ({}))) as {
+              created?: GUpload[];
+              duplicates?: Array<{ originalName: string }>;
+              error?: string;
+            };
+            if (!res.ok) throw new Error(data.error || `HTTP ${res.status}`);
+            added += data.created?.length ?? 0;
+            for (const d of data.duplicates ?? []) dupeNames.push(d.originalName);
+          } catch (e) {
+            console.error("upload failed:", original.name, e);
+            failed.push(original.name);
           }
-          queue.push(file);
-          queueBytes += file.size;
+          // Show each one as it lands, not all at the end.
+          if ((i + 1) % 3 === 0 || i + 1 === total) await load();
         }
-        await flush();
 
         if (added > 0) {
-          toast.success(`Uploaded ${added} file${added === 1 ? "" : "s"}`);
+          toast.success(`Uploaded ${added} of ${total} file${total === 1 ? "" : "s"}`);
         }
-        if (dupes > 0) {
-          toast.warning(
-            `Already uploaded, skipped: ${dupeNames.join(", ")}`,
-            { duration: 6000 }
+        if (dupeNames.length > 0) {
+          toast.warning(`Already uploaded, skipped: ${dupeNames.join(", ")}`, { duration: 6000 });
+        }
+        if (failed.length > 0) {
+          toast.error(
+            `${failed.length} didn't upload — try ${failed.length === 1 ? "it" : "them"} again: ${failed.join(", ")}`,
+            { duration: 8000 }
           );
         }
-        await load();
-      } catch (error) {
-        toast.error(
-          error instanceof Error ? error.message : "Upload failed"
-        );
       } finally {
         setUploading(false);
+        setProgress(null);
       }
     },
     [load]
@@ -379,9 +379,16 @@ export default function UploadGPage() {
             ) : (
               <Upload className="h-4 w-4 mr-2" />
             )}
-            Upload
+            {progress ? `${progress.index} of ${progress.total}` : "Upload"}
           </Button>
         </div>
+        {progress && (
+          <p className="mt-2 text-sm text-muted-foreground" aria-live="polite">
+            {progress.phase === "preparing" ? "Preparing" : "Uploading"} file{" "}
+            {progress.index} of {progress.total}
+            <span className="text-foreground/80"> — {progress.name}</span>
+          </p>
+        )}
       </div>
 
       <input
