@@ -64,9 +64,9 @@ export const WorkDateContext = createContext<string | null>(null);
 /**
  * Local calendar date as "YYYY-MM-DD". toISOString answers in UTC,
  * which calls a New York evening "tomorrow" — the exact hours this
- * guard matters most.
+ * guard matters most. Exported for DateField's twin guard.
  */
-function localISODate(now: Date): string {
+export function localISODate(now: Date): string {
   return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
 }
 

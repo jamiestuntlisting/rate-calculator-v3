@@ -239,10 +239,11 @@ export default function TranscribePage({
   };
 
   /**
-   * Auto-advance for the one-at-a-time rail. A time is "entered" when
-   * the wheel stops turning — every change resets the timer, so a spin
-   * to 8:42 doesn't advance at 3:00 — and a date confirms faster since
-   * a picker commits it whole. Back/Next and mode flips cancel it.
+   * The one-at-a-time rail never advances on a timer — a timer races
+   * whatever picker is still open under a finger. Every step moves on
+   * a human act: the picker's dismissal (blur with a value), Enter, or
+   * the arrows. cancelAdvance survives as the belt for anything that
+   * might still be queued when the mode flips mid-transition.
    */
   const advanceTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const cancelAdvance = useCallback(() => {
@@ -256,16 +257,6 @@ export default function TranscribePage({
     (next: number | ((s: number) => number)) => {
       cancelAdvance();
       setGuidedStep(next);
-    },
-    [cancelAdvance]
-  );
-  const queueAdvance = useCallback(
-    (ms: number, count: number) => {
-      cancelAdvance();
-      advanceTimer.current = setTimeout(() => {
-        advanceTimer.current = null;
-        setGuidedStep((s) => Math.min(s + 1, count - 1));
-      }, ms);
     },
     [cancelAdvance]
   );
@@ -1101,17 +1092,28 @@ export default function TranscribePage({
               className="h-14 text-xl"
             />
           ) : currentStep.kind === "date" ? (
-            <DateField
+            // Same contract as the time steps: advance when the picker
+            // is dismissed with a value, never on a timer — a timer
+            // once raced the platform stamping today into the empty
+            // field and skipped this question before a finger touched
+            // it (DateField now refuses that stamp too).
+            <div
               key={currentStep.key}
-              id={`guided-${currentStep.key}`}
-              value={currentStep.value ?? ""}
-              onChange={(e) => {
-                const v = e.target.value;
-                currentStep.set?.(v);
-                if (v) queueAdvance(350, guidedSteps.length);
+              onBlurCapture={(e) => {
+                if (Date.now() - navTapped.current < 600) return;
+                if ((e.target as HTMLInputElement).value) {
+                  navTapped.current = Date.now();
+                  advanceNow();
+                }
               }}
-              className="h-14 text-xl w-full max-w-full"
-            />
+            >
+              <DateField
+                id={`guided-${currentStep.key}`}
+                value={currentStep.value ?? ""}
+                onChange={(e) => currentStep.set?.(e.target.value)}
+                className="h-14 text-xl w-full max-w-full"
+              />
+            </div>
           ) : currentStep.kind === "time" ? (
             // key: a NEW input per step, so the picker a finger still
             // holds open on the previous step dies with its node
