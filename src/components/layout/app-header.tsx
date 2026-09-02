@@ -367,7 +367,7 @@ export function AppHeader() {
                     {/* Mobile user info — for an admin, the name is the
                         view-as pulldown: pick a member to see their data,
                         pick yourself to come back. */}
-                    <div className="flex items-center gap-2 mt-4 mb-6 px-1 text-sm">
+                    <div className="flex items-center gap-2 mt-4 mb-6 pl-1 pr-8 text-sm">
                       {isAdmin ? (
                         <Shield className="h-4 w-4 shrink-0 text-amber-500" />
                       ) : (
