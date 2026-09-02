@@ -491,6 +491,13 @@ session's `/api/auth/me` carries `tester: true` for them.
   migration 0027; the seed list in `test-users.ts` stays on and shows
   as "seeded"). `/admin` has a layout with a grouped sidebar on a
   desktop, chips on a phone, and an Admin › tool breadcrumb.
+- **Google Calendar work log** (Preferences, testers) — the company's
+  service account owns one calendar per member, shares it to them by
+  invitation (read only), and mirrors every logged day as an all-day
+  event from every create/update/delete path on `ctx.waitUntil`
+  (`src/lib/google-calendar.ts`; `users.calendarId`,
+  `work_records.googleEventId`, migration 0029). Needs
+  `GOOGLE_SERVICE_ACCOUNT_JSON`; docs/google-calendar-work-log.md.
 - **Audit a show** — an outline only: docs/audit-a-show.md and the
   placeholder at `/admin/audits`. Nothing built.
 - **Bank deposits via Plaid** (`/bank`, testers) — connect a bank

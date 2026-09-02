@@ -5,6 +5,7 @@ import { findUserById } from "@/lib/repos/users";
 import { autoReadsExhibitG } from "@/lib/test-users";
 import { readExhibitG } from "@/lib/g-reader/read";
 import { documentTypeForKind, kindForUpload } from "@/lib/upload-kind";
+import { mirrorLater } from "@/lib/google-calendar";
 import {
   createGUpload,
   findGUploadByHash,
@@ -165,6 +166,7 @@ export async function ingestGUploads(
       kind,
     });
     created.push(upload);
+    mirrorLater(userId, workRecord._id);
     // Only an Exhibit G is read; a call sheet has no row to transcribe.
     if (reader && kind === "exhibit_g") scheduleReading(upload, reader.name);
   }

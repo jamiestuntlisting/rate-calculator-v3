@@ -11,6 +11,9 @@ export interface UserRecord {
   lastLogin: string | null;
   /** 1 when an admin made this member a test user (src/lib/test-users.ts). */
   tester: number;
+  /** The member's company-owned Google Calendar work log, once shared. */
+  calendarId: string | null;
+  calendarSharedAt: string | null;
   stlAccessToken: string | null;
   /** Manually chosen tier; wins over Stripe/StuntListing when set. */
   tierOverride: "free" | "standard" | "plus" | null;
@@ -309,4 +312,16 @@ export async function listMemberStats(): Promise<MemberStats[]> {
     )
     .all<MemberStats>();
   return results.map((r) => ({ ...r, lastActivity: r.lastActivity || null }));
+}
+
+export async function setUserCalendar(
+  userId: string,
+  calendarId: string | null,
+  sharedAt: string | null
+): Promise<void> {
+  const db = await getDb();
+  await db
+    .prepare("UPDATE users SET calendarId = ?1, calendarSharedAt = ?2, updatedAt = ?3 WHERE _id = ?4")
+    .bind(calendarId, sharedAt, nowIso(), userId)
+    .run();
 }

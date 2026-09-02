@@ -223,6 +223,8 @@ export default function PreferencesPage() {
         </CardContent>
       </Card>
 
+      {user?.tester && <CalendarCard />}
+
       <Card>
         <CardHeader>
           <CardTitle className="text-lg">Display</CardTitle>
@@ -274,5 +276,108 @@ export default function PreferencesPage() {
         </CardContent>
       </Card>
     </div>
+  );
+}
+
+
+/**
+ * The Google Calendar work log (a feature under test): StuntListing
+ * keeps a calendar for the member and shares it to them, so every day
+ * they log shows up beside their own calendars, past and future.
+ */
+function CalendarCard() {
+  const [status, setStatus] = useState<{
+    configured: boolean;
+    calendarId: string | null;
+    sharedAt: string | null;
+    link: string | null;
+    email: string | null;
+  } | null>(null);
+  const [busy, setBusy] = useState<string | null>(null);
+
+  const load = async () => {
+    const res = await fetch("/api/calendar");
+    if (res.ok) setStatus(await res.json());
+  };
+  useEffect(() => {
+    load();
+  }, []);
+
+  const act = async (action: "connect" | "sync" | "disconnect") => {
+    setBusy(action);
+    try {
+      const res =
+        action === "disconnect"
+          ? await fetch("/api/calendar", { method: "DELETE" })
+          : await fetch("/api/calendar", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ action }),
+            });
+      const body = (await res.json()) as { error?: string; mirrored?: number };
+      if (!res.ok) throw new Error(body.error || "Couldn't reach Google Calendar");
+      toast.success(
+        action === "connect"
+          ? `Calendar shared — check ${status?.email ?? "your email"} for Google's invitation. ${body.mirrored ?? 0} days written.`
+          : action === "sync"
+            ? `${body.mirrored ?? 0} days written`
+            : "Calendar disconnected"
+      );
+      await load();
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Couldn't reach Google Calendar");
+    } finally {
+      setBusy(null);
+    }
+  };
+
+  return (
+    <Card className="mb-4">
+      <CardHeader>
+        <CardTitle className="text-lg">Google Calendar work log</CardTitle>
+      </CardHeader>
+      <CardContent className="space-y-3 text-sm">
+        <p className="text-muted-foreground">
+          A feature under test. StuntListing keeps a calendar for you —
+          &ldquo;Your name — StuntListing Work Log&rdquo; — and shares it to
+          your email, read only. Every day you log lands on it, past and
+          future, and it sits beside your own calendars so you can switch it
+          on or off without touching them. Edits here update the event;
+          deleting a day removes it.
+        </p>
+        {status && !status.configured && (
+          <p className="text-amber-400">
+            Not set up yet — the company&rsquo;s Google service account key
+            (GOOGLE_SERVICE_ACCOUNT_JSON) is needed on the Worker.
+          </p>
+        )}
+        {status?.calendarId ? (
+          <div className="space-y-2">
+            <p>
+              Shared to <span className="font-medium">{status.email}</span>
+              {status.sharedAt ? ` on ${new Date(status.sharedAt).toLocaleDateString("en-US")}` : ""}.
+              {" "}
+              {status.link && (
+                <a href={status.link} target="_blank" rel="noreferrer" className="underline underline-offset-2">
+                  Open it in Google Calendar ↗
+                </a>
+              )}
+            </p>
+            <div className="flex flex-wrap gap-2">
+              <Button onClick={() => act("sync")} disabled={busy !== null} variant="outline" className="h-11">
+                {busy === "sync" ? "Writing…" : "Write every day again"}
+              </Button>
+              <Button onClick={() => act("disconnect")} disabled={busy !== null} variant="outline" className="h-11">
+                Disconnect
+              </Button>
+            </div>
+          </div>
+        ) : (
+          <Button onClick={() => act("connect")} disabled={busy !== null || !status?.configured} className="h-11">
+            {busy === "connect" ? "Sharing…" : "Share my work log to Google Calendar"}
+          </Button>
+        )}
+      </CardContent>
+    </Card>
   );
 }

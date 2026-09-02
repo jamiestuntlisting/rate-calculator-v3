@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { mirrorLater, unmirrorLater } from "@/lib/google-calendar";
 import { findGUploadByFilename, updateGUpload } from "@/lib/repos/g-uploads";
 import { kindForDocumentType } from "@/lib/upload-kind";
 import type { DocumentType } from "@/types";
@@ -74,6 +75,9 @@ export async function PUT(
       );
     }
 
+    // The day's calendar event follows the edit, after the response.
+    mirrorLater(userId, record._id);
+
     // A document retyped on the day (Exhibit G ↔ call sheet ↔ other)
     // retypes the upload it came from, so the pile agrees with the day.
     if (Array.isArray(data.documents)) {
@@ -125,10 +129,10 @@ export async function DELETE(
     if (auth.error) return auth.error;
 
     const { id } = await params;
-    const deleted = await deleteWorkRecord(
-      id,
-      await getEffectiveUserId(auth.session)
-    );
+    const userId = await getEffectiveUserId(auth.session);
+    // Read the day first: its calendar event id goes with it.
+    const doomed = await findWorkRecord(id, userId);
+    const deleted = await deleteWorkRecord(id, userId);
 
     if (!deleted) {
       return NextResponse.json(
@@ -137,6 +141,8 @@ export async function DELETE(
       );
     }
 
+    // Its calendar event goes with it, after the response.
+    unmirrorLater(userId, doomed?.googleEventId ?? null);
     return NextResponse.json({ message: "Work record deleted" });
   } catch (error) {
     console.error("Error deleting work record:", error);

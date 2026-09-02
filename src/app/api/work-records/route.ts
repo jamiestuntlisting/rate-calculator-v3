@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { mirrorLater } from "@/lib/google-calendar";
 import {
   createWorkRecord,
   listWorkRecords,
@@ -122,6 +123,8 @@ export async function POST(request: Request) {
       },
       userId
     );
+    // Onto the member's Google Calendar work log, after the response.
+    mirrorLater(userId, record._id);
 
     // A day logged as weekly (or 3-day) belongs to a contract group from
     // the moment it exists — that is what makes it show up as saved.

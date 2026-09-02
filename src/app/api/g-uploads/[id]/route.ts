@@ -8,6 +8,7 @@ import {
 import { findWorkRecord, updateWorkRecord } from "@/lib/repos/work-records";
 import { recalculateDay } from "@/lib/day-recalc";
 import { doneBlockers, listMissing } from "@/lib/transcription-done";
+import { mirrorLater } from "@/lib/google-calendar";
 import { documentTypeForKind, isUploadKind } from "@/lib/upload-kind";
 import { latestGReading, replaceGReadingScores } from "@/lib/repos/g-readings";
 import { scoreReading } from "@/lib/g-reader/score";
@@ -226,6 +227,7 @@ export async function PATCH(
 
       if (Object.keys(patch).length > 0) {
         await updateWorkRecord(existing.workRecordId, userId, patch);
+        mirrorLater(userId, existing.workRecordId);
         // A transcription that filled in the times has priced the day:
         // re-derive the stored calculation the same way the weekly stamp
         // paths do, so the Tracker and Resolve stop reading "not logged"

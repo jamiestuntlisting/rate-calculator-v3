@@ -36,6 +36,8 @@ interface WorkRecordRow {
   actorDoubled: string | null;
   notes: string;
   recordStatus: string;
+  /** The Google Calendar event mirroring this day, once written. */
+  googleEventId: string | null;
   documents: string;
   calculation: string | null;
   paymentStatus: string;
@@ -86,6 +88,7 @@ export interface WorkRecordDoc {
   actorDoubled: string | null;
   notes: string;
   recordStatus: string;
+  googleEventId: string | null;
   documents: WorkDocument[];
   calculation: CalculationBreakdown | null;
   paymentStatus: string;
@@ -144,6 +147,7 @@ function toDoc(row: WorkRecordRow): WorkRecordDoc {
     actorDoubled: row.actorDoubled ?? null,
     notes: row.notes,
     recordStatus: row.recordStatus,
+    googleEventId: row.googleEventId ?? null,
     documents: JSON.parse(row.documents || "[]"),
     calculation: row.calculation ? JSON.parse(row.calculation) : null,
     paymentStatus: row.paymentStatus,
@@ -446,4 +450,17 @@ export async function assignOrphanWorkRecords(userId: string): Promise<number> {
     .bind(userId, nowIso())
     .run();
   return res.meta.changes;
+}
+
+/** Remember the calendar event a day was mirrored to. */
+export async function setWorkRecordEventId(
+  id: string,
+  userId: string,
+  googleEventId: string | null
+): Promise<void> {
+  const db = await getDb();
+  await db
+    .prepare("UPDATE work_records SET googleEventId = ?1 WHERE _id = ?2 AND userId = ?3")
+    .bind(googleEventId, id, userId)
+    .run();
 }
