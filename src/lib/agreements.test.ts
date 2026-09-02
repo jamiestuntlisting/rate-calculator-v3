@@ -42,10 +42,12 @@ describe("the rate schedules", () => {
     expect(ratesForDate("2027-07-01").theatrical_basic.daily).toBe(1321);
   });
 
-  it("never guesses before the earliest schedule, and holds the latest after the last", () => {
-    // A 2021 day needs the real 2021 table, which is not loaded — until it
-    // is, the earliest known schedule applies rather than an invented one.
-    expect(ratesForDate("2021-03-15").theatrical_basic.daily).toBe(1246);
+  it("reaches back to the derived years, and holds the latest after the last", () => {
+    // A 2021 day is priced at the 2020-21 column ($1,030 from 07/01/2020),
+    // derived from the verified 2025 table through the agreements' raises.
+    expect(ratesForDate("2021-03-15").theatrical_basic.daily).toBe(1030);
+    // Before the earliest derived column the earliest applies, not a guess.
+    expect(ratesForDate("2011-03-15").theatrical_basic.daily).toBe(880);
     expect(ratesForDate("2031-01-01").theatrical_basic.daily).toBe(1402);
   });
 

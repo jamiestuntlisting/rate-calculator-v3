@@ -53,11 +53,16 @@ Two further changes are local and also need carrying upstream:
   $4,955/week, about 3.6% above the day performer rows it was previously
   assumed to track.
 - `rate-constants.ts` keys rates by date: `RATE_SCHEDULES` holds one table
-  per effective date (verified 07/01/2025 and 07/01/2026 columns, then the
-  2026-30 agreement's scheduled 3% raises), `ratesForDate(workDate)` picks
-  the one in force, and `rate-engine.ts` prices each day by its own date.
-  `RATES` remains as today's table for callers that don't pass a date.
-  Dates before the earliest schedule use it rather than a guess.
+  per effective date (derived columns from 07/01/2014, verified 07/01/2025
+  and 07/01/2026 columns, then the 2026-30 agreement's scheduled 3%
+  raises), `ratesForDate(workDate)` picks the one in force, and
+  `rate-engine.ts` prices each day by its own date. `RATES` remains as
+  today's table for callers that don't pass a date. Dates before the
+  earliest schedule use it rather than a guess. The derived columns are
+  walked back from the verified 2025 cells through each agreement's
+  general wage increase (the file header lists them) with dollar rounding
+  at every step; `rate-schedules.test.ts` pins the day performer ladder to
+  the published minimums.
 - `rate-constants.ts` also carries `COMMERCIAL_SCHEDULES` and
   `commercialSessionFee(workDate)` — the Commercials Contract session fee
   on its own April-1 calendar ($783.10 through 03/2025, $822.30 from

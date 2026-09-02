@@ -49,9 +49,17 @@ state stays in step.
   Its README lists the deliberate divergences: date-keyed rate schedules
   (`RATE_SCHEDULES`/`ratesForDate` — a work day is priced by the schedule
   in force on its date; verified tables from 07/01/2025 through the
-  2026-30 agreement's scheduled raises; earlier dates use the earliest
-  schedule until real tables are added, and `/admin/rates` shows the
-  whole table), the three low budget agreements, `flatDayRate`,
+  2026-30 agreement's scheduled raises, and **derived** columns back to
+  07/01/2014, walked back from the verified 2025 table through each
+  agreement's general wage increase with dollar rounding at every step
+  — 3%/3% under 2014, 2.5% a year to minimums under 2017 and 2020, then
+  7% on 11/09/2023, 4% on 07/01/2024, 3.5% on 07/01/2025. The day
+  performer column reproduces every published minimum from $880 to
+  $1,204, which is the check on the method; other rows can sit $1 off a
+  published cell on a half-dollar landing, and `/admin/rates` badges
+  them "derived" so James can confirm them against the tables.
+  `rate-schedules.test.ts` pins the ladder. Before 07/01/2014 the
+  earliest column applies), the three low budget agreements, `flatDayRate`,
   `dayRateOverride`, and workStatus accepting the app's flat
   pseudo-agreements — none of which the source repo has got. `@/lib/rate-engine`, `rate-constants`, `time-utils` are
   one-line re-export shims onto it.
@@ -167,7 +175,16 @@ state stays in step.
 - **Reverse calculator** — `/admin/reverse` works a check total
   backwards through `src/lib/reverse-daily.ts`, pricing normal day
   shapes with the real engine (adjustments feed the OT rate, so no
-  shortcut math — pinned by test).
+  shortcut math — pinned by test). No date is asked: the search runs
+  every rate schedule in force in the last two years (`searchedRates`)
+  and each match names its rate, so a check paid at last year's figure
+  is found on last year's column. The shapes are the finite set of
+  normal payments — 6:00 AM call, lunch on time or late by each half
+  hour up to two (each a distinct penalty), 8–16 hour days in 6-minute
+  steps, adjustments to $1,000 in $50s, with and without a second meal
+  (~50k engine runs, ~0.3 s). Near misses are always reported, closest
+  first, however far; `commonPayments` is the whole-hours grid the page
+  shows under the results with the check's nearest cell marked.
 - **Non-SAG work** — commercials, music videos, low budget and anything
   else go through `/other-work`, and carry the same times as a SAG day:
   call, both meals, dismissal and wrap. They are deliberately **not** run
@@ -280,8 +297,20 @@ state stays in step.
   value is legacy, unused by the UI).
 - Sum money at full precision and round once. Rounding per line is a cent
   out on roughly one weekly card in twenty.
-- Vitest needs `vitest.config.ts` for the `@/` alias. `npm test` runs 59
-  tests; keep them green.
+- Vitest needs `vitest.config.ts` for the `@/` alias and `jsx:
+  "automatic"` for the component tests. `npm test` runs 320 tests across
+  31 files; keep them green, and treat the count as a tripwire (a Write
+  once silently overwrote a test file — the count caught it).
+- **Log Work front-end bench** — `exhibit-g-form.test.tsx` renders the
+  real form in jsdom (Testing Library; `// @vitest-environment jsdom`
+  at the top of the file) and puts times into one field to check the
+  rules in the others: call offering lunch, an In dragging its Out to
+  +30, the Out clamps, the 2nd meal following the 1st until hand-set,
+  the wrap offers both ways, the order and bounds warnings, the ND
+  window, and the iOS clock-stamp refusal on another day's form. The
+  router, the weeklies fetch and image conversion are stubbed; nothing
+  in the times section is. `/admin/time-bench` states the same rules
+  against the pure functions for reading on a phone.
 
 ## Open work
 
@@ -296,16 +325,21 @@ test bench (`/admin/weekly-bench`), and the weekly calculator UI
 
 Still waiting on James:
 
+0. **A2P 10DLC campaign approval** for the text-in number — submitted
+   2026-09-02, likely weeks. Inbound works now; only the outbound reply
+   is blocked. After approval: add the number to the campaign's
+   Messaging Service and set its inbound to "Defer to sender's webhook".
+
 1. **Stripe billing** — plans are defined and tier resolution already
    prefers Stripe; needs a restricted `STRIPE_SECRET_KEY` (read on
    customers, subscriptions, products) and the price ids for Plus and the
    transcription add-on. The $15 per-Exhibit-G price is a placeholder James
    has not confirmed.
-2. **Historical rate schedules** — built for 07/01/2025 onward (verified
-   tables + the 2026-30 scheduled raises); a day picks its schedule by
-   date. Still waiting on James for the pre-2025 wage tables — until then
-   older days use the 2025 figures and `/admin/rates` says so. The
-   11/9/2023 mid-year bump is the known wrinkle when those load.
+2. **Historical rate schedules** — derived columns back to 07/01/2014
+   are loaded (see the rate engine note above); the 11/9/2023 mid-year
+   bump is in. What is left for James is confirming the derived
+   non-day-performer rows against the real wage tables when he has
+   them — any cell a dollar off is a one-number edit.
 3. **Weekly overtime absorption threshold** — bounded, not pinned; see
    `OVERTIME_ABSORPTION_NOTE`. If James learns the real rule it is one
    constant.

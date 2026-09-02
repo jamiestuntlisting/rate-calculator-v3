@@ -67,7 +67,7 @@ export default function AdminRatesPage() {
         <h1 className="text-3xl font-bold tracking-tight">Rate schedules</h1>
         <p className="text-sm text-muted-foreground mt-1">
           A work day is priced by the schedule in force on its date — rates
-          change each July 1. The low budget tiers are not listed because
+          change each July 1, and the table reaches back to July 2014. The low budget tiers are not listed because
           they are written as percentages of the day performer row (65% /
           35% / 20%) and derive from whichever year applies.
         </p>
@@ -94,12 +94,16 @@ export default function AdminRatesPage() {
                         className={`mt-0.5 inline-block rounded border px-1 py-0.5 text-[10px] normal-case tracking-normal ${
                           s.source === "wage tables"
                             ? "border-green-700/50 text-green-300"
-                            : "border-border text-muted-foreground"
+                            : s.source === "derived"
+                              ? "border-amber-700/50 text-amber-300"
+                              : "border-border text-muted-foreground"
                         }`}
                       >
                         {s.source === "wage tables"
                           ? "verified tables"
-                          : "scheduled 3%"}
+                          : s.source === "derived"
+                            ? "derived"
+                            : "scheduled 3%"}
                       </span>
                     </th>
                   ))}
@@ -129,12 +133,26 @@ export default function AdminRatesPage() {
         <CardContent className="pt-6 space-y-3 text-sm text-muted-foreground">
           <p>
             <span className="text-foreground font-medium">
-              Before Jul 1, 2025:
+              &ldquo;Derived&rdquo; columns (Jul 1, 2014 – Jun 30, 2025)
             </span>{" "}
-            the earliest schedule above applies. The app never guesses a
-            rate, so older years stay at the 2025 figures until the real
-            wage tables for those years are added — ask Claude to load them
-            when you have the tables in hand.
+            are walked back from the verified 2025 table through each
+            agreement&rsquo;s general wage increase — 2.5% / 3% / 3% under
+            the 2014 agreement, 2.5% a year to minimums under the 2017 and
+            2020 agreements, then 7% on the 11/9/2023 ratification, 4% on
+            7/1/2024 and 3.5% on 7/1/2025 — rounding to the dollar at every
+            step. The day performer daily row lands on the published
+            minimums for every one of those years ($880 → $1,204), which is
+            the check that the method is right; the other rows follow the
+            same arithmetic and can sit a dollar off a published cell where
+            a raise fell on exactly half a dollar. Confirm them against the
+            wage tables when those are in hand.
+          </p>
+          <p>
+            <span className="text-foreground font-medium">
+              Before Jul 1, 2014:
+            </span>{" "}
+            the earliest column applies. The app never guesses further back
+            than the agreements it knows.
           </p>
           <p>
             <span className="text-foreground font-medium">
@@ -145,9 +163,9 @@ export default function AdminRatesPage() {
             posted table each July in case a figure rounds differently.
           </p>
           <p>
-            The 11/9/2023 mid-year increase (the strike year) is the known
-            exception to the July 1 rhythm — it matters once pre-2025
-            schedules are loaded.
+            The 11/9/2023 mid-year increase (the strike year) is the one
+            exception to the July 1 rhythm: a day on 11/8/2023 is priced
+            at the 2022 column, the next day at the new one.
           </p>
         </CardContent>
       </Card>

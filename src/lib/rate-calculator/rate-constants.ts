@@ -4,19 +4,39 @@
 // strike-year exception), so a work day is priced by the schedule in force
 // on its date — a 2025 day at 2025 rates, whatever year it is entered.
 //
-// The schedules below are the ones that could be VERIFIED against the
-// published wage tables (each row a clean 3% ladder, daily and weekly rows
-// cross-checking at the performer's daily-to-weekly ratio, and two cells
-// anchored by real 08/2026 contracts). Years before 07/01/2025 are absent
-// on purpose: the app never guesses a rate, so a day before the earliest
-// schedule uses the earliest schedule and /admin/rates says so. When the
-// real tables for earlier years are in hand they slot in here.
+// Three kinds of column:
 //
-// "scheduled increase" rows carry the 2026-30 agreement's contractual 3%
-// raises. Most of their cells are quoted in the published five-year
-// ladders; the day performer dailies past 07/26 are projected by the same
-// nearest-dollar 3% rule that reproduces every verified ladder, and should
-// be confirmed against the posted table each July.
+// "wage tables" — VERIFIED against the published tables (each row a clean
+// 3% ladder, daily and weekly rows cross-checking at the performer's
+// daily-to-weekly ratio, and two cells anchored by real 08/2026 contracts).
+//
+// "scheduled increase" — the 2026-30 agreement's contractual 3% raises.
+// Most cells are quoted in the published five-year ladders; the day
+// performer dailies past 07/26 are projected by the same nearest-dollar
+// 3% rule that reproduces every verified ladder, and should be confirmed
+// against the posted table each July.
+//
+// "derived" — the years before 07/01/2025, walked BACK from the verified
+// 2025 column through each agreement's general wage increase, rounding to
+// the dollar at every step the way the union publishes them:
+//
+//   2014 agreement   +2.5% 07/01/14, +3% 07/01/15, +3% 07/01/16
+//   2017 agreement   +2.5% to minimums each of 07/01/17, /18, /19
+//                    (the headline 3% in years 2–3 diverted ½% to pension)
+//   2020 agreement   +2.5% to minimums each of 07/01/20, /21, /22
+//                    (same ½% diversion to the health plan)
+//   2023 agreement   +7% on ratification 11/09/23, +4% 07/01/24,
+//                    +3.5% 07/01/25
+//
+// The day performer daily column is the check on the method: walking back
+// lands on 1,204 · 1,158 · 1,082 · 1,056 · 1,030 · 1,005 · 980 · 956 ·
+// 933 · 906 · 880 — the published minimums for those years — so the
+// percentages and their order are right. The other rows follow the same
+// arithmetic and can sit a dollar off a published cell where a raise
+// landed on exactly half a dollar (a 2016 3-day cell does); /admin/rates
+// marks the derived columns so they can be confirmed against the tables
+// when those are in hand. Before 07/01/2014 the app has no schedule and
+// uses the earliest one, which /admin/rates also says.
 
 export interface ScheduleCells {
   /** Day performer (Schedule A/H) daily and weekly minimums. */
@@ -40,12 +60,188 @@ export interface RateScheduleEntry {
   /** First day this schedule applies, YYYY-MM-DD. */
   effectiveFrom: string;
   /** Where the figures come from — shown on /admin/rates. */
-  source: "wage tables" | "scheduled increase";
+  source: "wage tables" | "scheduled increase" | "derived";
   cells: ScheduleCells;
 }
 
 /** Ascending by effective date. */
 export const RATE_SCHEDULES: RateScheduleEntry[] = [
+  {
+    effectiveFrom: "2014-07-01",
+    source: "derived",
+    cells: {
+      basicDaily: 880.0,
+      basicWeekly: 3280.0,
+      coordFlatDaily: 1162.0,
+      coordFlatWeekly: 4625.0,
+      coordDailyDaily: 911.0,
+      coordDailyWeekly: 3395.0,
+      threeDayShort: 2227.0,
+      threeDayLong: 2620.0,
+      coordFlatThreeDayShort: 3261.0,
+      coordFlatThreeDayLong: 3642.0,
+    },
+  },
+  {
+    effectiveFrom: "2015-07-01",
+    source: "derived",
+    cells: {
+      basicDaily: 906.0,
+      basicWeekly: 3378.0,
+      coordFlatDaily: 1197.0,
+      coordFlatWeekly: 4764.0,
+      coordDailyDaily: 938.0,
+      coordDailyWeekly: 3497.0,
+      threeDayShort: 2294.0,
+      threeDayLong: 2699.0,
+      coordFlatThreeDayShort: 3359.0,
+      coordFlatThreeDayLong: 3751.0,
+    },
+  },
+  {
+    effectiveFrom: "2016-07-01",
+    source: "derived",
+    cells: {
+      basicDaily: 933.0,
+      basicWeekly: 3479.0,
+      coordFlatDaily: 1233.0,
+      coordFlatWeekly: 4907.0,
+      coordDailyDaily: 966.0,
+      coordDailyWeekly: 3602.0,
+      threeDayShort: 2363.0,
+      threeDayLong: 2780.0,
+      coordFlatThreeDayShort: 3460.0,
+      coordFlatThreeDayLong: 3864.0,
+    },
+  },
+  {
+    effectiveFrom: "2017-07-01",
+    source: "derived",
+    cells: {
+      basicDaily: 956.0,
+      basicWeekly: 3566.0,
+      coordFlatDaily: 1264.0,
+      coordFlatWeekly: 5030.0,
+      coordDailyDaily: 990.0,
+      coordDailyWeekly: 3692.0,
+      threeDayShort: 2422.0,
+      threeDayLong: 2850.0,
+      coordFlatThreeDayShort: 3546.0,
+      coordFlatThreeDayLong: 3961.0,
+    },
+  },
+  {
+    effectiveFrom: "2018-07-01",
+    source: "derived",
+    cells: {
+      basicDaily: 980.0,
+      basicWeekly: 3655.0,
+      coordFlatDaily: 1296.0,
+      coordFlatWeekly: 5156.0,
+      coordDailyDaily: 1015.0,
+      coordDailyWeekly: 3784.0,
+      threeDayShort: 2483.0,
+      threeDayLong: 2921.0,
+      coordFlatThreeDayShort: 3635.0,
+      coordFlatThreeDayLong: 4060.0,
+    },
+  },
+  {
+    effectiveFrom: "2019-07-01",
+    source: "derived",
+    cells: {
+      basicDaily: 1005.0,
+      basicWeekly: 3746.0,
+      coordFlatDaily: 1328.0,
+      coordFlatWeekly: 5285.0,
+      coordDailyDaily: 1040.0,
+      coordDailyWeekly: 3879.0,
+      threeDayShort: 2545.0,
+      threeDayLong: 2994.0,
+      coordFlatThreeDayShort: 3726.0,
+      coordFlatThreeDayLong: 4162.0,
+    },
+  },
+  {
+    effectiveFrom: "2020-07-01",
+    source: "derived",
+    cells: {
+      basicDaily: 1030.0,
+      basicWeekly: 3840.0,
+      coordFlatDaily: 1361.0,
+      coordFlatWeekly: 5417.0,
+      coordDailyDaily: 1066.0,
+      coordDailyWeekly: 3976.0,
+      threeDayShort: 2609.0,
+      threeDayLong: 3069.0,
+      coordFlatThreeDayShort: 3819.0,
+      coordFlatThreeDayLong: 4266.0,
+    },
+  },
+  {
+    effectiveFrom: "2021-07-01",
+    source: "derived",
+    cells: {
+      basicDaily: 1056.0,
+      basicWeekly: 3936.0,
+      coordFlatDaily: 1395.0,
+      coordFlatWeekly: 5552.0,
+      coordDailyDaily: 1093.0,
+      coordDailyWeekly: 4075.0,
+      threeDayShort: 2674.0,
+      threeDayLong: 3146.0,
+      coordFlatThreeDayShort: 3914.0,
+      coordFlatThreeDayLong: 4373.0,
+    },
+  },
+  {
+    effectiveFrom: "2022-07-01",
+    source: "derived",
+    cells: {
+      basicDaily: 1082.0,
+      basicWeekly: 4034.0,
+      coordFlatDaily: 1430.0,
+      coordFlatWeekly: 5691.0,
+      coordDailyDaily: 1120.0,
+      coordDailyWeekly: 4177.0,
+      threeDayShort: 2741.0,
+      threeDayLong: 3225.0,
+      coordFlatThreeDayShort: 4012.0,
+      coordFlatThreeDayLong: 4482.0,
+    },
+  },
+  {
+    effectiveFrom: "2023-11-09",
+    source: "derived",
+    cells: {
+      basicDaily: 1158.0,
+      basicWeekly: 4316.0,
+      coordFlatDaily: 1530.0,
+      coordFlatWeekly: 6089.0,
+      coordDailyDaily: 1198.0,
+      coordDailyWeekly: 4469.0,
+      threeDayShort: 2933.0,
+      threeDayLong: 3451.0,
+      coordFlatThreeDayShort: 4293.0,
+      coordFlatThreeDayLong: 4796.0,
+    },
+  },
+  {
+    effectiveFrom: "2024-07-01",
+    source: "derived",
+    cells: {
+      basicDaily: 1204.0,
+      basicWeekly: 4489.0,
+      coordFlatDaily: 1591.0,
+      coordFlatWeekly: 6333.0,
+      coordDailyDaily: 1246.0,
+      coordDailyWeekly: 4648.0,
+      threeDayShort: 3050.0,
+      threeDayLong: 3589.0,
+      coordFlatThreeDayShort: 4465.0,
+      coordFlatThreeDayLong: 4988.0,
+    },
+  },
   {
     effectiveFrom: "2025-07-01",
     source: "wage tables",
