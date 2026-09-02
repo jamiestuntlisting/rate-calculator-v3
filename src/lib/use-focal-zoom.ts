@@ -105,8 +105,6 @@ export function useFocalZoom({
   useLayoutEffect(() => {
     lineRef.current = lineFraction;
   }, [lineFraction]);
-  /** A finger is on the pane: no programmatic scroll until it lifts. */
-  const touching = useRef(false);
   /**
    * The row lock: a line of the content held under the pane's vertical
    * centre, as a fraction of the content's height, or null when free.
@@ -115,6 +113,18 @@ export function useFocalZoom({
    * being read and the row never leaves the highlight.
    */
   const anchorY = useRef<number | null>(null);
+
+  /**
+   * Locked, the row's vertical position is a transform on the content,
+   * not a scroll: the page clips the content to the pane's height, so
+   * there is nothing to scroll vertically and no touch can move it —
+   * iOS pans a horizontally scrollable pane vertically even with
+   * overflow-y hidden, and a scroll-position "correction" afterwards
+   * read as the card jumping back. The pane keeps scrolling sideways.
+   */
+  const setLockedOffset = (content: HTMLElement, top: number) => {
+    content.style.transform = top > 0 ? `translateY(${-top}px)` : "";
+  };
   const cleanup = useRef<(() => void) | null>(null);
   /** The committed zoom — what the DOM is currently laid out at. */
   const zoomRef = useRef(zoom);
@@ -170,7 +180,13 @@ export function useFocalZoom({
     // its origin is not the scroll origin while letterboxed.
     const leftOffset = Math.max(0, (pane.clientWidth - content.offsetWidth) / 2);
     pane.scrollLeft = focal.fracX * content.offsetWidth + leftOffset - focal.focalX;
-    pane.scrollTop = focal.fracY * content.offsetHeight - focal.focalY;
+    const top = focal.fracY * content.offsetHeight - focal.focalY;
+    if (anchorY.current != null) {
+      pane.scrollTop = 0;
+      setLockedOffset(content, Math.max(0, top));
+    } else {
+      pane.scrollTop = top;
+    }
   }, [contentRef]);
 
   // After React commits the new size, put the anchor back under the
@@ -251,23 +267,38 @@ export function useFocalZoom({
     const content = contentRef.current;
     const locked = anchorY.current;
     if (!pane || !content || locked == null) return;
-    // Setting scrollTop while a finger is panning sideways interrupts
-    // the gesture on iOS — the card visibly jumps and settles back on
-    // every scroll event. Wait for the finger to lift; touchend comes
-    // back here.
-    if (touching.current) return;
     const top = lockedScrollTop(
       locked,
       content.offsetHeight,
       pane.clientHeight,
       lineRef.current
     );
-    if (Math.abs(pane.scrollTop - top) > 0.5) pane.scrollTop = top;
+    pane.scrollTop = 0;
+    setLockedOffset(content, top);
+  }, [contentRef]);
+
+  /**
+   * Open the lock: the transform comes off and the pane scrolls to
+   * where the row was, so the card does not move on release. Run after
+   * the page has given the pane its scrollable height back.
+   */
+  const releaseLine = useCallback(() => {
+    const pane = paneEl.current;
+    const content = contentRef.current;
+    const locked = anchorY.current;
+    if (!pane || !content || locked == null) return;
+    anchorY.current = null;
+    setLockedOffset(content, 0);
+    pane.scrollTop = lockedScrollTop(
+      locked,
+      content.offsetHeight,
+      pane.clientHeight,
+      lineRef.current
+    );
   }, [contentRef]);
 
   const onTouchStart = useCallback(
     (e: React.TouchEvent) => {
-      touching.current = true;
       if (e.touches.length !== 2) return;
       const mid = midpoint(touchPair(e.touches));
       const captured = capture(mid.x, mid.y);
@@ -281,18 +312,14 @@ export function useFocalZoom({
     [capture]
   );
 
-  const onTouchEnd = useCallback(
-    (e: React.TouchEvent) => {
-      pinch.current = null;
-      if (e.touches.length > 0) return;
-      touching.current = false;
-      // The finger is up: put a locked line back where it belongs, once.
-      applyAnchor();
-    },
-    [applyAnchor]
-  );
+  const onTouchEnd = useCallback(() => {
+    pinch.current = null;
+  }, []);
 
-  /** Close the lock on whatever line is under the pane's centre now. */
+  /**
+   * Close the lock on whatever line is under the highlight now. Reads
+   * the pane's scroll, so call it before the page clips the pane.
+   */
   const lockLine = useCallback(() => {
     const pane = paneEl.current;
     const content = contentRef.current;
@@ -305,10 +332,8 @@ export function useFocalZoom({
     );
   }, [contentRef]);
 
-  /** Open the lock: the pane scrolls freely again. */
-  const unlockLine = useCallback(() => {
-    anchorY.current = null;
-  }, []);
+  /** Whether a line is held. */
+  const isLineLocked = useCallback(() => anchorY.current != null, []);
 
   /** The zoom buttons anchor to the middle of what is on screen. */
   const zoomAtCenter = useCallback(
@@ -333,6 +358,7 @@ export function useFocalZoom({
     zoomAtCenter,
     applyAnchor,
     lockLine,
-    unlockLine,
+    releaseLine,
+    isLineLocked,
   };
 }

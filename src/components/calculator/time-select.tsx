@@ -187,6 +187,10 @@ export function TimeSelect({
         <button
           type="button"
           aria-label="Clear time"
+          // Out of the Tab order: on a desktop, Tab past AM/PM should land
+          // on the next row's hour, not on this ✕. The keyboard clears a
+          // segment with Backspace; the ✕ is for a thumb.
+          tabIndex={-1}
           // Clear on pointerdown, before the blur the tap causes: a
           // listener advancing on blur-with-value (the guided rail)
           // must see the field already empty, or a clear turns into a

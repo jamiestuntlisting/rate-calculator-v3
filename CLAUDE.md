@@ -149,20 +149,24 @@ state stays in step.
   rate, 190 is allowances and meal penalties landing after the subtotal, and
   swapping them still yields a plausible gross.
 - **Transcription row lock** — the `/upload-g/[id]` card pane draws a
-  translucent highlighter band (60px, rgba(255,230,0)) across the pane
-  at mid-height on a phone and 40% down on a desktop (`useHighlightLine`,
-  the `lg` breakpoint); a lock button in the pane's bottom-right corner
-  freezes vertical scrolling (sideways still pans) so the performer
-  lines their row up under the band and transcribes without the card
-  drifting. Locked, `useFocalZoom` holds the line (`lockLine`, a
-  fraction of the card's height, against its `lineFraction` option):
-  every zoom — buttons, pinch, ⌘+wheel — anchors on that line, a pane
-  resize re-applies it (`applyAnchor`), Fit and Rotate hide, and the
-  lock rides the saved view (`view.lockedY`) so the G reopens locked on
-  the same line. **Never set scrollTop from the scroll event or while a
-  finger is down** — that fought iOS's sideways pan and made the card
-  jitter; the correction runs on touchend, resize and zoom commit only.
-  `use-focal-zoom.test.ts` pins the arithmetic.
+  translucent highlighter band (50px, rgba(255,230,0) at .32, .5 once
+  locked) at mid-height on a phone and 40% down on a desktop
+  (`useHighlightLine`, the `lg` breakpoint); a lock button in the
+  pane's bottom-right corner holds the row under the band so the
+  performer transcribes without the card drifting. Sideways still pans.
+  **Locked, the row's vertical position is a transform, not a scroll**:
+  the page wraps the card in a clip exactly the pane's height, so the
+  pane has nothing to scroll vertically and no touch can move it —
+  iOS pans a horizontally scrollable pane vertically even with
+  overflow-y hidden, and correcting scrollTop afterwards (on scroll
+  events, or on touchend) read as the card jumping back. `useFocalZoom`
+  owns it: `lockLine` grabs the line under the band (against its
+  `lineFraction` option), `applyAnchor` places the card and re-runs on
+  pane resize, `releaseLine` hands the position back to the pane's
+  scroll on unlock so nothing moves, and zooms — buttons, pinch,
+  ⌘+wheel — anchor on the line. Fit and Rotate hide while locked; the
+  lock rides the saved view (`view.lockedY`). `use-focal-zoom.test.ts`
+  pins the arithmetic.
 - **Where a G came from** — text and email intake pass an
   `originNote` into `ingestGUploads`, written into the new day's
   `notes` ("Received by text from (484) 978-8687 on Sep 2, 2026 at
@@ -298,7 +302,8 @@ state stays in step.
   forms still take "now"; that is live logging. A wrap equal to the
   dismissal is legal (the card writes a dash) — only strictly-before
   warns, and never through `calculateDuration`, which reads an equal
-  pair as 24 hours.
+  pair as 24 hours. The field's ✕ clear button is `tabIndex={-1}`: Tab
+  past AM/PM goes to the next row's hour, not to the ✕.
 - Serve R2 objects with `object.writeHttpMetadata()`; setting
   `Content-Length` by hand truncates images.
 - Read `e.currentTarget` synchronously in event handlers — React clears it

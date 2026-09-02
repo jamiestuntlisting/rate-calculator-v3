@@ -1,6 +1,6 @@
 "use client";
 
-import { use, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { use, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
@@ -114,7 +114,7 @@ interface Transcription {
 }
 
 /** The highlighter's height — about one row of a card at reading zoom. */
-const HIGHLIGHT_HEIGHT = 60;
+const HIGHLIGHT_HEIGHT = 50;
 
 /**
  * Where the highlight line sits on the card pane: mid-pane on a phone
@@ -389,7 +389,7 @@ export default function TranscribePage({
     zoomAtCenter,
     applyAnchor,
     lockLine,
-    unlockLine,
+    releaseLine,
   } = useFocalZoom({
     contentRef: cardBoxRef,
     zoom,
@@ -399,24 +399,27 @@ export default function TranscribePage({
     lineFraction,
   });
   const lockRow = useCallback(() => {
+    // Grab the line while the pane still scrolls; the clip comes with
+    // the re-render, and the layout effect below positions the card.
     lockLine();
     setLockedY(true);
   }, [lockLine]);
-  const unlockRow = useCallback(() => {
-    unlockLine();
-    setLockedY(false);
-  }, [unlockLine]);
-  // The pane changing size (a phone turning, a window resized) keeps the
-  // locked line under the highlight rather than wherever the old scroll
-  // now lands.
-  useEffect(() => {
+  const unlockRow = useCallback(() => setLockedY(false), []);
+  // Locked: place the card under the highlight before paint, and keep
+  // it there through pane resizes (a phone turning). Unlocked: hand the
+  // position back to the pane's scroll so nothing moves on release.
+  useLayoutEffect(() => {
     const pane = paneEl.current;
-    if (!lockedY || !pane) return;
+    if (!pane) return;
+    if (!lockedY) {
+      releaseLine();
+      return;
+    }
     applyAnchor();
     const observer = new ResizeObserver(() => applyAnchor());
     observer.observe(pane);
     return () => observer.disconnect();
-  }, [lockedY, paneEl, applyAnchor]);
+  }, [lockedY, paneEl, applyAnchor, releaseLine]);
   const restored = useRef(false);
   const savedView = useRef<Transcription["view"] | null>(null);
 
@@ -1424,6 +1427,18 @@ export default function TranscribePage({
                 touchAction: lockedY ? "pan-x" : "pan-x pan-y",
               }}
             >
+              {/* Locked, this clip is exactly the pane's height, so the
+                  pane has nothing to scroll vertically — the card's row
+                  is placed by a transform instead (see useFocalZoom).
+                  It stays as wide as the card so sideways still pans. */}
+              <div
+                className={lockedY ? "relative h-full overflow-hidden" : "contents"}
+                style={
+                  lockedY
+                    ? { width: displayW || "100%", minWidth: "100%" }
+                    : undefined
+                }
+              >
               <div
                 ref={cardBoxRef}
                 className="relative mx-auto"
@@ -1453,6 +1468,7 @@ export default function TranscribePage({
                   }}
                 />
               </div>
+              </div>
             </div>
             {/* The highlighter: one translucent line across the middle of
                 the pane, about a row of the card tall, so the eye has a
@@ -1467,8 +1483,8 @@ export default function TranscribePage({
                 top: `calc(${lineFraction * 100}% - ${HIGHLIGHT_HEIGHT / 2}px)`,
                 // Highlighter yellow, translucent — stronger once locked.
                 backgroundColor: lockedY
-                  ? "rgba(255, 230, 0, 0.6)"
-                  : "rgba(255, 230, 0, 0.42)",
+                  ? "rgba(255, 230, 0, 0.5)"
+                  : "rgba(255, 230, 0, 0.32)",
               }}
             />
             {/* The lock lives in the bottom-right corner of the card
