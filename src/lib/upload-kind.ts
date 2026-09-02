@@ -1,17 +1,30 @@
 import type { DocumentType } from "@/types";
 
 /**
- * What a file a member sends in is. An Exhibit G is transcribed; a
- * call sheet is not — it starts the day and rides along as its
- * attachment — and "other" is anything else worth keeping with the
- * day. Kept free of server imports so the pulldowns can use it.
+ * What a file a member sends in is. Only an Exhibit G is transcribed;
+ * everything else starts the day (or joins it) and rides along as its
+ * attachment. Kept free of server imports so the pulldowns can use it.
  */
-export const UPLOAD_KINDS = ["exhibit_g", "call_sheet", "other"] as const;
+export const UPLOAD_KINDS = [
+  "exhibit_g",
+  "call_sheet",
+  "contract",
+  "paystub",
+  "wardrobe_photo",
+  "photo",
+  "conversation",
+  "other",
+] as const;
 export type UploadKind = (typeof UPLOAD_KINDS)[number];
 
 export const UPLOAD_KIND_LABELS: Record<UploadKind, string> = {
   exhibit_g: "Exhibit G",
   call_sheet: "Call sheet",
+  contract: "Contract",
+  paystub: "Pay stub",
+  wardrobe_photo: "Wardrobe",
+  photo: "Photo",
+  conversation: "Conversation",
   other: "Other",
 };
 

@@ -6,8 +6,10 @@ export type DocumentType =
   | "exhibit_g"
   | "call_sheet"
   | "contract"
-  | "wardrobe_photo"
   | "paystub"
+  | "wardrobe_photo"
+  | "photo"
+  | "conversation"
   | "timecard"
   | "other";
 
@@ -26,10 +28,13 @@ export interface WorkDocument {
 
 export const DOCUMENT_TYPE_LABELS: Record<DocumentType, string> = {
   exhibit_g: "Exhibit G",
-  call_sheet: "Call Sheet",
+  call_sheet: "Call sheet",
   contract: "Contract",
-  wardrobe_photo: "Wardrobe Photo",
-  paystub: "Paystub",
+  paystub: "Pay stub",
+  wardrobe_photo: "Wardrobe",
+  photo: "Photo",
+  /** A text or email thread with production — the deal in writing. */
+  conversation: "Conversation",
   timecard: "Timecard",
   other: "Other",
 };

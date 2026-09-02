@@ -183,12 +183,14 @@ state stays in step.
   with the character under it, the work date from the transcription's
   details, the transcribed-on date at md+, delete), a row tap opening
   the G. The to-do pile above keeps its cards.
-- **What a file is** — `g_uploads.kind` (migration 0026: exhibit_g |
-  call_sheet | other; `src/lib/upload-kind.ts`). A PDF arrives as the
-  call sheet, a photo as an Exhibit G (`kindForUpload`); both start a
-  work day, whose document carries the same type. Only an Exhibit G is
-  transcribed: call sheets and other files sit in their own table on
-  `/upload-g`, count in no to-do, are not read by Claude, and are left
+- **What a file is** — `g_uploads.kind` (migration 0026;
+  `src/lib/upload-kind.ts`: exhibit_g | call_sheet | contract | paystub
+  | wardrobe_photo | photo | conversation | other — `DocumentType` has
+  the same names plus the older timecard). A PDF arrives as the call
+  sheet, a photo as an Exhibit G (`kindForUpload`); both start a work
+  day, whose document carries the same type. Only an Exhibit G is
+  transcribed: every other kind sits in the "Other files" table on
+  `/upload-g`, counts in no to-do, is not read by Claude, and is left
   out of transcription requests and the admin queue. Reclassify with
   the pulldown on the pile's cards and tables (`PATCH /api/g-uploads/
   [id]` with `kind`, which retypes the day's document) or on the day's

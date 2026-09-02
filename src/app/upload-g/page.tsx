@@ -603,10 +603,12 @@ export default function UploadGPage() {
               {files.length > 0 && (
                 <div className="mt-10 space-y-3">
                   <div>
-                    <h2 className="text-xl font-semibold">Call sheets &amp; other files</h2>
+                    <h2 className="text-xl font-semibold">Other files</h2>
                     <p className="text-sm text-muted-foreground">
-                      Each started a work day and rides along on it; nothing to
-                      transcribe. Change what a file is if it came in wrong.
+                      Call sheets, contracts, pay stubs, wardrobe and other
+                      photos, conversations with production. Each started a
+                      work day and rides along on it; nothing to transcribe.
+                      Change what a file is if it came in wrong.
                     </p>
                   </div>
                   <Card className="p-0 overflow-hidden">
