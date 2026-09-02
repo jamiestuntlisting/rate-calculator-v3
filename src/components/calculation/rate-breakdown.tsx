@@ -6,15 +6,6 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-  TableFooter,
-} from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { formatCurrency } from "@/lib/time-utils";
@@ -67,80 +58,75 @@ export function RateBreakdown({
       return acc;
     }, {});
 
+    /**
+     * One line of the working: the label wraps as it needs to, the
+     * money sits at the right, and the hours × rate reads in small
+     * print underneath. Stacked, not a table — a table scrolled
+     * sideways on a phone and cut the labels off at the left.
+     */
+    const line = (
+      key: string,
+      label: string,
+      amount: string,
+      detail?: string,
+      strong = true
+    ) => (
+      <div key={key} className="flex items-start justify-between gap-3 py-2 border-b border-border/30">
+        <div className="min-w-0 flex-1">
+          <p className="text-sm font-medium leading-snug">{label}</p>
+          {detail && <p className="text-xs text-muted-foreground">{detail}</p>}
+        </div>
+        <p className={`shrink-0 tabular-nums text-sm ${strong ? "font-semibold" : "text-muted-foreground"}`}>
+          {amount}
+        </p>
+      </div>
+    );
+
+    const lines = (
+      <div>
+        {segments.map((seg, i) =>
+          line(
+            `seg-${i}`,
+            seg.label,
+            formatCurrency(seg.subtotal),
+            `${Number(seg.hours.toFixed(1))} h × ${formatCurrency(seg.rate * seg.multiplier)}`
+          )
+        )}
+        {hasStuntAdj &&
+          line("adj", "Stunt Adjustment", "in the rate", "folded into the hourly above", false)}
+        {Object.entries(mealTotals).map(([meal, total]) =>
+          line(`meal-${meal}`, `${meal} Penalty`, formatCurrency(total))
+        )}
+        {penalties.forcedCallPenalty > 0 &&
+          line("forced", "Forced Call Penalty", formatCurrency(penalties.forcedCallPenalty))}
+        <div className="flex items-baseline justify-between gap-3 pt-2">
+          <p className="text-sm font-semibold">Total</p>
+          <p className="tabular-nums text-base font-bold">
+            {formatCurrency(grandTotal)}
+            {approximation != null && "*"}
+          </p>
+        </div>
+      </div>
+    );
+
+    // Tucked under a total elsewhere, the working needs no frame of
+    // its own; on the calculation page it sits among the other cards.
+    if (linesOnly) {
+      return (
+        <div>
+          <p className="mb-1 text-xs font-medium uppercase tracking-wide text-muted-foreground">
+            Pay breakdown
+          </p>
+          {lines}
+        </div>
+      );
+    }
     return (
       <Card>
         <CardHeader>
           <CardTitle className="text-lg">Pay Breakdown</CardTitle>
         </CardHeader>
-        <CardContent>
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Line</TableHead>
-                <TableHead className="text-right">Hours</TableHead>
-                <TableHead className="text-right">Rate</TableHead>
-                <TableHead className="text-right">Amount</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {segments.map((seg, i) => (
-                <TableRow key={i}>
-                  <TableCell className="font-medium">{seg.label}</TableCell>
-                  <TableCell className="text-right">
-                    {Number(seg.hours.toFixed(1))}
-                  </TableCell>
-                  <TableCell className="text-right">
-                    {formatCurrency(seg.rate * seg.multiplier)}
-                  </TableCell>
-                  <TableCell className="text-right font-semibold">
-                    {formatCurrency(seg.subtotal)}
-                  </TableCell>
-                </TableRow>
-              ))}
-              {hasStuntAdj && (
-                <TableRow>
-                  <TableCell className="font-medium">Stunt Adjustment (in rate)</TableCell>
-                  <TableCell className="text-right text-muted-foreground">—</TableCell>
-                  <TableCell className="text-right text-muted-foreground">—</TableCell>
-                  <TableCell className="text-right text-muted-foreground text-xs">
-                    folded into the hourly above
-                  </TableCell>
-                </TableRow>
-              )}
-              {Object.entries(mealTotals).map(([meal, total]) => (
-                <TableRow key={meal}>
-                  <TableCell className="font-medium">{meal} Penalty</TableCell>
-                  <TableCell className="text-right text-muted-foreground">—</TableCell>
-                  <TableCell className="text-right text-muted-foreground">—</TableCell>
-                  <TableCell className="text-right font-semibold">
-                    {formatCurrency(total)}
-                  </TableCell>
-                </TableRow>
-              ))}
-              {penalties.forcedCallPenalty > 0 && (
-                <TableRow>
-                  <TableCell className="font-medium">Forced Call Penalty</TableCell>
-                  <TableCell className="text-right text-muted-foreground">—</TableCell>
-                  <TableCell className="text-right text-muted-foreground">—</TableCell>
-                  <TableCell className="text-right font-semibold">
-                    {formatCurrency(penalties.forcedCallPenalty)}
-                  </TableCell>
-                </TableRow>
-              )}
-            </TableBody>
-            <TableFooter>
-              <TableRow>
-                <TableCell colSpan={3} className="font-semibold">
-                  Total
-                </TableCell>
-                <TableCell className="text-right font-bold">
-                  {formatCurrency(grandTotal)}
-                  {approximation != null && "*"}
-                </TableCell>
-              </TableRow>
-            </TableFooter>
-          </Table>
-        </CardContent>
+        <CardContent>{lines}</CardContent>
       </Card>
     );
   })();
