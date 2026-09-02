@@ -18,6 +18,7 @@ import {
   Undo2,
   ScanText,
   Clapperboard,
+  Users,
 } from "lucide-react";
 import { useAuth } from "@/context/auth-context";
 import { isAdminEmail } from "@/lib/admin-emails";
@@ -65,6 +66,12 @@ const ADMIN_PAGES = [
     title: "Reverse calculator",
     detail: "Start from what a check paid and work backwards to the day.",
     icon: Undo2,
+  },
+  {
+    href: "/admin/members",
+    title: "Members",
+    detail: "Who is using the service and how much — and which members are test users.",
+    icon: Users,
   },
   {
     href: "/admin/imdb",

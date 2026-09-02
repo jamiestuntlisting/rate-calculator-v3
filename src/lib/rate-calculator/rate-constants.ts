@@ -45,7 +45,14 @@ export interface ScheduleCells {
   /** Stunt coordinator on a flat deal (Schedule K-III). */
   coordFlatDaily: number;
   coordFlatWeekly: number;
-  /** Stunt coordinator employed at less than flat deal (K-I / K-II). */
+  /**
+   * Stunt coordinator employed at less than flat deal. The daily is the
+   * day performer minimum — the wage table lists "Stunt Coordinator
+   * (employed at less than 'flat deal' minimum)" on the Performer row
+   * ($1,246 → $1,283 → $1,321 → $1,361 → $1,402), corrected 09/2026
+   * after a wrong $1,329 ladder. The weekly is still the earlier figure
+   * pending the Weekly Performers section of the same table.
+   */
   coordDailyDaily: number;
   coordDailyWeekly: number;
   /** TV 3-day player, by the show's format. */
@@ -74,7 +81,7 @@ export const RATE_SCHEDULES: RateScheduleEntry[] = [
       basicWeekly: 3280.0,
       coordFlatDaily: 1162.0,
       coordFlatWeekly: 4625.0,
-      coordDailyDaily: 911.0,
+      coordDailyDaily: 880.0,
       coordDailyWeekly: 3395.0,
       threeDayShort: 2227.0,
       threeDayLong: 2620.0,
@@ -90,7 +97,7 @@ export const RATE_SCHEDULES: RateScheduleEntry[] = [
       basicWeekly: 3378.0,
       coordFlatDaily: 1197.0,
       coordFlatWeekly: 4764.0,
-      coordDailyDaily: 938.0,
+      coordDailyDaily: 906.0,
       coordDailyWeekly: 3497.0,
       threeDayShort: 2294.0,
       threeDayLong: 2699.0,
@@ -106,7 +113,7 @@ export const RATE_SCHEDULES: RateScheduleEntry[] = [
       basicWeekly: 3479.0,
       coordFlatDaily: 1233.0,
       coordFlatWeekly: 4907.0,
-      coordDailyDaily: 966.0,
+      coordDailyDaily: 933.0,
       coordDailyWeekly: 3602.0,
       threeDayShort: 2363.0,
       threeDayLong: 2780.0,
@@ -122,7 +129,7 @@ export const RATE_SCHEDULES: RateScheduleEntry[] = [
       basicWeekly: 3566.0,
       coordFlatDaily: 1264.0,
       coordFlatWeekly: 5030.0,
-      coordDailyDaily: 990.0,
+      coordDailyDaily: 956.0,
       coordDailyWeekly: 3692.0,
       threeDayShort: 2422.0,
       threeDayLong: 2850.0,
@@ -138,7 +145,7 @@ export const RATE_SCHEDULES: RateScheduleEntry[] = [
       basicWeekly: 3655.0,
       coordFlatDaily: 1296.0,
       coordFlatWeekly: 5156.0,
-      coordDailyDaily: 1015.0,
+      coordDailyDaily: 980.0,
       coordDailyWeekly: 3784.0,
       threeDayShort: 2483.0,
       threeDayLong: 2921.0,
@@ -154,7 +161,7 @@ export const RATE_SCHEDULES: RateScheduleEntry[] = [
       basicWeekly: 3746.0,
       coordFlatDaily: 1328.0,
       coordFlatWeekly: 5285.0,
-      coordDailyDaily: 1040.0,
+      coordDailyDaily: 1005.0,
       coordDailyWeekly: 3879.0,
       threeDayShort: 2545.0,
       threeDayLong: 2994.0,
@@ -170,7 +177,7 @@ export const RATE_SCHEDULES: RateScheduleEntry[] = [
       basicWeekly: 3840.0,
       coordFlatDaily: 1361.0,
       coordFlatWeekly: 5417.0,
-      coordDailyDaily: 1066.0,
+      coordDailyDaily: 1030.0,
       coordDailyWeekly: 3976.0,
       threeDayShort: 2609.0,
       threeDayLong: 3069.0,
@@ -186,7 +193,7 @@ export const RATE_SCHEDULES: RateScheduleEntry[] = [
       basicWeekly: 3936.0,
       coordFlatDaily: 1395.0,
       coordFlatWeekly: 5552.0,
-      coordDailyDaily: 1093.0,
+      coordDailyDaily: 1056.0,
       coordDailyWeekly: 4075.0,
       threeDayShort: 2674.0,
       threeDayLong: 3146.0,
@@ -202,7 +209,7 @@ export const RATE_SCHEDULES: RateScheduleEntry[] = [
       basicWeekly: 4034.0,
       coordFlatDaily: 1430.0,
       coordFlatWeekly: 5691.0,
-      coordDailyDaily: 1120.0,
+      coordDailyDaily: 1082.0,
       coordDailyWeekly: 4177.0,
       threeDayShort: 2741.0,
       threeDayLong: 3225.0,
@@ -218,7 +225,7 @@ export const RATE_SCHEDULES: RateScheduleEntry[] = [
       basicWeekly: 4316.0,
       coordFlatDaily: 1530.0,
       coordFlatWeekly: 6089.0,
-      coordDailyDaily: 1198.0,
+      coordDailyDaily: 1158.0,
       coordDailyWeekly: 4469.0,
       threeDayShort: 2933.0,
       threeDayLong: 3451.0,
@@ -234,7 +241,7 @@ export const RATE_SCHEDULES: RateScheduleEntry[] = [
       basicWeekly: 4489.0,
       coordFlatDaily: 1591.0,
       coordFlatWeekly: 6333.0,
-      coordDailyDaily: 1246.0,
+      coordDailyDaily: 1204.0,
       coordDailyWeekly: 4648.0,
       threeDayShort: 3050.0,
       threeDayLong: 3589.0,
@@ -250,7 +257,7 @@ export const RATE_SCHEDULES: RateScheduleEntry[] = [
       basicWeekly: 4646.0,
       coordFlatDaily: 1647.0,
       coordFlatWeekly: 6555.0,
-      coordDailyDaily: 1290.0,
+      coordDailyDaily: 1246.0,
       coordDailyWeekly: 4811.0,
       threeDayShort: 3157.0,
       threeDayLong: 3715.0,
@@ -266,7 +273,7 @@ export const RATE_SCHEDULES: RateScheduleEntry[] = [
       basicWeekly: 4785.0,
       coordFlatDaily: 1696.0,
       coordFlatWeekly: 6752.0,
-      coordDailyDaily: 1329.0,
+      coordDailyDaily: 1283.0,
       coordDailyWeekly: 4955.0,
       threeDayShort: 3252.0,
       threeDayLong: 3826.0,
@@ -282,7 +289,7 @@ export const RATE_SCHEDULES: RateScheduleEntry[] = [
       basicWeekly: 4929.0,
       coordFlatDaily: 1747.0,
       coordFlatWeekly: 6955.0,
-      coordDailyDaily: 1369.0,
+      coordDailyDaily: 1321.0,
       coordDailyWeekly: 5104.0,
       threeDayShort: 3350.0,
       threeDayLong: 3941.0,
@@ -298,7 +305,7 @@ export const RATE_SCHEDULES: RateScheduleEntry[] = [
       basicWeekly: 5077.0,
       coordFlatDaily: 1799.0,
       coordFlatWeekly: 7164.0,
-      coordDailyDaily: 1410.0,
+      coordDailyDaily: 1361.0,
       coordDailyWeekly: 5257.0,
       threeDayShort: 3451.0,
       threeDayLong: 4059.0,
@@ -314,7 +321,7 @@ export const RATE_SCHEDULES: RateScheduleEntry[] = [
       basicWeekly: 5229.0,
       coordFlatDaily: 1853.0,
       coordFlatWeekly: 7379.0,
-      coordDailyDaily: 1452.0,
+      coordDailyDaily: 1402.0,
       coordDailyWeekly: 5415.0,
       threeDayShort: 3555.0,
       threeDayLong: 4181.0,

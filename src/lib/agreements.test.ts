@@ -215,10 +215,10 @@ describe("a flat deal", () => {
     // daily coordinator tracks the performer minimum and works overtime.
     expect(RATES.stunt_coordinator.daily).toBe(1696);
     // Schedule K-I has its own daily minimum, above the day performer's.
-    expect(RATES.stunt_coordinator_daily.daily).toBe(1329);
-    expect(RATES.stunt_coordinator_daily.daily).toBeGreaterThan(
-      RATES.theatrical_basic.daily
-    );
+    // A coordinator employed at less than flat deal is on the Performer
+    // row of the wage table: the day performer minimum, not a premium.
+    expect(RATES.stunt_coordinator_daily.daily).toBe(1283);
+    expect(RATES.stunt_coordinator_daily.daily).toBe(RATES.theatrical_basic.daily);
     const long = { callTime: "07:00", dismissOnSet: "21:30" };
     const daily = calculateRate(
       day({ ...long, workStatus: "stunt_coordinator_daily" })

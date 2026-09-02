@@ -76,11 +76,15 @@ state stays in step.
   `stunt_coordinator`. That one is the **flat deal** coordinator
   (K-III: $1,696/day, $6,752/week on 07/01/26, no times and no
   overtime); `stunt_coordinator_daily` is a coordinator employed at less
-  than flat deal (K-I/K-II: $1,329/day, $4,955/week), who earns overtime
-  like anyone else — the distinction is why both rates exist. These were
-  verified against the 2026-30 wage-table ladders in 08/2026, replacing
-  a wrong $1,996/$7,439 flat pair and the wrong assumption that the
-  daily coordinator tracks the day performer minimum.
+  than flat deal, who earns overtime like anyone else — the distinction
+  is why both rates exist. The flat pair was verified against the
+  2026-30 wage-table ladders in 08/2026 (replacing a wrong
+  $1,996/$7,439). The daily coordinator's DAY rate is the day performer
+  minimum ($1,283 on 07/01/26): the Theatrical Wage Table lists "Stunt
+  Coordinator (employed at less than 'flat deal' minimum)" on the
+  Performer row, corrected 09/2026 after a wrong $1,329 ladder. Its
+  WEEKLY ($4,955) is still the earlier figure — confirm it against the
+  Weekly Performers section of the same table.
   A deal that is none of the schedules is picked as **Commercial** or
   **Flat deal** in the same pulldown (`FLAT_AGREEMENTS`) — the performer
   types the contract's number, `flatDayRate` rides the record, and the

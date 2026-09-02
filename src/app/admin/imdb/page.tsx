@@ -164,8 +164,9 @@ export default function AdminImdbPage() {
           reviews. What it does offer is a link that opens a person&rsquo;s
           form with a number of stunt-credit slots ready. Pick a member:
           their tracker&rsquo;s shows come back as the credits to type, beside
-          that link. Matching shows to IMDb title ids is a separate piece of
-          work; for now each show has an IMDb title search.
+          that link, or tap one credit to open the form with a single slot
+          for just that one. Matching shows to IMDb title ids is a separate
+          piece of work; for now each show has an IMDb title search.
         </p>
       </div>
 

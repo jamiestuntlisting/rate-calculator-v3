@@ -92,7 +92,7 @@ export async function ingestGUploads(
   // on the model. The reading, or the error, is recorded either way.
   const owner = await findUserById(userId);
   const reader =
-    owner && autoReadsExhibitG(owner.email)
+    owner && autoReadsExhibitG(owner)
       ? {
           name: `${owner.firstName ?? ""} ${owner.lastName ?? ""}`.trim() || owner.email,
         }

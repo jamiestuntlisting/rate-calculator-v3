@@ -21,7 +21,7 @@ export async function POST(
     if (auth.error) return auth.error;
     const userId = await getEffectiveUserId(auth.session);
     const owner = await findUserById(userId);
-    if (!owner || !autoReadsExhibitG(owner.email)) {
+    if (!owner || !autoReadsExhibitG(owner)) {
       return NextResponse.json({ error: "Not a test account" }, { status: 403 });
     }
     const { id } = await params;

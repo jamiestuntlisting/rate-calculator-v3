@@ -9,6 +9,8 @@ export interface UserRecord {
   tier: "free" | "standard" | "plus";
   role: "user" | "admin";
   lastLogin: string | null;
+  /** 1 when an admin made this member a test user (src/lib/test-users.ts). */
+  tester: number;
   stlAccessToken: string | null;
   /** Manually chosen tier; wins over Stripe/StuntListing when set. */
   tierOverride: "free" | "standard" | "plus" | null;
@@ -255,4 +257,56 @@ export async function listUsers(): Promise<UserRecord[]> {
     .prepare("SELECT * FROM users ORDER BY lastLogin DESC")
     .all<UserRecord>();
   return results;
+}
+
+/** Make a member a test user, or not. */
+export async function setUserTester(userId: string, tester: boolean): Promise<void> {
+  const db = await getDb();
+  await db
+    .prepare("UPDATE users SET tester = ?1, updatedAt = ?2 WHERE _id = ?3")
+    .bind(tester ? 1 : 0, nowIso(), userId)
+    .run();
+}
+
+/** What each member has done with the service — Admin → Members. */
+export interface MemberStats {
+  _id: string;
+  email: string;
+  firstName: string;
+  lastName: string;
+  tier: string;
+  role: string;
+  tester: number;
+  lastLogin: string | null;
+  createdAt: string;
+  /** The latest of a login, a logged day or an upload. */
+  lastActivity: string | null;
+  workDays: number;
+  incompleteDays: number;
+  exhibitGs: number;
+  otherFiles: number;
+  transcribed: number;
+  /** Days logged in the last 30 days. */
+  recentDays: number;
+}
+
+export async function listMemberStats(): Promise<MemberStats[]> {
+  const db = await getDb();
+  const { results } = await db
+    .prepare(
+      `SELECT u._id, u.email, u.firstName, u.lastName, u.tier, u.role, u.tester, u.lastLogin, u.createdAt,
+              (SELECT COUNT(*) FROM work_records w WHERE w.userId = u._id) AS workDays,
+              (SELECT COUNT(*) FROM work_records w WHERE w.userId = u._id AND w.recordStatus != 'complete') AS incompleteDays,
+              (SELECT COUNT(*) FROM work_records w WHERE w.userId = u._id AND w.createdAt >= datetime('now', '-30 days')) AS recentDays,
+              (SELECT COUNT(*) FROM g_uploads g WHERE g.userId = u._id AND g.kind = 'exhibit_g') AS exhibitGs,
+              (SELECT COUNT(*) FROM g_uploads g WHERE g.userId = u._id AND g.kind != 'exhibit_g') AS otherFiles,
+              (SELECT COUNT(*) FROM g_uploads g WHERE g.userId = u._id AND g.transcribedAt IS NOT NULL) AS transcribed,
+              MAX(COALESCE(u.lastLogin, ''),
+                  COALESCE((SELECT MAX(w.updatedAt) FROM work_records w WHERE w.userId = u._id), ''),
+                  COALESCE((SELECT MAX(g.createdAt) FROM g_uploads g WHERE g.userId = u._id), '')) AS lastActivity
+         FROM users u
+        ORDER BY lastActivity DESC`
+    )
+    .all<MemberStats>();
+  return results.map((r) => ({ ...r, lastActivity: r.lastActivity || null }));
 }

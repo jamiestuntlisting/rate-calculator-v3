@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { isTestUser } from "@/lib/test-users";
+import { isTester } from "@/lib/test-users";
 import { getSession, isAdminEmail, createSession, setSessionCookie } from "@/lib/auth";
 import { findUserById } from "@/lib/repos/users";
 import { resolveMembershipTier } from "@/lib/membership";
@@ -18,10 +18,12 @@ export async function GET() {
   }
 
   const isAdmin = isAdminEmail(session.email);
+  let testerFlag = 0;
 
   // Look up the user's STL access token from D1 for re-verification
   try {
     const user = await findUserById(session.userId);
+    testerFlag = user?.tester ?? 0;
     const stlAccessToken = user?.stlAccessToken;
 
     if (stlAccessToken) {
@@ -94,7 +96,7 @@ export async function GET() {
       lastName: session.lastName,
       tier: session.tier,
       role: session.role,
-      tester: isTestUser(session.email),
+      tester: isTester({ email: session.email, tester: testerFlag }),
     },
   });
 }
