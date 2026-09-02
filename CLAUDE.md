@@ -149,15 +149,19 @@ state stays in step.
   rate, 190 is allowances and meal penalties landing after the subtotal, and
   swapping them still yields a plausible gross.
 - **Transcription row lock** — the `/upload-g/[id]` card pane draws a
-  translucent yellow highlighter line (30px) across its vertical
-  middle; a lock button in the pane's bottom-right corner freezes
-  vertical scrolling (sideways still pans) so the performer lines
-  their row up under the highlight and transcribes without the card
-  drifting. Locked, `useFocalZoom` takes an `anchorY` (the line as a
-  fraction of the card's height): every zoom — buttons, pinch, ⌘+wheel
-  — anchors on that line, a pane resize re-applies it
-  (`applyAnchor`), Fit and Rotate hide, and the lock rides the saved
-  view (`view.lockedY`) so the G reopens locked on the same line.
+  translucent highlighter band (60px, rgba(255,230,0)) across the pane
+  at mid-height on a phone and 40% down on a desktop (`useHighlightLine`,
+  the `lg` breakpoint); a lock button in the pane's bottom-right corner
+  freezes vertical scrolling (sideways still pans) so the performer
+  lines their row up under the band and transcribes without the card
+  drifting. Locked, `useFocalZoom` holds the line (`lockLine`, a
+  fraction of the card's height, against its `lineFraction` option):
+  every zoom — buttons, pinch, ⌘+wheel — anchors on that line, a pane
+  resize re-applies it (`applyAnchor`), Fit and Rotate hide, and the
+  lock rides the saved view (`view.lockedY`) so the G reopens locked on
+  the same line. **Never set scrollTop from the scroll event or while a
+  finger is down** — that fought iOS's sideways pan and made the card
+  jitter; the correction runs on touchend, resize and zoom commit only.
   `use-focal-zoom.test.ts` pins the arithmetic.
 - **Where a G came from** — text and email intake pass an
   `originNote` into `ingestGUploads`, written into the new day's
@@ -326,7 +330,7 @@ state stays in step.
 - Sum money at full precision and round once. Rounding per line is a cent
   out on roughly one weekly card in twenty.
 - Vitest needs `vitest.config.ts` for the `@/` alias and `jsx:
-  "automatic"` for the component tests. `npm test` runs 331 tests across
+  "automatic"` for the component tests. `npm test` runs 332 tests across
   34 files; keep them green, and treat the count as a tripwire (a Write
   once silently overwrote a test file — the count caught it).
 - **Log Work front-end bench** — `exhibit-g-form.test.tsx` renders the

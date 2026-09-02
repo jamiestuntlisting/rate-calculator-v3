@@ -30,31 +30,43 @@ interface FocalZoomOptions {
   setZoom: (zoom: number) => void;
   minZoom: number;
   maxZoom: number;
+  /**
+   * Where the highlight line sits on the pane, as a fraction of its
+   * height from the top — the lock holds the card's row there. Defaults
+   * to the middle.
+   */
+  lineFraction?: number;
 }
 
 /**
  * The scrollTop that puts a content line (a fraction of the content's
- * height) under the pane's vertical centre.
+ * height) under the pane's highlight line (a fraction of the pane's
+ * height, the middle by default).
  */
 export function lockedScrollTop(
   fraction: number,
   contentHeight: number,
-  paneHeight: number
+  paneHeight: number,
+  line = 0.5
 ): number {
-  return Math.max(0, fraction * contentHeight - paneHeight / 2);
+  return Math.max(0, fraction * contentHeight - paneHeight * line);
 }
 
 /**
- * Which line of the content sits under the pane's vertical centre now —
+ * Which line of the content sits under the pane's highlight line now —
  * what the lock grabs when it closes.
  */
 export function anchorFraction(
   scrollTop: number,
   paneHeight: number,
-  contentHeight: number
+  contentHeight: number,
+  line = 0.5
 ): number {
   if (contentHeight < 1) return 0;
-  return Math.min(1, Math.max(0, (scrollTop + paneHeight / 2) / contentHeight));
+  return Math.min(
+    1,
+    Math.max(0, (scrollTop + paneHeight * line) / contentHeight)
+  );
 }
 
 interface PendingFocal {
@@ -84,8 +96,17 @@ export function useFocalZoom({
   setZoom,
   minZoom,
   maxZoom,
+  lineFraction = 0.5,
 }: FocalZoomOptions) {
   const paneEl = useRef<HTMLElement | null>(null);
+  // Read through a ref so the callbacks below keep their identity when
+  // the line moves (a phone turning into a desktop layout).
+  const lineRef = useRef(lineFraction);
+  useLayoutEffect(() => {
+    lineRef.current = lineFraction;
+  }, [lineFraction]);
+  /** A finger is on the pane: no programmatic scroll until it lifts. */
+  const touching = useRef(false);
   /**
    * The row lock: a line of the content held under the pane's vertical
    * centre, as a fraction of the content's height, or null when free.
@@ -129,7 +150,10 @@ export function useFocalZoom({
             ? locked
             : (clientY - contentRect.top) / contentRect.height,
         focalX: clientX - paneRect.left,
-        focalY: locked != null ? pane.clientHeight / 2 : clientY - paneRect.top,
+        focalY:
+          locked != null
+            ? pane.clientHeight * lineRef.current
+            : clientY - paneRect.top,
       };
     },
     [contentRef]
@@ -194,7 +218,10 @@ export function useFocalZoom({
           fracX: pinch.current.fracX,
           fracY: locked != null ? locked : pinch.current.fracY,
           focalX: mid.x - paneRect.left,
-          focalY: locked != null ? el.clientHeight / 2 : mid.y - paneRect.top,
+          focalY:
+            locked != null
+              ? el.clientHeight * lineRef.current
+              : mid.y - paneRect.top,
         };
         if (next !== zoomRef.current) {
           setZoom(next);
@@ -214,8 +241,33 @@ export function useFocalZoom({
     [clamp, zoomTo, setZoom, applyPending]
   );
 
+  /**
+   * Put the locked line back under the pane's centre — after the lock
+   * closes, after the pane resizes, and whenever a scroll slips past
+   * the hidden overflow. Does nothing while unlocked.
+   */
+  const applyAnchor = useCallback(() => {
+    const pane = paneEl.current;
+    const content = contentRef.current;
+    const locked = anchorY.current;
+    if (!pane || !content || locked == null) return;
+    // Setting scrollTop while a finger is panning sideways interrupts
+    // the gesture on iOS — the card visibly jumps and settles back on
+    // every scroll event. Wait for the finger to lift; touchend comes
+    // back here.
+    if (touching.current) return;
+    const top = lockedScrollTop(
+      locked,
+      content.offsetHeight,
+      pane.clientHeight,
+      lineRef.current
+    );
+    if (Math.abs(pane.scrollTop - top) > 0.5) pane.scrollTop = top;
+  }, [contentRef]);
+
   const onTouchStart = useCallback(
     (e: React.TouchEvent) => {
+      touching.current = true;
       if (e.touches.length !== 2) return;
       const mid = midpoint(touchPair(e.touches));
       const captured = capture(mid.x, mid.y);
@@ -229,23 +281,16 @@ export function useFocalZoom({
     [capture]
   );
 
-  const onTouchEnd = useCallback(() => {
-    pinch.current = null;
-  }, []);
-
-  /**
-   * Put the locked line back under the pane's centre — after the lock
-   * closes, after the pane resizes, and whenever a scroll slips past
-   * the hidden overflow. Does nothing while unlocked.
-   */
-  const applyAnchor = useCallback(() => {
-    const pane = paneEl.current;
-    const content = contentRef.current;
-    const locked = anchorY.current;
-    if (!pane || !content || locked == null) return;
-    const top = lockedScrollTop(locked, content.offsetHeight, pane.clientHeight);
-    if (Math.abs(pane.scrollTop - top) > 0.5) pane.scrollTop = top;
-  }, [contentRef]);
+  const onTouchEnd = useCallback(
+    (e: React.TouchEvent) => {
+      pinch.current = null;
+      if (e.touches.length > 0) return;
+      touching.current = false;
+      // The finger is up: put a locked line back where it belongs, once.
+      applyAnchor();
+    },
+    [applyAnchor]
+  );
 
   /** Close the lock on whatever line is under the pane's centre now. */
   const lockLine = useCallback(() => {
@@ -255,7 +300,8 @@ export function useFocalZoom({
     anchorY.current = anchorFraction(
       pane.scrollTop,
       pane.clientHeight,
-      content.offsetHeight
+      content.offsetHeight,
+      lineRef.current
     );
   }, [contentRef]);
 

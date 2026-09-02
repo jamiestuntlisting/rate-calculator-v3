@@ -113,6 +113,27 @@ interface Transcription {
   };
 }
 
+/** The highlighter's height — about one row of a card at reading zoom. */
+const HIGHLIGHT_HEIGHT = 60;
+
+/**
+ * Where the highlight line sits on the card pane: mid-pane on a phone
+ * (the pane is the top half of the screen), a little above the middle
+ * on a desktop where the pane runs the full height. Tracks the same
+ * `lg` breakpoint the split layout uses.
+ */
+function useHighlightLine(): number {
+  const [desktop, setDesktop] = useState(false);
+  useEffect(() => {
+    const query = window.matchMedia("(min-width: 1024px)");
+    const update = () => setDesktop(query.matches);
+    update();
+    query.addEventListener("change", update);
+    return () => query.removeEventListener("change", update);
+  }, []);
+  return desktop ? 0.4 : 0.5;
+}
+
 function emptyRow(): TranscriptionRow {
   return {
     performer: "",
@@ -356,6 +377,10 @@ export default function TranscribePage({
    * from it. The hook holds the locked line; this state draws it.
    */
   const [lockedY, setLockedY] = useState(false);
+  // The highlight sits mid-pane on a phone, where the card is the top
+  // half of the screen; on a desktop the pane is the full height and a
+  // row reads better a little above the middle.
+  const lineFraction = useHighlightLine();
   const {
     paneRef,
     paneEl,
@@ -371,6 +396,7 @@ export default function TranscribePage({
     setZoom,
     minZoom: 0.02,
     maxZoom: 8,
+    lineFraction,
   });
   const lockRow = useCallback(() => {
     lockLine();
@@ -1387,10 +1413,10 @@ export default function TranscribePage({
               ref={paneRef}
               onTouchStart={onTouchStart}
               onTouchEnd={onTouchEnd}
-              // Locked, the pane gives up vertical scrolling altogether
-              // (sideways still pans) and anything that slips through —
-              // a scroll-into-view, a keyboard — is put straight back.
-              onScroll={lockedY ? applyAnchor : undefined}
+              // Locked, the pane gives up vertical scrolling altogether;
+              // sideways still pans. The line is put back after a zoom, a
+              // resize or a lifted finger — never from the scroll event
+              // itself, which fought the pan on iOS.
               className="h-full w-full overscroll-contain"
               style={{
                 overflowX: "auto",
@@ -1435,10 +1461,15 @@ export default function TranscribePage({
             <div
               aria-hidden
               data-testid="row-highlight"
-              className={`pointer-events-none absolute inset-x-0 h-[30px] ${
-                lockedY ? "bg-yellow-300/45" : "bg-yellow-300/25"
-              }`}
-              style={{ top: "calc(50% - 15px)" }}
+              className="pointer-events-none absolute inset-x-0"
+              style={{
+                height: HIGHLIGHT_HEIGHT,
+                top: `calc(${lineFraction * 100}% - ${HIGHLIGHT_HEIGHT / 2}px)`,
+                // Highlighter yellow, translucent — stronger once locked.
+                backgroundColor: lockedY
+                  ? "rgba(255, 230, 0, 0.6)"
+                  : "rgba(255, 230, 0, 0.42)",
+              }}
             />
             {/* The lock lives in the bottom-right corner of the card
                 window: line the row up under the highlight, tap, and

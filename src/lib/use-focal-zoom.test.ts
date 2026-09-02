@@ -22,6 +22,14 @@ describe("the row lock", () => {
     expect(lockedScrollTop(0.25, 2000, 300)).toBe(350);
   });
 
+  it("follows the highlight when it sits above the middle, as on a desktop", () => {
+    // Line at 40% of a 1000px pane: the card line at 500 wants scroll 100.
+    expect(anchorFraction(100, 1000, 2000, 0.4)).toBe(0.25);
+    expect(lockedScrollTop(0.25, 2000, 1000, 0.4)).toBe(100);
+    // Zoomed to double, the same line lands at 1000 − 400.
+    expect(lockedScrollTop(0.25, 4000, 1000, 0.4)).toBe(600);
+  });
+
   it("never scrolls above the top, and clamps the fraction", () => {
     expect(lockedScrollTop(0.05, 2000, 400)).toBe(0);
     expect(anchorFraction(5000, 400, 2000)).toBe(1);
