@@ -5,10 +5,11 @@ import {
   findGUpload,
   updateGUpload,
 } from "@/lib/repos/g-uploads";
-import { findWorkRecord, updateWorkRecord } from "@/lib/repos/work-records";
+import { deleteWorkRecord, findWorkRecord, updateWorkRecord } from "@/lib/repos/work-records";
+import { planAttach } from "@/lib/attach-upload";
 import { recalculateDay } from "@/lib/day-recalc";
 import { doneBlockers, listMissing } from "@/lib/transcription-done";
-import { mirrorLater } from "@/lib/google-calendar";
+import { mirrorLater, unmirrorLater } from "@/lib/google-calendar";
 import { documentTypeForKind, isUploadKind } from "@/lib/upload-kind";
 import { latestGReading, replaceGReadingScores } from "@/lib/repos/g-readings";
 import { findUserById } from "@/lib/repos/users";
@@ -108,10 +109,46 @@ export async function PATCH(
     // together, so the pile and the tracker never disagree about what a
     // file is. A call sheet made an Exhibit G joins the pile; an Exhibit
     // G made a call sheet leaves it, keeping whatever was transcribed.
-    if (body.kind !== undefined) {
-      if (!isUploadKind(body.kind)) {
-        return NextResponse.json({ error: "Unknown kind" }, { status: 400 });
+    if (body.kind !== undefined && !isUploadKind(body.kind)) {
+      return NextResponse.json({ error: "Unknown kind" }, { status: 400 });
+    }
+    // Attach to another day: every file belongs to a work day, and a
+    // file that came in as an Exhibit G opened a day of its own. When
+    // it was really part of a day already logged, the document moves
+    // there (retyped, if a kind came with it) and the day it opened is
+    // deleted if it was nothing but this attachment (src/lib/attach-upload).
+    let movedTo: string | null = null;
+    if (typeof body.workRecordId === "string" && body.workRecordId !== existing.workRecordId) {
+      const target = await findWorkRecord(body.workRecordId, userId);
+      if (!target) {
+        return NextResponse.json({ error: "That work day was not found" }, { status: 404 });
       }
+      const documentType = documentTypeForKind(
+        isUploadKind(body.kind) ? body.kind : isUploadKind(existing.kind) ? existing.kind : "other"
+      );
+      const old = existing.workRecordId
+        ? await findWorkRecord(existing.workRecordId, userId)
+        : null;
+      const plan = planAttach(
+        old ?? { recordStatus: "attachment_only", documents: [] },
+        existing.filename,
+        documentType
+      );
+      await updateWorkRecord(target._id, userId, {
+        documents: [...(target.documents ?? []), ...(plan.moved ? [plan.moved] : [])],
+      });
+      if (old) {
+        if (plan.deleteOld) {
+          await deleteWorkRecord(old._id, userId);
+          unmirrorLater(userId, old.googleEventId ?? null);
+        } else {
+          await updateWorkRecord(old._id, userId, { documents: plan.remaining });
+        }
+      }
+      movedTo = target._id;
+    }
+
+    if (body.kind !== undefined && !movedTo) {
       if (existing.workRecordId) {
         const record = await findWorkRecord(existing.workRecordId, userId);
         if (record) {
@@ -171,6 +208,7 @@ export async function PATCH(
         ? { transcription: body.transcription }
         : {}),
       ...(body.kind !== undefined ? { kind: body.kind } : {}),
+      ...(movedTo ? { workRecordId: movedTo } : {}),
       // Saving and finishing are different acts: `done: true` stamps the
       // transcription finished, `done: false` reopens it for correction.
       ...(typeof body.done === "boolean"

@@ -56,6 +56,7 @@ import { calculateRate } from "@/lib/rate-engine";
 import { formatCurrency } from "@/lib/time-utils";
 import { toast } from "sonner";
 import { UPLOAD_KINDS, UPLOAD_KIND_LABELS, type UploadKind } from "@/lib/upload-kind";
+import { AttachToDayDialog } from "@/components/shared/attach-to-day-dialog";
 
 interface GUpload {
   _id: string;
@@ -73,6 +74,8 @@ interface GUpload {
   workRecordNotes?: string;
   /** What the file is; only an Exhibit G is transcribed. */
   kind?: UploadKind;
+  /** The day the upload opened (g-ingest), which an attachment may leave. */
+  workRecordId?: string | null;
   /** Claude may read this card: the owning account is a test user. */
   readable?: boolean;
   /** Claude's reading of the card, for test users (src/lib/g-reader). */
@@ -203,13 +206,20 @@ export default function TranscribePage({
 
   const [upload, setUpload] = useState<GUpload | null>(null);
   const [reclassifying, setReclassifying] = useState(false);
+  /** The kind being chosen while the "which day?" dialog is up. */
+  const [attaching, setAttaching] = useState<UploadKind | null>(null);
   /**
    * Retype the file. Anything but an Exhibit G has nothing to
-   * transcribe, so the page hands the performer back to the pile,
-   * where the file now sits under "Other files" on its day.
+   * transcribe — and belongs to a work day, so the dialog asks which
+   * before the PATCH; it then hands the performer to that day, or back
+   * to the pile when the file keeps the day it opened.
    */
   const reclassify = async (kind: UploadKind) => {
     if (!upload || kind === (upload.kind ?? "exhibit_g")) return;
+    if (kind !== "exhibit_g") {
+      setAttaching(kind);
+      return;
+    }
     setReclassifying(true);
     try {
       const res = await fetch(`/api/g-uploads/${upload._id}`, {
@@ -219,12 +229,7 @@ export default function TranscribePage({
       });
       if (!res.ok) throw new Error(String(res.status));
       setUpload((u) => (u ? { ...u, kind } : u));
-      if (kind === "exhibit_g") {
-        toast.success("Now an Exhibit G — transcribe it here");
-      } else {
-        toast.success(`Now a ${UPLOAD_KIND_LABELS[kind].toLowerCase()} — nothing to transcribe`);
-        router.push("/upload-g");
-      }
+      toast.success("Now an Exhibit G — transcribe it here");
     } catch {
       toast.error("Couldn't change what this file is");
     } finally {
@@ -1801,6 +1806,18 @@ export default function TranscribePage({
           {/* What this file is. An Exhibit G is transcribed here; any
               other kind is an attachment on the day with nothing to
               transcribe, so choosing one sends the file back to the pile. */}
+          {attaching && (
+            <AttachToDayDialog
+              uploadId={upload._id}
+              kind={attaching}
+              currentRecordId={upload.workRecordId ?? null}
+              onClose={() => setAttaching(null)}
+              onDone={(workRecordId) => {
+                setAttaching(null);
+                router.push(workRecordId ? `/work/${workRecordId}` : "/upload-g");
+              }}
+            />
+          )}
           <div className="flex items-center gap-2 text-xs text-muted-foreground">
             <label htmlFor="upload-kind" className="shrink-0">
               File type

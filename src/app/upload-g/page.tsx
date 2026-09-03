@@ -7,6 +7,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { shortDay } from "@/lib/format-date";
 import { UPLOAD_KINDS, UPLOAD_KIND_LABELS, type UploadKind } from "@/lib/upload-kind";
+import { AttachToDayDialog } from "@/components/shared/attach-to-day-dialog";
 import {
   Table,
   TableBody,
@@ -31,6 +32,7 @@ import { toast } from "sonner";
 
 interface GUpload {
   _id: string;
+  workRecordId?: string | null;
   title: string;
   displayTitle: string;
   originalName: string;
@@ -242,8 +244,16 @@ export default function UploadGPage() {
    * so an Exhibit G made a call sheet leaves the pile and the day keeps
    * it as its call sheet, and the other way round.
    */
+  /** A G being made something else, while the "which day?" dialog is up. */
+  const [attaching, setAttaching] = useState<{ upload: GUpload; kind: UploadKind } | null>(null);
   const reclassify = async (upload: GUpload, kind: UploadKind) => {
     const before = upload.kind;
+    // A file we took for an Exhibit G opened a day of its own; before it
+    // is retyped the performer says which day it really belongs to.
+    if (before === "exhibit_g" && kind !== "exhibit_g") {
+      setAttaching({ upload, kind });
+      return;
+    }
     setUploads((prev) => prev.map((u) => (u._id === upload._id ? { ...u, kind } : u)));
     try {
       const res = await fetch(`/api/g-uploads/${upload._id}`, {
@@ -787,6 +797,18 @@ export default function UploadGPage() {
             </>
           );
         })()
+      )}
+      {attaching && (
+        <AttachToDayDialog
+          uploadId={attaching.upload._id}
+          kind={attaching.kind}
+          currentRecordId={attaching.upload.workRecordId ?? null}
+          onClose={() => setAttaching(null)}
+          onDone={() => {
+            setAttaching(null);
+            void load();
+          }}
+        />
       )}
     </div>
   );

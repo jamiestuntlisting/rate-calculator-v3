@@ -208,8 +208,13 @@ state stays in step.
   [id]` with `kind`, which retypes the day's document) or on the day's
   Photos & Documents (`PUT /api/work-records/[id]` with `documents`,
   which retypes the upload), or at the top of the transcription
-  view's form pane ("This file is …", which sends anything but a G
-  back to the pile, since there is nothing to transcribe).
+  view's form pane ("File type"). **Every attachment belongs to a
+  work day**: a file that came in as a G opened a placeholder day of
+  its own (g-ingest), so retyping it from the transcription view or
+  the pile first asks which day it is for (`AttachToDayDialog`) —
+  a day already logged (PATCH `workRecordId` moves the document
+  there and deletes the placeholder when it was only that file,
+  `src/lib/attach-upload.ts` `planAttach`, tested) or its own day.
 - **Where a G came from** — text and email intake pass an
   `originNote` into `ingestGUploads`, written into the new day's
   `notes` ("Received by text from (484) 978-8687 on Sep 2, 2026 at
