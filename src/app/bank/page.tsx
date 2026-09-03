@@ -52,6 +52,7 @@ interface Payload {
   configured: boolean;
   floor: number;
   env: string | null;
+  envWarning: string | null;
   connection: { id: string; institution: string | null; lastSyncedAt: string | null } | null;
   deposits: Deposit[];
 }
@@ -197,6 +198,16 @@ export default function BankPage() {
               Plaid isn&rsquo;t configured yet — PLAID_CLIENT_ID and PLAID_SECRET
               are needed on the Worker (or in app_config), with PLAID_ENV set
               to sandbox until it&rsquo;s real.
+            </p>
+          )}
+          {data?.envWarning && (
+            <p className="text-sm text-amber-400">{data.envWarning}</p>
+          )}
+          {data?.configured && data.env === "sandbox" && (
+            <p className="text-xs text-muted-foreground">
+              Sandbox mode: Plaid&rsquo;s test bank only (any bank in the
+              picker, user_good / pass_good). Set PLAID_ENV to production
+              with the production secret when Plaid grants it.
             </p>
           )}
           <div className="flex flex-wrap items-end gap-3">

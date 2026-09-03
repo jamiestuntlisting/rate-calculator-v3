@@ -6,19 +6,23 @@ import { getDb, getEnv } from "@/lib/db";
  * token, and pull transactions with the sync cursor. Plain fetch —
  * Plaid's REST API is small and the Worker has no Node runtime for
  * its SDK. Keys live where the other secrets do: PLAID_CLIENT_ID,
- * PLAID_SECRET and PLAID_ENV (sandbox | development | production) on
- * the Worker, or app_config rows of those names.
+ * PLAID_SECRET and PLAID_ENV (sandbox | production — Plaid retired
+ * its development environment) on the Worker, or app_config rows of
+ * those names. PLAID_ENV is a mode word, not a credential: anything
+ * that is not one of the two is treated as sandbox and reported, so
+ * a secret pasted into it shows on the page instead of failing quietly.
  */
 
 export interface PlaidConfig {
   clientId: string;
   secret: string;
-  env: "sandbox" | "development" | "production";
+  env: "sandbox" | "production";
+  /** PLAID_ENV held something other than a mode word; sandbox assumed. */
+  envUnrecognised: boolean;
 }
 
 const HOSTS: Record<PlaidConfig["env"], string> = {
   sandbox: "https://sandbox.plaid.com",
-  development: "https://development.plaid.com",
   production: "https://production.plaid.com",
 };
 
@@ -35,9 +39,10 @@ export async function plaidConfig(): Promise<PlaidConfig | null> {
   };
   const clientId = await read("PLAID_CLIENT_ID");
   const secret = await read("PLAID_SECRET");
-  const envName = ((await read("PLAID_ENV")) || "sandbox") as PlaidConfig["env"];
+  const envRaw = (await read("PLAID_ENV")).toLowerCase();
   if (!clientId || !secret) return null;
-  return { clientId, secret, env: envName in HOSTS ? envName : "sandbox" };
+  const mode: PlaidConfig["env"] = envRaw === "production" ? "production" : "sandbox";
+  return { clientId, secret, env: mode, envUnrecognised: !!envRaw && !(envRaw in HOSTS) };
 }
 
 export class PlaidError extends Error {

@@ -19,6 +19,9 @@ export async function GET() {
       configured: !!config,
       floor,
       env: config?.env ?? null,
+      envWarning: config?.envUnrecognised
+        ? "PLAID_ENV is not \"sandbox\" or \"production\", so sandbox is assumed. It is a mode word, not a key."
+        : null,
       connection: connection
         ? { id: connection._id, institution: connection.institution, lastSyncedAt: connection.lastSyncedAt, createdAt: connection.createdAt }
         : null,
