@@ -119,7 +119,9 @@ state stays in step.
   hides. `work_records.contractLength` is three-way on purpose: NULL means
   never stated (the day calculates as a daily but the weekly picker still
   offers it, and picking it into a contract is what sets it), while an
-  explicit `'daily'` — "Daily — keep out of weeklies" in the pulldowns —
+  explicit `'daily'` — the "Keep this day out of weeklies" checkbox
+  under a Daily pulldown on Log Work and the day's edit page; it was a
+  second "Daily" entry in the pulldown once and James read it as a bug —
   is a decision that keeps the day out. Do not "normalize" the NULLs;
   migration 0019 exists to create them. `/admin/weekly-bench` runs an export through it card by
   card; it opens on a bundled reference export (`src/lib/showbiz-sample.ts`,

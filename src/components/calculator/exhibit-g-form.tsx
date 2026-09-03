@@ -940,9 +940,9 @@ export function ExhibitGForm() {
                   Contract Length
                 </Label>
                 <Select
-                  value={contractLength}
+                  value={contractLength === "daily" ? "unset" : contractLength}
                   onValueChange={(v) => {
-                    const next = v as "unset" | "daily" | "three_day" | "weekly";
+                    const next = v as "unset" | "three_day" | "weekly";
                     setContractLength(next);
                     // The 3-day schedule covers players and flat-deal
                     // coordinators; anything else snaps to the player rate.
@@ -964,11 +964,30 @@ export function ExhibitGForm() {
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="unset" className="text-base">Daily</SelectItem>
-                    <SelectItem value="daily" className="text-base">Daily — keep out of weeklies</SelectItem>
                     <SelectItem value="three_day" className="text-base">3 Day (TV)</SelectItem>
                     <SelectItem value="weekly" className="text-base">Weekly</SelectItem>
                   </SelectContent>
                 </Select>
+                {/* A daily is still offered to the weekly picker unless the
+                    performer says otherwise; the explicit 'daily' value is
+                    that decision, and it lives here rather than as a second
+                    "Daily" entry in the pulldown. */}
+                {(contractLength === "unset" || contractLength === "daily") && (
+                  <div className="flex items-start gap-2 pt-1">
+                    <Checkbox
+                      id="keepOutOfWeeklies"
+                      checked={contractLength === "daily"}
+                      onCheckedChange={(v) => setContractLength(v ? "daily" : "unset")}
+                      className="mt-0.5 shrink-0"
+                    />
+                    <Label
+                      htmlFor="keepOutOfWeeklies"
+                      className="text-sm font-normal leading-snug text-muted-foreground"
+                    >
+                      Keep this day out of weeklies
+                    </Label>
+                  </div>
+                )}
               </div>
               <div className="space-y-1 min-w-0">
                 <Label htmlFor="workStatus" className="text-base">Agreement Type</Label>

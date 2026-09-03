@@ -237,3 +237,19 @@ describe("Log Work — the platform's clock stamp", () => {
     expect(field("callTime").value).toBe(stamp);
   });
 });
+
+describe("Log Work — contract length", () => {
+  it("a daily shows one 'keep out of weeklies' box, unticked, that toggles", () => {
+    render(<ExhibitGForm />);
+    fireEvent.click(screen.getByText("Job Details"));
+    // The pulldown says Daily once; the keep-out decision is the box
+    // under it, not a second "Daily" entry.
+    expect(screen.getAllByText("Daily")).toHaveLength(1);
+    const box = screen.getByLabelText("Keep this day out of weeklies");
+    expect(box.getAttribute("aria-checked")).toBe("false");
+    fireEvent.click(box);
+    expect(screen.getByLabelText("Keep this day out of weeklies").getAttribute("aria-checked")).toBe("true");
+    fireEvent.click(screen.getByLabelText("Keep this day out of weeklies"));
+    expect(screen.getByLabelText("Keep this day out of weeklies").getAttribute("aria-checked")).toBe("false");
+  });
+});
