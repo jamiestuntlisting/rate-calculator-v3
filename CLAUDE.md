@@ -173,6 +173,15 @@ state stays in step.
   ⌘+wheel — anchor on the line. Fit and Rotate hide while locked; the
   lock rides the saved view (`view.lockedY`). `use-focal-zoom.test.ts`
   pins the arithmetic.
+- **Big photos on the transcription card** — iOS Safari stops painting
+  an image once the bitmap it must decode gets too large (a 48 MP
+  phone photo went blank past about a third of its size), so the card
+  window shows a display copy: `src/lib/display-image.ts` draws the
+  original down to a 3000 px long edge in the browser on load, checks
+  the draw actually painted (the same limit can empty a canvas) and
+  swaps it in; the copy's size is what the zoom is measured against.
+  The stored file is untouched, and anything at or under 3000 px is
+  shown as it is.
 - **No page zoom on the transcription screen** — the root layout's
   `viewport` sets `minimumScale: 1`, and `usePreventPageZoom` (mounted
   by `/upload-g/[id]`) swallows two-finger touchmoves and Safari's

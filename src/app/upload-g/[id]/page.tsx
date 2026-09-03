@@ -42,6 +42,7 @@ import { clampMealFinish, mealLengthWarning, secondMealOrderWarning } from "@/li
 import { wrapOrderWarning } from "@/lib/wrap-check";
 import { useAuth } from "@/context/auth-context";
 import { useFocalZoom } from "@/lib/use-focal-zoom";
+import { displayCopy, fitWithin } from "@/lib/display-image";
 import { usePreventPageZoom } from "@/lib/use-prevent-page-zoom";
 import type { GReading } from "@/lib/repos/g-readings";
 import type { Reading } from "@/lib/g-reader/schema";
@@ -248,6 +249,16 @@ export default function TranscribePage({
   const [showFirstMeal, setShowFirstMeal] = useState(true);
   const [showSecondMeal, setShowSecondMeal] = useState(false);
   const [natural, setNatural] = useState({ w: 0, h: 0 });
+  /**
+   * What the card window paints: a display copy for a photo too big
+   * for Safari to keep painting when zoomed (src/lib/display-image),
+   * else the original. The copy's URL is released with the page.
+   */
+  const [displaySrc, setDisplaySrc] = useState<string | null>(null);
+  useEffect(() => {
+    if (!displaySrc) return;
+    return () => URL.revokeObjectURL(displaySrc);
+  }, [displaySrc]);
 
   /**
    * Which way the time rows run: through the day ("chrono", the
@@ -1657,7 +1668,7 @@ export default function TranscribePage({
               >
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img
-                  src={upload.path}
+                  src={displaySrc ?? upload.path}
                   alt={upload.displayTitle}
                   draggable={false}
                   className="absolute top-0 left-0 max-w-none select-none"
@@ -1669,10 +1680,19 @@ export default function TranscribePage({
                   onLoad={(e) => {
                     // Read the size now: React clears currentTarget once the
                     // handler returns, and the updater runs after that.
-                    const { naturalWidth, naturalHeight } = e.currentTarget;
-                    setNatural((prev) =>
-                      prev.w ? prev : { w: naturalWidth, h: naturalHeight }
-                    );
+                    const img = e.currentTarget;
+                    const { naturalWidth, naturalHeight } = img;
+                    // A photo too big to keep painting when zoomed is
+                    // shown through a display copy; its size is what the
+                    // zoom is measured against, so the copy's edge is the
+                    // card's size from the start and nothing jumps.
+                    const shown = fitWithin(naturalWidth, naturalHeight);
+                    setNatural((prev) => (prev.w ? prev : { w: shown.w, h: shown.h }));
+                    if (shown.scaled && !displaySrc) {
+                      void displayCopy(img).then((copy) => {
+                        if (copy) setDisplaySrc(copy.url);
+                      });
+                    }
                   }}
                 />
               </div>
