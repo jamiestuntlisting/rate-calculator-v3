@@ -1518,7 +1518,7 @@ export function ExhibitGForm() {
             summary={
               documents.length
                 ? `${documents.length} attached`
-                : "Call sheets, contracts, paystubs, photos"
+                : "Call sheets, contracts, start paperwork, paystubs, photos"
             }
           >
             <DocumentUpload
@@ -1527,8 +1527,8 @@ export function ExhibitGForm() {
               onRemove={handleDocRemove}
               onRotate={handleDocRotate}
               documentTypes={isStuntCoordinator
-                ? ["call_sheet", "contract", "other", "paystub"]
-                : ["call_sheet", "contract", "wardrobe_photo", "other", "paystub"]
+                ? ["call_sheet", "contract", "start_paperwork", "other", "paystub"]
+                : ["call_sheet", "contract", "start_paperwork", "wardrobe_photo", "other", "paystub"]
               }
             />
           </CollapsibleSection>

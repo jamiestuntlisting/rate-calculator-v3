@@ -13,6 +13,7 @@ import { RotatableThumb } from "@/components/shared/rotatable-thumb";
 const DEFAULT_DOCUMENT_TYPES: DocumentType[] = [
   "call_sheet",
   "contract",
+  "start_paperwork",
   "wardrobe_photo",
   "paystub",
   "other",

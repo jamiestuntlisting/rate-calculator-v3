@@ -186,7 +186,8 @@ state stays in step.
   details, the transcribed-on date at md+, delete), a row tap opening
   the G. The to-do pile above keeps its cards.
 - **What a file is** — `g_uploads.kind` (migration 0026;
-  `src/lib/upload-kind.ts`: exhibit_g | call_sheet | contract | paystub
+  `src/lib/upload-kind.ts`: exhibit_g | call_sheet | contract |
+  start_paperwork | paystub
   | wardrobe_photo | photo | conversation | other — `DocumentType` has
   the same names plus the older timecard). A PDF arrives as the call
   sheet, a photo as an Exhibit G (`kindForUpload`); both start a work

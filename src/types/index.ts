@@ -6,6 +6,8 @@ export type DocumentType =
   | "exhibit_g"
   | "call_sheet"
   | "contract"
+  /** The start packet — deal memo, I-9, W-4, the forms signed on day one. */
+  | "start_paperwork"
   | "paystub"
   | "wardrobe_photo"
   | "photo"
@@ -30,6 +32,7 @@ export const DOCUMENT_TYPE_LABELS: Record<DocumentType, string> = {
   exhibit_g: "Exhibit G",
   call_sheet: "Call sheet",
   contract: "Contract",
+  start_paperwork: "Start paperwork",
   paystub: "Pay stub",
   wardrobe_photo: "Wardrobe",
   photo: "Photo",

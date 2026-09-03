@@ -612,7 +612,7 @@ export default function UploadGPage() {
                   <div>
                     <h2 className="text-xl font-semibold">Other files</h2>
                     <p className="text-sm text-muted-foreground">
-                      Call sheets, contracts, pay stubs, wardrobe and other
+                      Call sheets, contracts, start paperwork, pay stubs, wardrobe and other
                       photos, conversations with production. Each started a
                       work day and rides along on it; nothing to transcribe.
                       Change what a file is if it came in wrong.
