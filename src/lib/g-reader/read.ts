@@ -30,18 +30,29 @@ function toBase64(bytes: ArrayBuffer): string {
 }
 
 /**
- * The API key: the Worker's ANTHROPIC_API_KEY if set, else the
+ * A setting: the Worker's variable of that name if set, else the
  * app_config row of that name — the same two homes as SESSION_SECRET.
  */
-async function apiKey(): Promise<string | null> {
-  const env = (await getEnv()) as unknown as { ANTHROPIC_API_KEY?: string };
-  if (env.ANTHROPIC_API_KEY) return env.ANTHROPIC_API_KEY;
+async function setting(name: "ANTHROPIC_API_KEY" | "ANTHROPIC_WORKSPACE_ID"): Promise<string | null> {
+  const env = (await getEnv()) as unknown as Record<string, string | undefined>;
+  if (env[name]) return env[name]!.trim() || null;
   const db = await getDb();
   const row = await db
-    .prepare("SELECT value FROM app_config WHERE key = 'ANTHROPIC_API_KEY'")
+    .prepare("SELECT value FROM app_config WHERE key = ?1")
+    .bind(name)
     .first<{ value: string }>();
   return row?.value?.trim() || null;
 }
+
+/**
+ * A key made under a person's identity (rather than inside a workspace)
+ * must say which workspace each request acts in, or the API refuses
+ * with "anthropic-workspace-id is required". ANTHROPIC_WORKSPACE_ID
+ * supplies it; a workspace-made key needs nothing.
+ */
+const WORKSPACE_HINT =
+  "The API key is identity-linked and needs its workspace: set ANTHROPIC_WORKSPACE_ID " +
+  "(the workspace's id from the Console) beside ANTHROPIC_API_KEY, or use a key created inside a workspace.";
 
 export async function readExhibitG(
   upload: Pick<GUpload, "_id" | "userId" | "filename" | "contentType">,
@@ -60,8 +71,9 @@ export async function readExhibitG(
     });
 
   try {
-    const key = await apiKey();
+    const key = await setting("ANTHROPIC_API_KEY");
     if (!key) return await record({ error: "ANTHROPIC_API_KEY is not configured" });
+    const workspaceId = await setting("ANTHROPIC_WORKSPACE_ID");
 
     const object = await (await getUploadsBucket()).get(upload.filename);
     if (!object) return await record({ error: "The card's file is missing from storage" });
@@ -77,7 +89,11 @@ export async function readExhibitG(
       return await record({ error: `Cannot read a ${upload.contentType}` });
     }
 
-    const client = new Anthropic({ apiKey: key, maxRetries: 2 });
+    const client = new Anthropic({
+      apiKey: key,
+      maxRetries: 2,
+      ...(workspaceId ? { defaultHeaders: { "anthropic-workspace-id": workspaceId } } : {}),
+    });
     const response = await client.messages.parse({
       model: READER_MODEL,
       max_tokens: 16000,
@@ -129,7 +145,9 @@ export async function readExhibitG(
   } catch (e) {
     const message =
       e instanceof Anthropic.APIError
-        ? `API ${e.status}: ${e.message}`
+        ? e.message.includes("anthropic-workspace-id")
+          ? WORKSPACE_HINT
+          : `API ${e.status}: ${e.message}`
         : e instanceof Error
           ? e.message
           : String(e);

@@ -198,7 +198,9 @@ state stays in step.
   the pulldown on the pile's cards and tables (`PATCH /api/g-uploads/
   [id]` with `kind`, which retypes the day's document) or on the day's
   Photos & Documents (`PUT /api/work-records/[id]` with `documents`,
-  which retypes the upload) — never inside the transcription view.
+  which retypes the upload), or at the top of the transcription
+  view's form pane ("This file is …", which sends anything but a G
+  back to the pile, since there is nothing to transcribe).
 - **Where a G came from** — text and email intake pass an
   `originNote` into `ingestGUploads`, written into the new day's
   `notes` ("Received by text from (484) 978-8687 on Sep 2, 2026 at
@@ -480,7 +482,10 @@ session's `/api/auth/me` carries `tester: true` for them.
   rule-book version. The rule book is `prompt.ts` (`RULE_BOOK`,
   `PROMPT_VERSION` — bump it whenever the words change) and is
   explained in docs/exhibit-g-reading-rules.md. Needs
-  `ANTHROPIC_API_KEY` as a Worker secret or `app_config` row; until
+  `ANTHROPIC_API_KEY` as a Worker secret or `app_config` row (an
+  identity-linked key also needs `ANTHROPIC_WORKSPACE_ID`, sent as
+  the `anthropic-workspace-id` header; a workspace-made key does
+  not); until
   then every reading records that error and the form opens empty.
 - **IMDb credits** (`/admin/imdb`, admin, not tester-gated) — IMDb has
   no API for writing credits; it documents a contribution URL that

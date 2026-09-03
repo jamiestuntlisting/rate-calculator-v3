@@ -54,6 +54,7 @@ import {
 import { calculateRate } from "@/lib/rate-engine";
 import { formatCurrency } from "@/lib/time-utils";
 import { toast } from "sonner";
+import { UPLOAD_KINDS, UPLOAD_KIND_LABELS, type UploadKind } from "@/lib/upload-kind";
 
 interface GUpload {
   _id: string;
@@ -69,6 +70,8 @@ interface GUpload {
    * there, and the Notes box opens on it so a save keeps it.
    */
   workRecordNotes?: string;
+  /** What the file is; only an Exhibit G is transcribed. */
+  kind?: UploadKind;
   /** Claude may read this card: the owning account is a test user. */
   readable?: boolean;
   /** Claude's reading of the card, for test users (src/lib/g-reader). */
@@ -198,6 +201,35 @@ export default function TranscribePage({
   const router = useRouter();
 
   const [upload, setUpload] = useState<GUpload | null>(null);
+  const [reclassifying, setReclassifying] = useState(false);
+  /**
+   * Retype the file. Anything but an Exhibit G has nothing to
+   * transcribe, so the page hands the performer back to the pile,
+   * where the file now sits under "Other files" on its day.
+   */
+  const reclassify = async (kind: UploadKind) => {
+    if (!upload || kind === (upload.kind ?? "exhibit_g")) return;
+    setReclassifying(true);
+    try {
+      const res = await fetch(`/api/g-uploads/${upload._id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ kind }),
+      });
+      if (!res.ok) throw new Error(String(res.status));
+      setUpload((u) => (u ? { ...u, kind } : u));
+      if (kind === "exhibit_g") {
+        toast.success("Now an Exhibit G — transcribe it here");
+      } else {
+        toast.success(`Now a ${UPLOAD_KIND_LABELS[kind].toLowerCase()} — nothing to transcribe`);
+        router.push("/upload-g");
+      }
+    } catch {
+      toast.error("Couldn't change what this file is");
+    } finally {
+      setReclassifying(false);
+    }
+  };
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   /** When this G was declared finished; null while still in progress. */
@@ -1746,6 +1778,31 @@ export default function TranscribePage({
             pane.scrollTo({ top: Math.max(0, top) });
           }}
         >
+          {/* What this file is. An Exhibit G is transcribed here; any
+              other kind is an attachment on the day with nothing to
+              transcribe, so choosing one sends the file back to the pile. */}
+          <div className="flex items-center gap-2 text-xs text-muted-foreground">
+            <label htmlFor="upload-kind" className="shrink-0">
+              File type
+            </label>
+            <select
+              id="upload-kind"
+              aria-label="What this file is"
+              value={upload.kind ?? "exhibit_g"}
+              disabled={reclassifying}
+              onChange={(e) => void reclassify(e.target.value as UploadKind)}
+              className="h-8 min-w-0 rounded-md border border-input bg-background px-2 text-xs text-foreground"
+            >
+              {UPLOAD_KINDS.map((k) => (
+                <option key={k} value={k}>
+                  {UPLOAD_KIND_LABELS[k]}
+                </option>
+              ))}
+            </select>
+            <span className="min-w-0 truncate">
+              {reclassifying ? "Changing…" : "Not a G? Pick what it is."}
+            </span>
+          </div>
           <div className="flex flex-wrap items-center justify-between gap-3">
             <div className="flex items-center gap-2 min-w-0">
               <Link

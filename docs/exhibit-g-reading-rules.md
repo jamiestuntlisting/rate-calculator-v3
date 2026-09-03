@@ -90,4 +90,9 @@ done; reopening and finishing again replaces the scores.
 The key lives where the session secret does: `ANTHROPIC_API_KEY` as a
 Worker secret, or an `app_config` row of that name. Until it is set,
 every reading records the error "ANTHROPIC_API_KEY is not configured"
-and the form opens empty as before.
+and the form opens empty as before. A key created under a person's
+identity rather than inside a workspace is refused with
+"anthropic-workspace-id is required"; set `ANTHROPIC_WORKSPACE_ID` (the
+workspace's id, from the Console's workspace settings) in the same
+place and the reader sends it as the `anthropic-workspace-id` header.
+A key created inside a workspace needs nothing more.
