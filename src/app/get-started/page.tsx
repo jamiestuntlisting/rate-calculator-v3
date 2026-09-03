@@ -31,6 +31,13 @@ interface Summary {
 
 export default function GetStartedPage() {
   const [uploading, setUploading] = useState(false);
+  /** The bar: how many of the batch have landed, the one in flight, the last few done. */
+  const [progress, setProgress] = useState<{
+    done: number;
+    total: number;
+    name: string;
+    landed: string[];
+  } | null>(null);
   const [requesting, setRequesting] = useState(false);
   const [requested, setRequested] = useState(false);
   const [summary, setSummary] = useState<Summary | null>(null);
@@ -75,53 +82,57 @@ export default function GetStartedPage() {
       );
     }
     setUploading(true);
+    // One file per request, in order: a season of phone JPEGs in one
+    // request is tens of megabytes and dies without a useful error. One
+    // at a time each lands on its own, the bar says where we are, and a
+    // bad file costs only itself.
+    const total = usable.length;
+    let added = 0;
+    let dupes = 0;
+    const failed: string[] = [];
+    setProgress({ done: 0, total, name: usable[0]?.name ?? "", landed: [] });
     try {
-      // A season of Gs in one request can exceed the platform's request
-      // size limit and die without a useful error — a batch of phone
-      // JPEGs runs several MB each. Upload in chunks instead, capped by
-      // count and cumulative size, and add the results up.
-      const MAX_CHUNK_FILES = 4;
-      const MAX_CHUNK_BYTES = 24 * 1024 * 1024;
-      let added = 0;
-      let dupes = 0;
-      let queue: File[] = [];
-      let queueBytes = 0;
-      const flush = async () => {
-        if (queue.length === 0) return;
-        const form = new FormData();
-        for (const file of queue) form.append("file", file);
-        queue = [];
-        queueBytes = 0;
-        const res = await fetch("/api/g-uploads", { method: "POST", body: form });
-        const data = await res.json();
-        if (!res.ok) throw new Error(data.error || "Upload failed");
-        added += data.created?.length ?? 0;
-        dupes += data.duplicates?.length ?? 0;
-      };
-      for (const original of usable) {
-        // iPhone HEICs become JPEGs on the way in, one at a time — the
-        // decoder is heavy and a bulk drop can be a whole season of Gs.
-        const file = await toUploadableImage(original);
-        if (
-          queue.length >= MAX_CHUNK_FILES ||
-          (queueBytes + file.size > MAX_CHUNK_BYTES && queue.length > 0)
-        ) {
-          await flush();
+      for (let i = 0; i < total; i++) {
+        const original = usable[i];
+        setProgress((p) => (p ? { ...p, name: original.name } : p));
+        try {
+          // iPhone HEICs become JPEGs on the way in, one at a time — the
+          // decoder is heavy and a bulk drop can be a whole season of Gs.
+          const file = await toUploadableImage(original);
+          const form = new FormData();
+          form.append("file", file);
+          const res = await fetch("/api/g-uploads", { method: "POST", body: form });
+          const data = (await res.json().catch(() => ({}))) as {
+            created?: unknown[];
+            duplicates?: unknown[];
+            error?: string;
+          };
+          if (!res.ok) throw new Error(data.error || `HTTP ${res.status}`);
+          added += data.created?.length ?? 0;
+          dupes += data.duplicates?.length ?? 0;
+          setProgress((p) =>
+            p ? { ...p, done: i + 1, landed: [...p.landed, original.name].slice(-6) } : p
+          );
+        } catch (e) {
+          console.error("upload failed:", original.name, e);
+          failed.push(original.name);
+          setProgress((p) => (p ? { ...p, done: i + 1 } : p));
         }
-        queue.push(file);
-        queueBytes += file.size;
       }
-      await flush();
       if (added > 0)
         toast.success(`${added} file${added === 1 ? "" : "s"} in — each is a day in your tracker now`);
       if (dupes > 0)
         toast.warning(`${dupes} already uploaded before, skipped`);
+      if (failed.length > 0)
+        toast.error(
+          `${failed.length} didn't upload — try ${failed.length === 1 ? "it" : "them"} again: ${failed.join(", ")}`,
+          { duration: 8000 }
+        );
       setRequested(false);
       refresh();
-    } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Upload failed");
     } finally {
       setUploading(false);
+      setProgress(null);
     }
   };
 
@@ -188,8 +199,34 @@ export default function GetStartedPage() {
           ) : (
             <Upload className="h-4 w-4 mr-2" />
           )}
-          Upload
+          {progress ? `Uploading ${Math.min(progress.done + 1, progress.total)} of ${progress.total}…` : "Upload"}
         </Button>
+        {/* The bar: which have landed and how many are to go, one file at
+            a time, so a season of Gs never looks stuck. */}
+        {progress && (
+          <div className="space-y-2" aria-live="polite" data-testid="upload-progress">
+            <div className="h-2 w-full overflow-hidden rounded-full bg-muted">
+              <div
+                className="h-full rounded-full bg-primary transition-[width] duration-300"
+                style={{ width: `${Math.round((progress.done / Math.max(1, progress.total)) * 100)}%` }}
+              />
+            </div>
+            <p className="text-sm">
+              <span className="font-semibold tabular-nums">{progress.done}</span> of{" "}
+              <span className="tabular-nums">{progress.total}</span> uploaded
+              {progress.done < progress.total && progress.name ? (
+                <span className="text-muted-foreground"> — now {progress.name}</span>
+              ) : null}
+            </p>
+            {progress.landed.length > 0 && (
+              <ul className="space-y-0.5 text-xs text-muted-foreground">
+                {progress.landed.map((n) => (
+                  <li key={n} className="truncate">✓ {n}</li>
+                ))}
+              </ul>
+            )}
+          </div>
+        )}
         <p className="text-xs text-muted-foreground">
           Pick as many as you like — photos or PDFs. Duplicates are detected
           and skipped, so uploading twice costs nothing.
