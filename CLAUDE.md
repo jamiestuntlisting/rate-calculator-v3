@@ -119,10 +119,12 @@ state stays in step.
   hides. `work_records.contractLength` is three-way on purpose: NULL means
   never stated (the day calculates as a daily but the weekly picker still
   offers it, and picking it into a contract is what sets it), while an
-  explicit `'daily'` — the "Keep this day out of weeklies" checkbox
-  under a Daily pulldown on Log Work and the day's edit page; it was a
-  second "Daily" entry in the pulldown once and James read it as a bug —
-  is a decision that keeps the day out. Do not "normalize" the NULLs;
+  explicit `'daily'` is a decision that keeps the day out. The
+  Contract Length pulldown on Log Work and the day's edit page starts
+  **blank** ("Not set — a daily"), and picking Daily is what
+  stores `'daily'`: nothing is asked or ticked, the positive choice is
+  the signal. (It was a "Daily" default plus a second "Daily — keep
+  out of weeklies" entry, then a checkbox; James wanted neither.) Do not "normalize" the NULLs;
   migration 0019 exists to create them. `/admin/weekly-bench` runs an export through it card by
   card; it opens on a bundled reference export (`src/lib/showbiz-sample.ts`,
   gzipped and base64'd — regenerate with `scripts/build-showbiz-sample.py`),
@@ -181,7 +183,10 @@ state stays in step.
   the draw actually painted (the same limit can empty a canvas) and
   swaps it in; the copy's size is what the zoom is measured against.
   The stored file is untouched, and anything at or under 3000 px is
-  shown as it is.
+  shown as it is. **Zoom stops at one image pixel per screen pixel**
+  (`maxZoom = 1 / devicePixelRatio`; the label reads 100% there):
+  past that the card is only enlarged, not shown in more detail, and
+  James asked for a hard stop rather than upscaling.
 - **No page zoom on the transcription screen** — the root layout's
   `viewport` sets `minimumScale: 1`, and `usePreventPageZoom` (mounted
   by `/upload-g/[id]`) swallows two-finger touchmoves and Safari's

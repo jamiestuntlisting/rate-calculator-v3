@@ -431,6 +431,17 @@ export default function TranscribePage({
   }, []);
   const [rotation, setRotation] = useState(0);
   const [zoom, setZoom] = useState(1);
+  /**
+   * The screen's pixels per CSS pixel. Zoom stops where one image
+   * pixel fills one screen pixel: past that the card is only being
+   * enlarged, not shown in more detail. Read after mount so the server
+   * and the first paint agree.
+   */
+  const [dpr, setDpr] = useState(1);
+  useEffect(() => {
+    setDpr(window.devicePixelRatio || 1);
+  }, []);
+  const maxZoom = 1 / dpr;
 
   const formPaneRef = useRef<HTMLDivElement>(null);
   /** The sized box the card lives in — what the zoom actually grows. */
@@ -541,7 +552,7 @@ export default function TranscribePage({
     zoom,
     setZoom,
     minZoom: 0.02,
-    maxZoom: 8,
+    maxZoom,
     lineFraction,
   });
   const lockRow = useCallback(() => {
@@ -628,7 +639,7 @@ export default function TranscribePage({
         }
         if (data.transcription?.view) {
           savedView.current = data.transcription.view;
-          setZoom(data.transcription.view.zoom || 1);
+          setZoom(Math.min(maxZoom, data.transcription.view.zoom || 1));
         }
       } catch {
         toast.error("Couldn't load that Exhibit G");
@@ -636,7 +647,7 @@ export default function TranscribePage({
         setLoading(false);
       }
     })();
-  }, [id]);
+  }, [id, maxZoom]);
 
   /**
    * An ND meal outside its window is a transcription's early warning: a
@@ -708,11 +719,11 @@ export default function TranscribePage({
   }, [paneEl, natural, rotation]);
 
   const fitToPane = useCallback(() => {
-    setZoom(Math.max(0.02, fitZoom()));
+    setZoom(Math.min(maxZoom, Math.max(0.02, fitZoom())));
     requestAnimationFrame(() => {
       paneEl.current?.scrollTo({ left: 0, top: 0 });
     });
-  }, [fitZoom, paneEl]);
+  }, [fitZoom, paneEl, maxZoom]);
 
   // First load: restore the saved view, or open fitted so the whole card
   // is on screen with nothing but card in the pane.
@@ -721,7 +732,7 @@ export default function TranscribePage({
     restored.current = true;
     const view = savedView.current;
     if (view) {
-      setZoom(view.zoom);
+      setZoom(Math.min(maxZoom, view.zoom));
       requestAnimationFrame(() => {
         paneEl.current?.scrollTo({
           left: view.scrollX,
@@ -733,7 +744,7 @@ export default function TranscribePage({
     } else {
       fitToPane();
     }
-  }, [natural, fitToPane, paneEl, lockRow]);
+  }, [natural, fitToPane, paneEl, lockRow, maxZoom]);
 
   const baseW = natural.w * zoom;
   const baseH = natural.h * zoom;
@@ -1752,7 +1763,8 @@ export default function TranscribePage({
             {/* The viewer's controls float on the image, out of the way. */}
             <div className="pointer-events-none absolute inset-x-0 top-0 flex items-center justify-between p-2">
               <span className="pointer-events-auto rounded bg-black/50 px-2 py-1 text-xs tabular-nums text-white/90">
-                {Math.round(zoom * 100)}%
+                {/* Percent of the image's own pixels on screen; 100% is the stop. */}
+                {Math.round(zoom * dpr * 100)}%
               </span>
               <span className="pointer-events-auto flex items-center gap-1.5">
                 {zoomButton("Zoom out", <ZoomOut className="h-4 w-4" />, () =>

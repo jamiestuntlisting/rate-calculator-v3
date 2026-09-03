@@ -1111,45 +1111,23 @@ export default function WorkDetailPage() {
                       <div className="space-y-1 min-w-0">
                         <Label htmlFor="edit-contractLength" className="text-base">Contract Length</Label>
                         <Select
-                          value={editData.contractLength === "daily" ? "unset" : editData.contractLength}
+                          value={editData.contractLength === "unset" ? "" : editData.contractLength}
                           onValueChange={(v) =>
                             setEditData((d) => ({
                               ...d,
-                              contractLength: v as "unset" | "three_day" | "weekly",
+                              contractLength: v as "daily" | "three_day" | "weekly",
                             }))
                           }
                         >
                           <SelectTrigger id="edit-contractLength" className="text-lg h-12 data-[size=default]:h-12 w-full min-w-0">
-                            <SelectValue />
+                            <SelectValue placeholder="Not set — a daily" />
                           </SelectTrigger>
                           <SelectContent>
-                            <SelectItem value="unset" className="text-base">Daily</SelectItem>
+                            <SelectItem value="daily" className="text-base">Daily</SelectItem>
                             <SelectItem value="three_day" className="text-base">3 Day (TV)</SelectItem>
                             <SelectItem value="weekly" className="text-base">Weekly</SelectItem>
                           </SelectContent>
                         </Select>
-                        {(editData.contractLength === "unset" ||
-                          editData.contractLength === "daily") && (
-                          <div className="flex items-start gap-2 pt-1">
-                            <Checkbox
-                              id="edit-keepOutOfWeeklies"
-                              checked={editData.contractLength === "daily"}
-                              onCheckedChange={(v) =>
-                                setEditData((d) => ({
-                                  ...d,
-                                  contractLength: v ? "daily" : "unset",
-                                }))
-                              }
-                              className="mt-0.5 shrink-0"
-                            />
-                            <Label
-                              htmlFor="edit-keepOutOfWeeklies"
-                              className="text-sm font-normal leading-snug text-muted-foreground"
-                            >
-                              Keep this day out of weeklies
-                            </Label>
-                          </div>
-                        )}
                       </div>
                       {editData.contractLength === "three_day" && (
                         <p className="text-xs text-muted-foreground -mt-1">
