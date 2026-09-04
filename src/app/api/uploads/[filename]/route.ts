@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { getUploadsBucket } from "@/lib/db";
 
 export async function GET(
-  _request: Request,
+  request: Request,
   { params }: { params: Promise<{ filename: string }> }
 ) {
   try {
@@ -13,7 +13,13 @@ export async function GET(
     }
 
     const bucket = await getUploadsBucket();
-    const object = await bucket.get(filename);
+    // ?thumb=1 asks for the small copy a browser made for lists
+    // (thumbs/<filename>); until one exists the original is served, so
+    // a list never breaks for want of a thumbnail.
+    const wantThumb = new URL(request.url).searchParams.get("thumb") === "1";
+    const object =
+      (wantThumb ? await bucket.get(`thumbs/${filename}`) : null) ??
+      (await bucket.get(filename));
     if (!object) {
       return NextResponse.json({ error: "File not found" }, { status: 404 });
     }

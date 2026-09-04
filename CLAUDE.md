@@ -194,6 +194,18 @@ state stays in step.
   card zooms the card or nothing, never the page. Only pages with a
   zoom of their own should mount it; page zoom is accessibility
   elsewhere.
+- **Thumbnails** — the pile and the admin queue showed every card
+  through its original photo (2–5 MB each), and a phone asked for 59 of
+  them at 40px dropped most of them blank (iOS gives up decoding what
+  it cannot afford). `g_uploads.thumbnail` (migration 0030) is the R2
+  key of a 320 px JPEG copy under `thumbs/<filename>`, made **in the
+  browser of whoever first lists the file** (`useThumbnails`, one at a
+  time; `makeThumbnail` draws the painted `<img>`, so EXIF orientation
+  is applied) and stored with `PUT /api/g-uploads/[id]/thumb` (owner or
+  admin). Lists render `thumbPath ?? path`, and `/api/uploads/<file>
+  ?thumb=1` serves the copy when it exists and the original otherwise,
+  so nothing waits on a thumbnail. Files that arrived by text or email
+  get theirs the first time someone lists them.
 - **The pile's Transcribed section is a table** — finished Gs on
   `/upload-g` render tracker-style (`Table`, a 40px thumbnail, the show
   with the character under it, the work date from the transcription's

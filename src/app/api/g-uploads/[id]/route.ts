@@ -324,6 +324,7 @@ export async function DELETE(
     try {
       const bucket = await getUploadsBucket();
       await bucket.delete(deleted.filename);
+      if (deleted.thumbnail) await bucket.delete(deleted.thumbnail);
     } catch (error) {
       console.error("Failed to delete R2 object:", error);
     }

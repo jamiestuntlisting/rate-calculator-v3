@@ -17,6 +17,7 @@ import {
 import { toast } from "sonner";
 import { ArrowRight, FileText, Loader2 } from "lucide-react";
 import { UPLOAD_KINDS, UPLOAD_KIND_LABELS, type UploadKind } from "@/lib/upload-kind";
+import { useThumbnails } from "@/lib/use-thumbnails";
 /** An Exhibit G from the performer's Upload a G library. */
 interface GUploadItem {
   _id: string;
@@ -122,11 +123,18 @@ export default function AdminTranscribePage() {
     displayTitle: string;
     requested: boolean;
     path?: string;
+  /** The small copy for the list, once a browser has made one. */
+  thumbPath?: string | null;
   contentType?: string;
   rotation?: number;
   kind?: string;
 }
   const [queue, setQueue] = useState<QueueItem[] | null>(null);
+  // Missing thumbnails are made here, one at a time, so the queue's
+  // 40px boxes stop asking a phone to decode 59 full-size photos.
+  useThumbnails(queue, (id, thumbPath) =>
+    setQueue((prev) => prev && prev.map((q) => (q._id === id ? { ...q, thumbPath } : q)))
+  );
   /** The queue is the page's point — it loads itself. */
   // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => {
@@ -326,8 +334,10 @@ export default function AdminTranscribePage() {
                             ) : (
                               // eslint-disable-next-line @next/next/no-img-element
                               <img
-                                src={item.path}
+                                src={item.thumbPath ?? item.path}
                                 alt=""
+                                loading="lazy"
+                                decoding="async"
                                 className="h-full w-full object-cover"
                                 style={{ transform: `rotate(${item.rotation ?? 0}deg)` }}
                               />

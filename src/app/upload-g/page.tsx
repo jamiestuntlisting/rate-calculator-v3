@@ -8,6 +8,7 @@ import { useRouter } from "next/navigation";
 import { shortDay } from "@/lib/format-date";
 import { UPLOAD_KINDS, UPLOAD_KIND_LABELS, type UploadKind } from "@/lib/upload-kind";
 import { AttachToDayDialog } from "@/components/shared/attach-to-day-dialog";
+import { useThumbnails } from "@/lib/use-thumbnails";
 import {
   Table,
   TableBody,
@@ -33,6 +34,8 @@ import { toast } from "sonner";
 interface GUpload {
   _id: string;
   workRecordId?: string | null;
+  /** The small copy for lists, once a browser has made one. */
+  thumbPath?: string | null;
   title: string;
   displayTitle: string;
   originalName: string;
@@ -125,6 +128,11 @@ function formatUploadDate(iso: string): string {
 export default function UploadGPage() {
   const router = useRouter();
   const [uploads, setUploads] = useState<GUpload[]>([]);
+  // Missing thumbnails are made here, one at a time, by the owner's own
+  // browser; the pile's cards and tables then show the small copy.
+  useThumbnails(uploads, (id, thumbPath) =>
+    setUploads((prev) => prev.map((u) => (u._id === id ? { ...u, thumbPath } : u)))
+  );
   const [loading, setLoading] = useState(true);
   const [uploading, setUploading] = useState(false);
   /** Where a batch upload is: "Uploading file 3 of 12 — IMG_7031.jpeg". */
@@ -446,7 +454,9 @@ export default function UploadGPage() {
                 ) : (
                   // eslint-disable-next-line @next/next/no-img-element
                   <img
-                    src={u.path}
+                    src={u.thumbPath ?? u.path}
+                    loading="lazy"
+                    decoding="async"
                     alt={u.displayTitle}
                     className="w-full h-full object-contain transition-transform"
                     style={{ transform: `rotate(${u.rotation}deg)` }}
@@ -535,7 +545,9 @@ export default function UploadGPage() {
                 ) : (
                   // eslint-disable-next-line @next/next/no-img-element
                   <img
-                    src={u.path}
+                    src={u.thumbPath ?? u.path}
+                    loading="lazy"
+                    decoding="async"
                     alt={u.displayTitle}
                     className="w-full h-full object-contain"
                     style={{ transform: `rotate(${u.rotation}deg)` }}
@@ -649,7 +661,9 @@ export default function UploadGPage() {
                                 ) : (
                                   // eslint-disable-next-line @next/next/no-img-element
                                   <img
-                                    src={u.path}
+                                    src={u.thumbPath ?? u.path}
+                                    loading="lazy"
+                                    decoding="async"
                                     alt=""
                                     className="h-full w-full object-cover"
                                     style={{ transform: `rotate(${u.rotation}deg)` }}
@@ -737,7 +751,9 @@ export default function UploadGPage() {
                                   ) : (
                                     // eslint-disable-next-line @next/next/no-img-element
                                     <img
-                                      src={u.path}
+                                      src={u.thumbPath ?? u.path}
+                                      loading="lazy"
+                                      decoding="async"
                                       alt=""
                                       className="h-full w-full object-cover"
                                       style={{ transform: `rotate(${u.rotation}deg)` }}

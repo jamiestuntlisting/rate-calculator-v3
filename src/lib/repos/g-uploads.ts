@@ -18,6 +18,8 @@ export interface GUploadRow {
   workRecordId: string | null;
   /** exhibit_g | call_sheet | other — only an Exhibit G is transcribed. */
   kind: string;
+  /** R2 key of the small copy for lists (thumbs/<filename>); NULL until made. */
+  thumbnail: string | null;
   createdAt: string;
   updatedAt: string;
 }
@@ -26,7 +28,14 @@ export interface GUpload extends Omit<GUploadRow, "transcription"> {
   /** Display title — falls back to the uploaded file's name. */
   displayTitle: string;
   path: string;
+  /** The thumbnail's URL when one exists; lists show the original otherwise. */
+  thumbPath: string | null;
   transcription: unknown | null;
+}
+
+/** Where an upload's thumbnail lives in the bucket. */
+export function thumbnailKey(filename: string): string {
+  return `thumbs/${filename}`;
 }
 
 function toDoc(row: GUploadRow): GUpload {
@@ -34,6 +43,8 @@ function toDoc(row: GUploadRow): GUpload {
     ...row,
     displayTitle: row.title.trim() || row.originalName,
     path: `/api/uploads/${row.filename}`,
+    thumbPath: row.thumbnail ? `/api/uploads/${row.filename}?thumb=1` : null,
+    thumbnail: row.thumbnail ?? null,
     transcription: row.transcription ? JSON.parse(row.transcription) : null,
     transcriptionRequested: row.transcriptionRequested ?? 0,
     kind: row.kind || "exhibit_g",
@@ -147,6 +158,7 @@ export interface UpdateGUploadInput {
   workRecordId?: string | null;
   /** Reclassify: exhibit_g | call_sheet | other. */
   kind?: string;
+  thumbnail?: string | null;
 }
 
 export async function updateGUpload(
@@ -185,6 +197,10 @@ export async function updateGUpload(
   if (patch.kind !== undefined) {
     sets.push("kind = ?");
     params.push(patch.kind);
+  }
+  if (patch.thumbnail !== undefined) {
+    sets.push("thumbnail = ?");
+    params.push(patch.thumbnail);
   }
 
   params.push(id, userId);

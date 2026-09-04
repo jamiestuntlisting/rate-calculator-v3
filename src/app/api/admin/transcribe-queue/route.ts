@@ -34,6 +34,7 @@ export async function GET() {
         performer: emails.get(q.queueUserId) ?? q.queueUserId,
         displayTitle: q.displayTitle,
         path: q.path,
+        thumbPath: q.thumbPath,
         contentType: q.contentType,
         rotation: q.rotation,
         kind: q.kind,
