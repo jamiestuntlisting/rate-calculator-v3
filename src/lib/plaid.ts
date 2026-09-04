@@ -26,17 +26,28 @@ const HOSTS: Record<PlaidConfig["env"], string> = {
   production: "https://production.plaid.com",
 };
 
-export async function plaidConfig(): Promise<PlaidConfig | null> {
+async function readSetting(key: string): Promise<string> {
   const env = (await getEnv()) as unknown as Record<string, string | undefined>;
+  if (env[key]) return env[key]!;
   const db = await getDb();
-  const read = async (key: string) => {
-    if (env[key]) return env[key]!;
-    const row = await db
-      .prepare("SELECT value FROM app_config WHERE key = ?1")
-      .bind(key)
-      .first<{ value: string }>();
-    return row?.value?.trim() || "";
-  };
+  const row = await db
+    .prepare("SELECT value FROM app_config WHERE key = ?1")
+    .bind(key)
+    .first<{ value: string }>();
+  return row?.value?.trim() || "";
+}
+
+/** The two keys Plaid actually needs, by name, that are not set. */
+export async function plaidMissing(): Promise<string[]> {
+  const missing: string[] = [];
+  for (const key of ["PLAID_CLIENT_ID", "PLAID_SECRET"]) {
+    if (!(await readSetting(key))) missing.push(key);
+  }
+  return missing;
+}
+
+export async function plaidConfig(): Promise<PlaidConfig | null> {
+  const read = readSetting;
   const clientId = await read("PLAID_CLIENT_ID");
   const secret = await read("PLAID_SECRET");
   const envRaw = (await read("PLAID_ENV")).toLowerCase();

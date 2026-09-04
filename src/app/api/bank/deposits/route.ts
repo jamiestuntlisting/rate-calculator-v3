@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { requireTester } from "@/lib/bank-access";
 import { findBankConnection, listBankDeposits } from "@/lib/repos/bank";
-import { plaidConfig } from "@/lib/plaid";
+import { plaidConfig, plaidMissing } from "@/lib/plaid";
 import { depositFloorFor } from "@/lib/bank-sync";
 
 /** GET /api/bank/deposits — the connection (without its token) and every deposit with its match. */
@@ -17,6 +17,7 @@ export async function GET() {
     ]);
     return NextResponse.json({
       configured: !!config,
+      missing: config ? [] : await plaidMissing(),
       floor,
       env: config?.env ?? null,
       envWarning: config?.envUnrecognised

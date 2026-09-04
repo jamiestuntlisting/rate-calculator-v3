@@ -50,6 +50,8 @@ interface Deposit {
 
 interface Payload {
   configured: boolean;
+  /** Which of PLAID_CLIENT_ID / PLAID_SECRET is not set, when not configured. */
+  missing?: string[];
   floor: number;
   env: string | null;
   envWarning: string | null;
@@ -209,9 +211,11 @@ export default function BankPage() {
         <CardContent className="pt-6 space-y-4">
           {data && !data.configured && (
             <p className="text-sm text-amber-400">
-              Plaid isn&rsquo;t configured yet — PLAID_CLIENT_ID and PLAID_SECRET
-              are needed on the Worker (or in app_config), with PLAID_ENV set
-              to sandbox until it&rsquo;s real.
+              Plaid isn&rsquo;t configured:{" "}
+              {(data.missing?.length ? data.missing : ["PLAID_CLIENT_ID", "PLAID_SECRET"]).join(" and ")}{" "}
+              {data.missing?.length === 1 ? "is" : "are"} not set on the Worker. Both come from
+              Plaid&rsquo;s Keys page and are different strings; PLAID_ENV is optional and means
+              sandbox when absent.
             </p>
           )}
           {data?.envWarning && (
@@ -256,16 +260,10 @@ export default function BankPage() {
 
       <Card>
         <CardHeader>
-          <CardTitle className="text-lg">
-            Deposits {data ? `— ${shown.length} at or above ${formatCurrency(floorValue)}` : ""}
-          </CardTitle>
+          <CardTitle className="text-lg">Deposits</CardTitle>
           <p className="text-xs text-muted-foreground">
-            Smaller deposits are not paychecks and are left out; the floor is
-            set under{" "}
-            <Link href="/preferences" className="underline underline-offset-2">
-              Preferences
-            </Link>
-            .
+            Deposits that could be a paycheck, newest first, each with the day or
+            week it lines up with.
           </p>
         </CardHeader>
         <CardContent>
@@ -275,7 +273,7 @@ export default function BankPage() {
             <p className="text-sm text-muted-foreground">Loading…</p>
           ) : shown.length === 0 ? (
             <p className="text-sm text-muted-foreground">
-              {data.connection ? "Nothing above the floor yet — pull deposits." : "Connect a bank to see deposits."}
+              {data.connection ? "Nothing yet — pull deposits." : "Connect a bank to see deposits."}
             </p>
           ) : (
             <div className="overflow-x-auto">
