@@ -78,16 +78,30 @@ const daysWord = (n: number | null) => {
 export default function BankPage() {
   const { user, viewingAs } = useAuth();
   const [data, setData] = useState<Payload | null>(null);
+  /** Why the deposits did not load, when they did not — never a silent "Loading…". */
+  const [loadError, setLoadError] = useState<string | null>(null);
   const [busy, setBusy] = useState<string | null>(null);
   const [linkReady, setLinkReady] = useState(false);
 
   const load = useCallback(async () => {
-    const res = await fetch("/api/bank/deposits");
-    if (res.status === 403) {
+    try {
+      const res = await fetch("/api/bank/deposits");
+      if (res.ok) {
+        setData((await res.json()) as Payload);
+        setLoadError(null);
+        return;
+      }
+      const body = (await res.json().catch(() => ({}))) as { error?: string };
       setData(null);
-      return;
+      setLoadError(
+        res.status === 403
+          ? "Bank deposits is for test accounts, on their own account. If you are viewing another member's account, switch back to yours."
+          : `Couldn't load deposits (${res.status}${body.error ? `: ${body.error}` : ""}).`
+      );
+    } catch (e) {
+      setData(null);
+      setLoadError(`Couldn't reach the server: ${e instanceof Error ? e.message : String(e)}`);
     }
-    if (res.ok) setData((await res.json()) as Payload);
   }, []);
 
   useEffect(() => {
@@ -255,7 +269,9 @@ export default function BankPage() {
           </p>
         </CardHeader>
         <CardContent>
-          {!data ? (
+          {loadError ? (
+            <p className="text-sm text-amber-400">{loadError}</p>
+          ) : !data ? (
             <p className="text-sm text-muted-foreground">Loading…</p>
           ) : shown.length === 0 ? (
             <p className="text-sm text-muted-foreground">
