@@ -46,7 +46,7 @@ export function EditablePage({
   children: React.ReactNode;
 }) {
   const { user } = useAuth();
-  const admin = Boolean(user && isAdminEmail(user.email));
+  const admin = Boolean(user && (user.role === "admin" || isAdminEmail(user.email)));
   const [values, setValues] = useState<Record<string, string>>({});
   const [editing, setEditing] = useState(false);
   const [saving, setSaving] = useState(false);

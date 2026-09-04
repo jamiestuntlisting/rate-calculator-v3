@@ -100,7 +100,7 @@ export default function AdminNamesPage() {
 
   if (authLoading) return null;
 
-  if (!user || !isAdminEmail(user.email)) {
+  if (!user || !(user.role === "admin" || isAdminEmail(user.email))) {
     return (
       <div className="flex items-center justify-center min-h-[50vh]">
         <p className="text-muted-foreground">Admin access required.</p>

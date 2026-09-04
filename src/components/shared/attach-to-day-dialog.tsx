@@ -34,6 +34,8 @@ export function AttachToDayDialog({
   uploadId,
   kind,
   currentRecordId,
+  daysUrl = "/api/work-records?limit=200&sort=workDate&order=desc",
+  patchUrl = `/api/g-uploads/${uploadId}`,
   onClose,
   onDone,
 }: {
@@ -41,6 +43,13 @@ export function AttachToDayDialog({
   kind: UploadKind;
   /** The day the upload opened, left out of the list. */
   currentRecordId: string | null;
+  /**
+   * Where the owner's days are listed and where the file is retyped —
+   * the member's own routes by default; an admin working a member's
+   * file from the queue passes the admin routes for that member.
+   */
+  daysUrl?: string;
+  patchUrl?: string;
   onClose: () => void;
   onDone: (workRecordId: string | null) => void;
 }) {
@@ -52,11 +61,14 @@ export function AttachToDayDialog({
 
   useEffect(() => {
     let live = true;
-    fetch("/api/work-records?limit=200&sort=workDate&order=desc")
+    fetch(daysUrl)
       .then((r) => (r.ok ? r.json() : Promise.reject(new Error(String(r.status)))))
-      .then((data: { records?: DayOption[] }) => {
+      .then((data: { records?: DayOption[] } | DayOption[]) => {
         if (!live) return;
-        const list = (data.records ?? []).filter((d) => d._id !== currentRecordId);
+        const all = Array.isArray(data) ? data : (data.records ?? []);
+        const list = all
+          .filter((d) => d._id !== currentRecordId)
+          .sort((a, b) => (a.workDate < b.workDate ? 1 : a.workDate > b.workDate ? -1 : 0));
         setDays(list);
         if (list.length === 0) setChoice("own");
         else setDayId((id) => id || list[0]._id);
@@ -69,14 +81,14 @@ export function AttachToDayDialog({
     return () => {
       live = false;
     };
-  }, [currentRecordId]);
+  }, [currentRecordId, daysUrl]);
 
   const confirm = async () => {
     const target = choice === "existing" ? dayId : null;
     if (choice === "existing" && !target) return;
     setBusy(true);
     try {
-      const res = await fetch(`/api/g-uploads/${uploadId}`, {
+      const res = await fetch(patchUrl, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ kind, ...(target ? { workRecordId: target } : {}) }),

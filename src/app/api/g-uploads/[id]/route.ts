@@ -5,11 +5,11 @@ import {
   findGUpload,
   updateGUpload,
 } from "@/lib/repos/g-uploads";
-import { deleteWorkRecord, findWorkRecord, updateWorkRecord } from "@/lib/repos/work-records";
-import { planAttach } from "@/lib/attach-upload";
+import { findWorkRecord, updateWorkRecord } from "@/lib/repos/work-records";
+import { moveUploadToDay } from "@/lib/attach-upload-server";
 import { recalculateDay } from "@/lib/day-recalc";
 import { doneBlockers, listMissing } from "@/lib/transcription-done";
-import { mirrorLater, unmirrorLater } from "@/lib/google-calendar";
+import { mirrorLater } from "@/lib/google-calendar";
 import { documentTypeForKind, isUploadKind } from "@/lib/upload-kind";
 import { latestGReading, replaceGReadingScores } from "@/lib/repos/g-readings";
 import { findUserById } from "@/lib/repos/users";
@@ -119,33 +119,13 @@ export async function PATCH(
     // deleted if it was nothing but this attachment (src/lib/attach-upload).
     let movedTo: string | null = null;
     if (typeof body.workRecordId === "string" && body.workRecordId !== existing.workRecordId) {
-      const target = await findWorkRecord(body.workRecordId, userId);
-      if (!target) {
-        return NextResponse.json({ error: "That work day was not found" }, { status: 404 });
-      }
       const documentType = documentTypeForKind(
         isUploadKind(body.kind) ? body.kind : isUploadKind(existing.kind) ? existing.kind : "other"
       );
-      const old = existing.workRecordId
-        ? await findWorkRecord(existing.workRecordId, userId)
-        : null;
-      const plan = planAttach(
-        old ?? { recordStatus: "attachment_only", documents: [] },
-        existing.filename,
-        documentType
-      );
-      await updateWorkRecord(target._id, userId, {
-        documents: [...(target.documents ?? []), ...(plan.moved ? [plan.moved] : [])],
-      });
-      if (old) {
-        if (plan.deleteOld) {
-          await deleteWorkRecord(old._id, userId);
-          unmirrorLater(userId, old.googleEventId ?? null);
-        } else {
-          await updateWorkRecord(old._id, userId, { documents: plan.remaining });
-        }
+      movedTo = await moveUploadToDay(existing, body.workRecordId, documentType);
+      if (!movedTo) {
+        return NextResponse.json({ error: "That work day was not found" }, { status: 404 });
       }
-      movedTo = target._id;
     }
 
     if (body.kind !== undefined && !movedTo) {

@@ -231,7 +231,11 @@ state stays in step.
   the pile first asks which day it is for (`AttachToDayDialog`) —
   a day already logged (PATCH `workRecordId` moves the document
   there and deletes the placeholder when it was only that file,
-  `src/lib/attach-upload.ts` `planAttach`, tested) or its own day.
+  `src/lib/attach-upload.ts` `planAttach`, tested; the server side
+  is `attach-upload-server.ts` `moveUploadToDay`, shared by the
+  member's PATCH and the admin's) or its own day. The admin queue
+  asks the same question with the member's own days
+  (`/api/admin/users/[userId]/work-records`) and the admin PATCH.
 - **Where a G came from** — text and email intake pass an
   `originNote` into `ingestGUploads`, written into the new day's
   `notes` ("Received by text from (484) 978-8687 on Sep 2, 2026 at
@@ -324,6 +328,11 @@ state stays in step.
   James still has to install it in the Gmail account. All upload paths
   share `src/lib/g-ingest.ts`, so email, the Upload button and the bulk
   page behave identically (dedupe, numbered rows, the queue).
+- **Admin gating** — an admin is `users.role = 'admin'` (set on
+  Members) **or** the `ADMIN_EMAILS` allowlist; every admin page checks
+  `user.role === "admin" || isAdminEmail(user.email)`, as the admin
+  layout and the header do. Several pages once checked the allowlist
+  alone and shut role-made admins out — do not reintroduce that.
 - **Auth** — StuntListing GraphQL login → JWT session cookie. The signing
   key comes from `SESSION_SECRET` on the Worker if set, else from the
   `app_config` table in D1 (`src/lib/session-secret.ts`). The D1 fallback is

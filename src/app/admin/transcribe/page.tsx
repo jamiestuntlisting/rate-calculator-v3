@@ -18,6 +18,7 @@ import { toast } from "sonner";
 import { ArrowRight, FileText, Loader2 } from "lucide-react";
 import { UPLOAD_KINDS, UPLOAD_KIND_LABELS, type UploadKind } from "@/lib/upload-kind";
 import { useThumbnails } from "@/lib/use-thumbnails";
+import { AttachToDayDialog } from "@/components/shared/attach-to-day-dialog";
 /** An Exhibit G from the performer's Upload a G library. */
 interface GUploadItem {
   _id: string;
@@ -59,7 +60,7 @@ export default function AdminTranscribePage() {
 
   // Fetch user list on mount
   useEffect(() => {
-    if (!user || !isAdminEmail(user.email)) return;
+    if (!user || !(user.role === "admin" || isAdminEmail(user.email))) return;
     setLoadingUsers(true);
     fetch("/api/admin/users")
       .then((r) => r.json())
@@ -125,6 +126,8 @@ export default function AdminTranscribePage() {
     path?: string;
   /** The small copy for the list, once a browser has made one. */
   thumbPath?: string | null;
+  /** The day the upload opened; left out of the "which day?" list. */
+  workRecordId?: string | null;
   contentType?: string;
   rotation?: number;
   kind?: string;
@@ -162,9 +165,17 @@ export default function AdminTranscribePage() {
     }
   };
 
+  /** A G being made something else, while the "which day?" dialog is up. */
+  const [attaching, setAttaching] = useState<{ item: QueueItem; kind: UploadKind } | null>(null);
   /** Reclassify a member's file from the queue; a non-G drops out of it. */
   const reclassify = async (item: QueueItem, kind: UploadKind) => {
     const before = item.kind;
+    // Every attachment belongs to a work day: before the file leaves the
+    // queue the admin says which of the member's days it is for.
+    if (kind !== "exhibit_g") {
+      setAttaching({ item, kind });
+      return;
+    }
     setQueue((prev) =>
       kind === "exhibit_g"
         ? (prev ?? []).map((q) => (q._id === item._id ? { ...q, kind } : q))
@@ -222,7 +233,7 @@ export default function AdminTranscribePage() {
 
   if (authLoading) return null;
 
-  if (!user || !isAdminEmail(user.email)) {
+  if (!user || !(user.role === "admin" || isAdminEmail(user.email))) {
     return (
       <div className="flex items-center justify-center min-h-[50vh]">
         <p className="text-muted-foreground">Admin access required.</p>
@@ -451,6 +462,21 @@ export default function AdminTranscribePage() {
             )}
           </CardContent>
         </Card>
+      )}
+      {attaching && (
+        <AttachToDayDialog
+          uploadId={attaching.item._id}
+          kind={attaching.kind}
+          currentRecordId={attaching.item.workRecordId ?? null}
+          daysUrl={`/api/admin/users/${attaching.item.userId}/work-records`}
+          patchUrl={`/api/admin/g-uploads/${attaching.item._id}`}
+          onClose={() => setAttaching(null)}
+          onDone={() => {
+            const done = attaching;
+            setAttaching(null);
+            setQueue((prev) => (prev ?? []).filter((q) => q._id !== done.item._id));
+          }}
+        />
       )}
     </div>
   );

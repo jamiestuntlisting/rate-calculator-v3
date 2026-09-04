@@ -35,6 +35,7 @@ export async function GET() {
         displayTitle: q.displayTitle,
         path: q.path,
         thumbPath: q.thumbPath,
+        workRecordId: q.workRecordId,
         contentType: q.contentType,
         rotation: q.rotation,
         kind: q.kind,
