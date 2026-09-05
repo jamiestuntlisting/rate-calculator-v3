@@ -15,7 +15,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { toast } from "sonner";
-import { ArrowRight, FileText, Loader2 } from "lucide-react";
+import { ArrowRight, FileText, Loader2, RotateCw } from "lucide-react";
 import { UPLOAD_KINDS, UPLOAD_KIND_LABELS, type UploadKind } from "@/lib/upload-kind";
 import { useThumbnails } from "@/lib/use-thumbnails";
 import { AttachToDayDialog } from "@/components/shared/attach-to-day-dialog";
@@ -167,6 +167,23 @@ export default function AdminTranscribePage() {
 
   /** A G being made something else, while the "which day?" dialog is up. */
   const [attaching, setAttaching] = useState<{ item: QueueItem; kind: UploadKind } | null>(null);
+  /** Turn a member's card a quarter turn; the thumbnail turns with it. */
+  const rotateItem = async (item: QueueItem) => {
+    const rotation = ((item.rotation ?? 0) + 90) % 360;
+    setQueue((prev) => (prev ?? []).map((q) => (q._id === item._id ? { ...q, rotation } : q)));
+    try {
+      const res = await fetch(`/api/admin/g-uploads/${item._id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ rotation }),
+      });
+      if (!res.ok) throw new Error(String(res.status));
+    } catch {
+      setQueue((prev) => (prev ?? []).map((q) => (q._id === item._id ? { ...q, rotation: item.rotation } : q)));
+      toast.error("Couldn't rotate it");
+    }
+  };
+
   /** Reclassify a member's file from the queue; a non-G drops out of it. */
   const reclassify = async (item: QueueItem, kind: UploadKind) => {
     const before = item.kind;
@@ -339,9 +356,9 @@ export default function AdminTranscribePage() {
                           <span className="text-xs text-muted-foreground tabular-nums w-6 shrink-0">
                             {index + 1}.
                           </span>
-                          <span className="flex h-12 w-12 shrink-0 items-center justify-center overflow-hidden rounded border border-border bg-muted/40">
+                          <span className="flex h-24 w-24 shrink-0 items-center justify-center overflow-hidden rounded border border-border bg-muted/40">
                             {item.contentType === "application/pdf" || !item.path ? (
-                              <FileText className="h-5 w-5 text-muted-foreground" />
+                              <FileText className="h-8 w-8 text-muted-foreground" />
                             ) : (
                               // eslint-disable-next-line @next/next/no-img-element
                               <img
@@ -367,6 +384,16 @@ export default function AdminTranscribePage() {
                               Requested
                             </span>
                           )}
+                        </button>
+                        {/* A sideways card is turned here, before it is opened. */}
+                        <button
+                          type="button"
+                          onClick={() => void rotateItem(item)}
+                          aria-label={`Rotate ${item.displayTitle}`}
+                          title="Rotate"
+                          className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md border border-border hover:bg-accent active:scale-95 transition"
+                        >
+                          <RotateCw className="h-4 w-4" />
                         </button>
                         {/* Anything but an Exhibit G leaves the queue: there
                             is nothing to transcribe on it. */}

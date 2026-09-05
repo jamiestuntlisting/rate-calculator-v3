@@ -534,6 +534,9 @@ export default function UploadGPage() {
         <Card className="divide-y divide-border p-0">
           {items.map((u) => (
             <div key={u._id} className="flex items-center gap-3 p-3">
+              {/* The image and its rotate button together: turning a
+                  sideways card is done looking at it. */}
+              <div className="flex shrink-0 flex-col items-center gap-1.5">
               <Link
                 href={`/upload-g/${u._id}`}
                 className="h-24 w-24 sm:h-40 sm:w-40 shrink-0 rounded bg-muted/40 overflow-hidden relative"
@@ -554,6 +557,16 @@ export default function UploadGPage() {
                   />
                 )}
               </Link>
+              <button
+                type="button"
+                onClick={() => rotate(u)}
+                aria-label="Rotate"
+                title="Rotate"
+                className="h-9 w-9 shrink-0 flex items-center justify-center rounded-lg border border-border hover:bg-accent active:scale-95 transition"
+              >
+                <RotateCw className="h-4 w-4" />
+              </button>
+              </div>
 
               <div className="flex-1 min-w-0">
                 {editingId === u._id ? (
@@ -594,18 +607,8 @@ export default function UploadGPage() {
                 </div>
               </div>
 
-              {/* Stacked controls take 36px of width instead of 100 —
-                  on a phone that width is the title's. */}
+              {/* Delete is destructive, so it sits alone at the far end. */}
               <div className="flex shrink-0 flex-col gap-1.5">
-              <button
-                type="button"
-                onClick={() => rotate(u)}
-                aria-label="Rotate"
-                title="Rotate"
-                className="h-9 w-9 shrink-0 flex items-center justify-center rounded-lg border border-border hover:bg-accent active:scale-95 transition"
-              >
-                <RotateCw className="h-4 w-4" />
-              </button>
               <button
                 type="button"
                 onClick={() => remove(u)}

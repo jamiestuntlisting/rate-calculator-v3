@@ -25,7 +25,12 @@ export async function PATCH(
     const { id } = await params;
     const upload = await findGUploadById(id);
     if (!upload) return NextResponse.json({ error: "Upload not found" }, { status: 404 });
-    const body = (await request.json()) as { kind?: string; workRecordId?: string };
+    const body = (await request.json()) as { kind?: string; workRecordId?: string; rotation?: number };
+    // Rotation alone: the queue's rotate button, fixing a sideways card.
+    if (body.kind === undefined && typeof body.rotation === "number") {
+      const updated = await updateGUpload(id, upload.userId, { rotation: body.rotation });
+      return NextResponse.json({ rotation: updated?.rotation ?? upload.rotation });
+    }
     if (!isUploadKind(body.kind)) {
       return NextResponse.json({ error: "Unknown kind" }, { status: 400 });
     }
