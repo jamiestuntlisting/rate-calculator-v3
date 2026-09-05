@@ -298,11 +298,11 @@ state stays in step.
   not searched**: for a fixed day the gross is a straight line in the
   adjustment with one knee where it passes scale (the engine's
   high-stunt tiers), so `solveShape` prices the ends of each piece,
-  divides, and re-prices the whole dollars around the answer for the
-  exact match (~7 engine runs a shape, ~17k in all). A $50 grid to
-  $1,000 missed a plain day with $1,100 — James's check — which is why.
-  Exact matches sort by `adjustmentRoundness` (multiples of $50 first),
-  then fewest penalties. Near misses are always reported, closest
+  divides, and re-prices the $100 steps either side of the answer for
+  the exact match (~6 engine runs a shape, ~15k in all). **Adjustments
+  come in $100 intervals** (James): a check that needs $245 to land is
+  a near miss with its gap, never a match. A $50 grid to $1,000 missed
+  a plain day with $1,100 — James's check — which is why it is solved. Near misses are always reported, closest
   first, however far; `commonPayments` is the whole-hours grid the page
   shows under the results with the check's nearest cell marked.
 - **Non-SAG work** — commercials, music videos, low budget and anything

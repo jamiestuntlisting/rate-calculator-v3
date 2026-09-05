@@ -34,10 +34,12 @@ import type { CalculationBreakdown, ExhibitGInput } from "@/types";
  * scale and the tiers change (straight time to twelve hours, then
  * double). So each shape is priced at the ends of each straight piece,
  * the slope read off the engine's own figures, the adjustment that
- * would land on the check computed by division, and the whole-dollar
- * candidates around it re-priced by the engine for the exact match.
- * Seven engine runs a shape find any adjustment at all, where a grid
- * of $50 steps to $1,000 took twenty-one and missed $1,100.
+ * would land on the check computed by division, and the two $100
+ * steps either side of it re-priced by the engine — stunt adjustments
+ * come in $100 intervals, so a check that needs $245 to land is not a
+ * match but a near miss, and the gap is the finding. Six engine runs a
+ * shape find any adjustment, where a grid of $50 steps to $1,000 took
+ * twenty-one and missed $1,100.
  */
 
 /** The starting-point day: 6h to lunch, half-hour lunch, 6h to wrap. */
@@ -61,8 +63,8 @@ const SPAN_MAX_HOURS = 16;
 const SPAN_STEP_HOURS = 0.1;
 /** No stunt adjustment on a daily is this big; past it the check is something else. */
 const ADJUSTMENT_MAX = 25000;
-/** Rounding inside the engine (per segment, to the cent) moves a solved adjustment by less than this. */
-const SOLVE_SLACK = 2;
+/** Stunt adjustments are negotiated in hundreds; nothing else is a story. */
+const ADJUSTMENT_STEP = 100;
 /** Lunch on time, then late by each half hour up to two hours. */
 const LUNCH_LATE_HOURS = [0, 0.5, 1, 1.5, 2] as const;
 /** Half an hour: a meal, as the engine assumes one. */
@@ -265,25 +267,12 @@ function priceShape(
 }
 
 /**
- * How "normal" a solved adjustment looks: 0 for a multiple of $50, 1 of
- * $25, 2 of $5, 3 for any other whole dollar. A check that lands on a
- * plain day with a $1,100 adjustment is a better story than one that
- * lands on a 13.7-hour day with $613, so the round ones sort first.
- */
-export function adjustmentRoundness(adjustment: number): number {
-  if (adjustment % 50 === 0) return 0;
-  if (adjustment % 25 === 0) return 1;
-  if (adjustment % 5 === 0) return 2;
-  return 3;
-}
-
-/**
  * The adjustment that lands a day shape on the target, solved from the
- * engine's own line. Returns the engine-priced candidate at the nearest
- * whole dollar (the closest of a few around the solution, since the
- * engine rounds each segment to the cent), or at $0 when the shape
- * already pays more than the check with no adjustment — that day is
- * then a near miss whose gap says so.
+ * engine's own line and snapped to the $100 steps either side of the
+ * solution. Returns the engine-priced candidate at whichever step is
+ * closer — exact when the check really is that day, a near miss with
+ * its gap when the solution fell between steps — or at $0 when the
+ * shape already pays more than the check with no adjustment.
  */
 function solveShape(
   rate: SearchedRate,
@@ -315,10 +304,10 @@ function solveShape(
     guess = lo + (target - gHi0.total) / slopeHigh;
   }
   if (!Number.isFinite(guess) || guess > ADJUSTMENT_MAX) return null;
-  const centre = Math.max(0, Math.round(guess));
+  const below = Math.max(0, Math.floor(guess / ADJUSTMENT_STEP) * ADJUSTMENT_STEP);
+  const steps = below + ADJUSTMENT_STEP > ADJUSTMENT_MAX ? [below] : [below, below + ADJUSTMENT_STEP];
   let best: ReverseCandidate | null = null;
-  for (let a = centre - SOLVE_SLACK; a <= centre + SOLVE_SLACK; a++) {
-    if (a < 0) continue;
+  for (const a of steps) {
     const c = at(a);
     if (c && (!best || Math.abs(c.diff) < Math.abs(best.diff))) best = c;
   }
@@ -403,11 +392,9 @@ export function reverseDaily(
     seen.add(key);
     exact.push(candidate);
   }
-  // Simplest story first: the roundest adjustment, then fewest
-  // penalties, then the shortest day.
+  // Simplest story first: fewest penalties, then the shortest day.
   exact.sort(
     (a, b) =>
-      adjustmentRoundness(a.adjustment) - adjustmentRoundness(b.adjustment) ||
       a.penalties - b.penalties ||
       a.spanHours - b.spanHours ||
       b.rateDate.localeCompare(a.rateDate)
@@ -418,10 +405,7 @@ export function reverseDaily(
   const close: ReverseCandidate[] = [];
   const seenClose = new Set<string>();
   for (const candidate of [...candidates].sort(
-    (a, b) =>
-      Math.abs(a.diff) - Math.abs(b.diff) ||
-      adjustmentRoundness(a.adjustment) - adjustmentRoundness(b.adjustment) ||
-      a.penalties - b.penalties
+    (a, b) => Math.abs(a.diff) - Math.abs(b.diff) || a.penalties - b.penalties
   )) {
     if (Math.abs(candidate.diff) <= EXACT_WITHIN) continue;
     const key = storyKey(candidate);

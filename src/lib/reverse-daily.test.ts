@@ -134,17 +134,20 @@ describe("reverseDaily", () => {
   });
 
   it("solves past the knee: an adjustment bigger than scale changes the tiers, and is still found", () => {
-    const total = priced(13.4, 2150).grandTotal;
+    const total = priced(13.4, 2200).grandTotal;
     const result = reverseDaily(total, STATUS, { today: TODAY });
-    expect(result.exact.some((c) => c.adjustment === 2150 && c.spanHours === 13.4)).toBe(true);
+    expect(result.exact.some((c) => c.adjustment === 2200 && c.spanHours === 13.4)).toBe(true);
   });
 
-  it("an odd whole-dollar adjustment is found too, but a round one on another day sorts first", () => {
+  it("adjustments come in $100 steps: an odd figure is never a match, only a near miss", () => {
+    // A day that would need $613 to land is not a story; every
+    // candidate carries a real adjustment, and the nearest ones say how
+    // far off they are.
     const total = priced(9.7, 613).grandTotal;
     const result = reverseDaily(total, STATUS, { today: TODAY });
-    expect(result.exact.some((c) => c.adjustment === 613 && c.spanHours === 9.7)).toBe(true);
-    const idx = result.exact.findIndex((c) => c.adjustment === 613);
-    for (const c of result.exact.slice(0, idx)) expect(c.adjustment % 5).toBe(0);
+    for (const c of [...result.exact, ...result.close]) expect(c.adjustment % 100).toBe(0);
+    expect(result.exact.some((c) => c.spanHours === 9.7)).toBe(false);
+    expect(result.close.length).toBeGreaterThan(0);
   });
 
   it("an adjustment feeds the overtime rate, so candidates re-run the engine", () => {
