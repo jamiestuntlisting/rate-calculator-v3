@@ -3,22 +3,22 @@ import type { Tier } from "@/lib/tier";
 /**
  * What each membership costs and unlocks.
  *
- * Prices are monthly USD except `perExhibitG`, which is charged per Exhibit
- * G we transcribe past a plan's included credits. Yearly prices are
- * stated per plan, not derived: roughly ten months for the price of
- * twelve, with Max at a flat $999. Nothing here charges anyone yet
- * — members pick a plan and it applies immediately; Stripe billing comes
- * later, at which point these become the display side of the Stripe prices.
+ * Prices are monthly USD. Transcription is paid in credits: Bookkeeper
+ * Plus includes a monthly allowance, Max is unlimited, and there is no
+ * per-Exhibit-G charge (there was a $2 one; James replaced it with the
+ * allowance). Yearly prices are stated per plan, not derived: roughly
+ * ten months for the price of twelve, with Max at a flat $999. Nothing
+ * here charges anyone yet — members pick a plan and it applies
+ * immediately; Stripe billing comes later, at which point these become
+ * the display side of the Stripe prices.
  */
 export const PLAN_PRICES = {
   free: 0,
   plus: 25,
-  /** Bookkeeper Plus: Plus, with ten transcription credits a month. */
+  /** Bookkeeper Plus: Plus, with a monthly allowance of transcription credits. */
   bookkeeperPlus: 40,
-  /** Max: hand us every G, unlimited transcription. */
+  /** Max: hand us every G, unlimited credits. */
   max: 100,
-  /** Per Exhibit G past the included credits. */
-  perExhibitG: 2,
 } as const;
 
 export const YEARLY_PRICES = {
@@ -28,8 +28,26 @@ export const YEARLY_PRICES = {
   max: 999,
 } as const;
 
-/** Gs transcribed each month inside Bookkeeper Plus before per-G pricing. */
-export const BOOKKEEPER_PLUS_CREDITS = 10;
+/** Transcription credits a month inside Bookkeeper Plus. */
+export const BOOKKEEPER_PLUS_CREDITS = 15;
+
+/**
+ * What a transcription costs in credits, by the contract the day is
+ * on: a daily is one credit, a 3-day four, a weekly seven (a daily
+ * plus six for the rest of the week's rows). Max is unlimited.
+ */
+export const CREDIT_COSTS = [
+  { kind: "daily", label: "Daily", credits: 1, detail: "One Exhibit G, one day" },
+  { kind: "three_day", label: "3-day (TV)", credits: 4, detail: "The three-day contract's cards" },
+  { kind: "weekly", label: "Weekly", credits: 7, detail: "A week's worth of cards, priced as the contract" },
+] as const;
+
+export type CreditKind = (typeof CREDIT_COSTS)[number]["kind"];
+
+/** Credits a transcription costs for a contract length; anything unstated is a daily. */
+export function creditCost(kind: string | null | undefined): number {
+  return CREDIT_COSTS.find((c) => c.kind === kind)?.credits ?? 1;
+}
 
 /** How a member pays for us transcribing their Exhibit Gs. */
 export type TranscriptionBilling = "monthly" | "per_g" | null;
@@ -91,8 +109,8 @@ export interface Plan {
   price: number;
   /** Recurring yearly price — ten months for the price of twelve. */
   yearlyPrice: number;
-  /** Charged per Exhibit G on top of `price`, when the plan works that way. */
-  perGPrice?: number;
+  /** Transcription credits a month; null is unlimited, absent is none. */
+  credits?: number | null;
   priceNote?: string;
   tagline: string;
   tier: Tier;
@@ -122,10 +140,10 @@ export const PLANS: Plan[] = [
     id: "plus_per_g",
     name: "Bookkeeper Plus",
     price: PLAN_PRICES.bookkeeperPlus,
-    perGPrice: PLAN_PRICES.perExhibitG,
-    priceNote: `${BOOKKEEPER_PLUS_CREDITS} transcription credits a month included, then $${PLAN_PRICES.perExhibitG} per Exhibit G`,
+    credits: BOOKKEEPER_PLUS_CREDITS,
+    priceNote: `${BOOKKEEPER_PLUS_CREDITS} transcription credits a month`,
     yearlyPrice: YEARLY_PRICES.bookkeeperPlus,
-    tagline: "Everything in Plus, and we transcribe your Gs — ten a month on us.",
+    tagline: `Everything in Plus, and we transcribe your Gs — ${BOOKKEEPER_PLUS_CREDITS} credits a month.`,
     tier: "plus",
     transcription: "per_g",
   },
@@ -133,19 +151,14 @@ export const PLANS: Plan[] = [
     id: "plus_transcription",
     name: "Max",
     price: PLAN_PRICES.max,
+    credits: null,
+    priceNote: "Unlimited credits",
     yearlyPrice: YEARLY_PRICES.max,
-    tagline: "Hand us every G and we do the rest. No per-G charges, no limits.",
+    tagline: "Hand us every G and we do the rest. Unlimited credits, no limits.",
     tier: "plus",
     transcription: "monthly",
   },
 ];
-
-/** The Gs per month at which Max costs less than Bookkeeper Plus. */
-export const PER_G_BREAK_EVEN =
-  BOOKKEEPER_PLUS_CREDITS +
-  Math.ceil(
-    (PLAN_PRICES.max - PLAN_PRICES.bookkeeperPlus) / PLAN_PRICES.perExhibitG
-  );
 
 export function planFor(
   tier: Tier,

@@ -361,6 +361,13 @@ state stays in step.
   `app_config` table in D1 (`src/lib/session-secret.ts`). The D1 fallback is
   what is actually in use; do not "clean it up" or logins break.
 - **Membership** — `src/lib/membership-plans.ts` holds prices and features.
+  Transcription is paid in **credits**, not per G (the $2 per Exhibit G
+  is gone, James's call): Bookkeeper Plus includes
+  `BOOKKEEPER_PLUS_CREDITS` (15) a month, Max is unlimited, and
+  `CREDIT_COSTS` says what a transcription costs — daily 1, 3-day 4,
+  weekly 7 — shown as a table on /membership. `/api/membership` reports
+  `creditsUsed` (each transcribed G counts as a daily until the
+  transcription records its contract) and `creditsIncluded`.
   Tier resolution order: `users.tierOverride` (hand-set, no billing yet) →
   Stripe by email (`src/lib/stripe.ts`, needs `STRIPE_SECRET_KEY`, not yet
   configured) → StuntListing profile fields.

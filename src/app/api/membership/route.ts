@@ -3,12 +3,7 @@ import { findUserById, updateMembership } from "@/lib/repos/users";
 import { countTranscribedSince } from "@/lib/repos/g-uploads";
 import { requireAuth } from "@/lib/api-auth";
 import { createSession, setSessionCookie } from "@/lib/auth";
-import {
-  PLAN_PRICES,
-  findPlan,
-  planFor,
-  type PlanId,
-} from "@/lib/membership-plans";
+import { BOOKKEEPER_PLUS_CREDITS, findPlan, planFor, type PlanId } from "@/lib/membership-plans";
 
 const PLAN_IDS: PlanId[] = ["free", "plus", "plus_per_g", "plus_transcription"];
 
@@ -34,7 +29,9 @@ export async function GET() {
       user.transcriptionBilling
     );
 
-    // Only meaningful when they are charged per Exhibit G.
+    // Credits used this month, when the plan has an allowance. Each
+    // transcribed G counts as a daily until the transcription records
+    // the contract it was on.
     const transcribedThisMonth =
       user.transcriptionBilling === "per_g"
         ? await countTranscribedSince(user._id, startOfMonthIso())
@@ -45,10 +42,8 @@ export async function GET() {
       tier: user.tierOverride ?? user.tier,
       transcriptionBilling: user.transcriptionBilling,
       transcribedThisMonth,
-      monthToDateCharges:
-        user.transcriptionBilling === "per_g"
-          ? transcribedThisMonth * PLAN_PRICES.perExhibitG
-          : 0,
+      creditsUsed: transcribedThisMonth,
+      creditsIncluded: user.transcriptionBilling === "per_g" ? BOOKKEEPER_PLUS_CREDITS : null,
       /** True once billing exists and the tier is not hand-set. */
       billed: false,
     });

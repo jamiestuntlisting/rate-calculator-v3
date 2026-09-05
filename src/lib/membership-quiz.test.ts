@@ -6,7 +6,7 @@ import {
   runQuiz,
   stepById,
 } from "./membership-quiz";
-import { PER_G_BREAK_EVEN, PLANS } from "./membership-plans";
+import { BOOKKEEPER_PLUS_CREDITS, PLANS } from "./membership-plans";
 
 /** Follow a step's answer, asserting it did not land on a plan yet. */
 function expectStep(result: ReturnType<typeof answerStep>) {
@@ -83,10 +83,10 @@ describe("membership quiz", () => {
 
   it("names the break-even in the question that turns on it", () => {
     const volume = stepById("volume");
-    expect(volume.note).toContain(String(PER_G_BREAK_EVEN));
+    expect(volume.note).toContain(`${BOOKKEEPER_PLUS_CREDITS} credits`);
     expect(volume.options.map((o) => o.label)).toEqual([
-      `One to ${PER_G_BREAK_EVEN - 1}`,
-      `${PER_G_BREAK_EVEN} or more`,
+      `Fits in ${BOOKKEEPER_PLUS_CREDITS} credits`,
+      "More than that",
       "It comes in waves",
     ]);
   });

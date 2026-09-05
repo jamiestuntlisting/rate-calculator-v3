@@ -7,19 +7,14 @@ import { useEffect, useState } from "react";
 import { Check, HelpCircle, Loader2, Minus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
-import {
-  FEATURES,
-  PER_G_BREAK_EVEN,
-  PLAN_PRICES,
-  PLANS,
-  findPlan,
-  type PlanId,
-} from "@/lib/membership-plans";
+import { BOOKKEEPER_PLUS_CREDITS, CREDIT_COSTS, FEATURES, PLANS, PLAN_PRICES, findPlan, type PlanId } from "@/lib/membership-plans";
 
 interface MembershipState {
   planId: PlanId;
   transcribedThisMonth: number;
-  monthToDateCharges: number;
+  /** Credits used this month, on the plan with an allowance. */
+  creditsUsed?: number;
+  creditsIncluded?: number | null;
 }
 
 export default function MembershipPage() {
@@ -55,7 +50,7 @@ export default function MembershipPage() {
       setMembership((prev) =>
         prev
           ? { ...prev, planId }
-          : { planId, transcribedThisMonth: 0, monthToDateCharges: 0 }
+          : { planId, transcribedThisMonth: 0, creditsUsed: 0 }
       );
       toast.success(`You're on ${findPlan(planId).name}`);
     } catch {
@@ -156,14 +151,6 @@ export default function MembershipPage() {
                   ${plan.price}/mo, billed yearly at ${plan.yearlyPrice}.
                 </p>
               )}
-              {plan.perGPrice !== undefined && (
-                <p className="text-sm font-medium mt-1">
-                  <Editable
-                    k={`plan.${plan.id}.perG`}
-                    d={`+ $${plan.perGPrice} per Exhibit G`}
-                  />
-                </p>
-              )}
               {plan.priceNote && (
                 <p className="text-xs text-muted-foreground mt-1">
                   <Editable k={`plan.${plan.id}.priceNote`} d={plan.priceNote} />
@@ -193,21 +180,39 @@ export default function MembershipPage() {
         })}
       </div>
 
-      {/* What pay-as-you-go has cost so far this month. */}
+      {/* What the credits buy — the same table for every plan. */}
+      <div className="rounded-xl border border-border p-4 mb-6">
+        <p className="font-medium">What a transcription costs in credits</p>
+        <p className="text-xs text-muted-foreground mt-0.5">
+          Bookkeeper Plus includes {BOOKKEEPER_PLUS_CREDITS} a month; Max is unlimited.
+        </p>
+        <table className="mt-3 w-full text-sm">
+          <tbody>
+            {CREDIT_COSTS.map((c) => (
+              <tr key={c.kind} className="border-t border-border/60">
+                <td className="py-2 pr-3 font-medium">{c.label}</td>
+                <td className="py-2 pr-3 text-muted-foreground">{c.detail}</td>
+                <td className="py-2 text-right tabular-nums whitespace-nowrap">
+                  {c.credits} credit{c.credits === 1 ? "" : "s"}
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+
+      {/* Credits used so far this month, on the plan with an allowance. */}
       {membership?.planId === "plus_per_g" && (
         <div className="rounded-xl border border-border p-4 mb-6 flex flex-wrap items-center justify-between gap-3">
           <div>
             <p className="font-medium">This month</p>
             <p className="text-sm text-muted-foreground">
-              {membership.transcribedThisMonth} Exhibit G
-              {membership.transcribedThisMonth === 1 ? "" : "s"} transcribed ·
-              ${membership.monthToDateCharges} in transcription charges
+              {membership.creditsUsed ?? membership.transcribedThisMonth} of {BOOKKEEPER_PLUS_CREDITS} credits used
             </p>
           </div>
-          {membership.transcribedThisMonth >= PER_G_BREAK_EVEN && (
+          {(membership.creditsUsed ?? membership.transcribedThisMonth) >= BOOKKEEPER_PLUS_CREDITS && (
             <p className="text-sm text-muted-foreground">
-              At {PER_G_BREAK_EVEN}+ Gs a month, Max (${PLAN_PRICES.max}
-              /mo, unlimited) costs less.
+              Out of credits this month — Max (${PLAN_PRICES.max}/mo) is unlimited.
             </p>
           )}
         </div>

@@ -31,7 +31,8 @@ interface Answer {
 function priceLine(planId: PlanId): string {
   const plan = findPlan(planId);
   if (plan.price === 0) return "Free";
-  if (plan.perGPrice) return `$${plan.price}/mo + $${plan.perGPrice} per G`;
+  if (plan.credits === null) return `$${plan.price}/mo · unlimited credits`;
+  if (plan.credits) return `$${plan.price}/mo · ${plan.credits} credits`;
   return `$${plan.price}/mo`;
 }
 

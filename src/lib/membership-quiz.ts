@@ -9,7 +9,7 @@
 
 import type { PlanId } from "@/lib/membership-plans";
 import {
-  BOOKKEEPER_PLUS_CREDITS, PER_G_BREAK_EVEN, PLAN_PRICES } from "@/lib/membership-plans";
+  BOOKKEEPER_PLUS_CREDITS, PLAN_PRICES } from "@/lib/membership-plans";
 
 export type QuizStepId =
   | "favorite"
@@ -125,20 +125,19 @@ export const QUIZ_STEPS: QuizStep[] = [
     id: "volume",
     question: "How many Exhibit Gs do you get in a typical month?",
     note:
-      `Bookkeeper Plus includes ${BOOKKEEPER_PLUS_CREDITS} a month, then ` +
-      `$${PLAN_PRICES.perExhibitG} each; Max ($${PLAN_PRICES.max}) is ` +
-      `unlimited — past ${PER_G_BREAK_EVEN} a month it pays for itself.`,
+      `Bookkeeper Plus includes ${BOOKKEEPER_PLUS_CREDITS} credits a month — a daily is one, ` +
+      `a 3-day four, a weekly seven; Max ($${PLAN_PRICES.max}) is unlimited.`,
     options: [
       {
         value: "few",
-        label: `One to ${PER_G_BREAK_EVEN - 1}`,
-        detail: "Cheaper to pay per G.",
+        label: `Fits in ${BOOKKEEPER_PLUS_CREDITS} credits`,
+        detail: "Up to fifteen dailies, or two weeklies and a daily.",
         next: { plan: "plus_per_g" },
       },
       {
         value: "many",
-        label: `${PER_G_BREAK_EVEN} or more`,
-        detail: "The monthly service costs less from here on.",
+        label: "More than that",
+        detail: "Unlimited credits from here on.",
         next: { plan: "plus_transcription" },
       },
       {
@@ -206,6 +205,6 @@ export function runQuiz(
 export const PLAN_REASONS: Record<PlanId, string> = {
   free: "You are not sold yet, which is fair. Look around — the calculators and the tracker are behind Plus when you want them.",
   plus: "You want the math done but you are happy to type your own Exhibit Gs in. That is Plus, and nothing per-G on top.",
-  plus_per_g: `You want us to read your Gs and a normal month fits inside Bookkeeper Plus\u2019s ${BOOKKEEPER_PLUS_CREDITS} included credits \u2014 anything over is $${PLAN_PRICES.perExhibitG} each.`,
-  plus_transcription: `You get enough Exhibit Gs that counting them is the chore. At ${PER_G_BREAK_EVEN} a month Max\u2019s flat $${PLAN_PRICES.max} is already cheaper, and it never meters you.`,
+  plus_per_g: `You want us to read your Gs and a normal month fits inside Bookkeeper Plus\u2019s ${BOOKKEEPER_PLUS_CREDITS} credits.`,
+  plus_transcription: `You get enough Exhibit Gs that counting credits is the chore. Max\u2019s flat $${PLAN_PRICES.max} is unlimited, and it never meters you.`,
 };
