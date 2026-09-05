@@ -36,6 +36,13 @@ compile costs ~30s and cannot be poisoned. Work happens on
 `claude/rate-calculator-cloudflare-migration-43cdc3` and is fast-forwarded
 into `main`.
 
+**Dashboard variables survive deploys only because `keep_vars` is set**
+in wrangler.jsonc: without it `wrangler deploy` replaces the Worker's
+plain-text variables with the empty set in the config, and a key James
+typed into the dashboard as a text variable (PLAID_CLIENT_ID, one
+evening) vanished on the next push. Secrets always survive; tell James
+to add keys as Secrets anyway.
+
 **Migrations do not run in CI.** Apply schema changes to production
 yourself with the Cloudflare MCP `d1_database_query` tool, and insert the
 filename into `d1_migrations` so the local `wrangler d1 migrations apply`

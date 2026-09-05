@@ -11,6 +11,12 @@
   "main": ".open-next/worker.js",
   "compatibility_date": "2026-07-01",
   "compatibility_flags": ["nodejs_compat"],
+  // Every push to main runs `wrangler deploy`, which by default replaces
+  // the Worker's plain-text variables with the (empty) set in this file —
+  // wiping keys James typed into the dashboard (PLAID_CLIENT_ID went
+  // missing that way). Secrets always survive; with keep_vars, text
+  // variables do too.
+  "keep_vars": true,
   "assets": {
     "binding": "ASSETS",
     "directory": ".open-next/assets"
