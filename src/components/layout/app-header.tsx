@@ -49,7 +49,6 @@ const NAV_SECTIONS: NavSection[] = [
     label: "Income",
     children: [
       { href: "/tracker", label: "Tracker" },
-      { href: "/weekly", label: "Weekly" },
       { href: "/upload-g", label: "Transcribe" },
       { href: "/analytics", label: "Resolve" },
     ],
@@ -128,7 +127,9 @@ export function AppHeader() {
   // Fetch user list when admin opens the user menu or the phone drawer
   useEffect(() => {
     if ((userMenuOpen || mobileOpen) && isAdmin && users.length === 0) {
-      setLoadingUsers(true);
+      // Off the effect's own tick: a synchronous set here re-renders
+      // before the fetch even starts.
+      queueMicrotask(() => setLoadingUsers(true));
       fetch("/api/admin/users")
         .then((r) => r.json())
         .then((data) => {

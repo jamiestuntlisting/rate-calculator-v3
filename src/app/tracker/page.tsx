@@ -179,9 +179,16 @@ export default function TrackerPage() {
           will not shrink below its content unless told to. */}
       <div className="flex items-center justify-between gap-3">
         <h1 className="text-2xl font-bold min-w-0">Tracker</h1>
-        <Button asChild className="shrink-0">
-          <Link href="/">Add Work Day</Link>
-        </Button>
+        <div className="flex shrink-0 gap-2">
+          {/* Weeklies start here now, not from a tab: the wizard asks
+              the deal, then the days, then works the week out. */}
+          <Button asChild variant="outline">
+            <Link href="/weekly">Create a weekly</Link>
+          </Button>
+          <Button asChild>
+            <Link href="/">Add Work Day</Link>
+          </Button>
+        </div>
       </div>
 
       {/* Reminder Banners */}

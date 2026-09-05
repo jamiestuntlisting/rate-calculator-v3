@@ -117,6 +117,13 @@ state stays in step.
   Two files map onto the engine and are the only places those mappings are
   written down: `from-showbiz.ts` for a parsed payroll card, and
   `from-work-records.ts` for the performer's own logged days. `/weekly` is
+  a **wizard** (James: one question at a time): reached from the
+  Tracker's "Create a weekly" button, not a tab (the Weekly tab is
+  gone); with saved weeklies it first asks "new, or continue one?",
+  then Job Details alone (show, contract, week starts, with the
+  overnight-location question on the right at sm+), then the days,
+  then the week worked out — `step` state in `weekly-form.tsx`, and
+  `openWeekly` jumps to the last step. It is
   driven by picking days off the Tracker: `weeks.ts` splits them on week
   boundaries and each week is a separate contract and a separate
   calculation, so a run across three weeks is three of them, never one long

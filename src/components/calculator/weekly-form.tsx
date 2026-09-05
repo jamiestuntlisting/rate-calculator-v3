@@ -51,14 +51,10 @@ import {
 import { turnaroundsFor } from "@/lib/weekly/turnaround";
 import { WEEKLY_GUARANTEES, weekRules } from "@/lib/weekly/rules";
 import type { WorkRecord } from "@/types";
+import { Button } from "@/components/ui/button";
 import { CollapsibleSection } from "@/components/calculator/collapsible-section";
 import { ShowCombobox } from "@/components/shared/show-combobox";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { ExhibitGViewer } from "@/components/shared/exhibit-g-viewer";
 import { PayStubSection } from "@/components/shared/pay-stub-section";
 import type { PayStubLine } from "@/lib/pay-stub";
@@ -130,6 +126,14 @@ export function WeeklyForm() {
    * three days guaranteed, a fourth or fifth prorated on top.
    */
   const [mode, setMode] = useState<"weekly" | "three_day">("weekly");
+  /**
+   * The wizard: 0 asks "new, or continue a saved one?" (only when there
+   * are saved weeklies), 1 is Job Details, 2 is picking the days, 3 is
+   * the week worked out. One question at a time, as James asked.
+   */
+  const [step, setStep] = useState<0 | 1 | 2 | 3>(1);
+  /** The "new or continue?" question is asked once per visit, not on every refetch. */
+  const askedRef = useRef(false);
   const [threeDayRate, setThreeDayRate] = useState(0);
   /** "ws|length" for a schedule figure, or "other" for a typed deal. */
   const [threeDaySel, setThreeDaySel] = useState("other");
@@ -189,7 +193,12 @@ export function WeeklyForm() {
       const res = await fetch("/api/weeklies");
       if (!res.ok) throw new Error();
       const data = await res.json();
-      setWeeklies(data.weeklies ?? []);
+      const list = data.weeklies ?? [];
+      setWeeklies(list);
+      if (list.length > 0 && !askedRef.current) {
+        askedRef.current = true;
+        setStep(0);
+      }
     } catch {
       setWeeklies([]);
     }
@@ -291,6 +300,8 @@ export function WeeklyForm() {
 
   /** Reopen a saved weekly: its deal in the questionnaire, its days picked. */
   const openWeekly = (w: (typeof weeklies)[number]) => {
+    askedRef.current = true;
+    setStep(3);
     setMode(w.kind === "three_day" ? "three_day" : "weekly");
     if (w.kind === "three_day") {
       setThreeDayRate(w.weeklyRate || 0);
@@ -885,10 +896,9 @@ export function WeeklyForm() {
           is created — here, from a day form, or from the tracker — and
           this list is the proof. Tapping one reopens it: its deal fills
           the questionnaire and its days are picked below. */}
-      {weeklies.length > 0 && (
+      {step === 3 && weeklies.length > 0 && (
         <CollapsibleSection
           title="Saved contracts"
-          defaultOpen
           summary={`${weeklies.length} saved`}
         >
           <div className="space-y-1 p-1">
@@ -923,6 +933,44 @@ export function WeeklyForm() {
         </CollapsibleSection>
       )}
 
+      {/* Coming back with weeklies saved: continue one, or start fresh. */}
+      <Dialog open={step === 0} onOpenChange={(open) => { if (!open) setStep(1); }}>
+        <DialogContent className="w-[calc(100vw-2rem)] max-w-md p-4">
+          <DialogHeader>
+            <DialogTitle className="text-base">New weekly, or continue one?</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-1">
+            {weeklies.map((w) => {
+              const days = (records ?? []).filter((r) => r.weeklyId === w._id).length;
+              return (
+                <button
+                  key={w._id}
+                  type="button"
+                  onClick={() => openWeekly(w)}
+                  className="flex w-full items-center justify-between gap-3 rounded-lg border border-border/60 px-3 py-2.5 text-left hover:bg-accent/40"
+                >
+                  <span className="min-w-0">
+                    <span className="block truncate text-sm font-medium">{w.title}</span>
+                    <span className="block text-xs text-muted-foreground">
+                      {w.kind === "three_day" ? "3-day · " : ""}
+                      {weekLabel(w.weekStart)}
+                    </span>
+                  </span>
+                  <span className="flex shrink-0 items-center gap-2 text-xs text-muted-foreground">
+                    {days === 1 ? "1 day" : `${days} days`}
+                    <ChevronRight className="h-4 w-4" />
+                  </span>
+                </button>
+              );
+            })}
+          </div>
+          <DialogFooter>
+            <Button className="w-full" onClick={() => setStep(1)}>Start a new weekly</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {step <= 1 && (<>
       <CollapsibleSection
         title="Job Details"
         defaultOpen
@@ -940,7 +988,7 @@ export function WeeklyForm() {
             .join(" · ") || "Show, contract and rate"
         }
       >
-        <div className="space-y-3 p-1">
+        <div className="grid grid-cols-1 gap-x-6 gap-y-3 p-1 sm:grid-cols-[minmax(0,1fr)_minmax(0,17rem)]">
           <div className="space-y-1">
             <Label htmlFor="weeklyTitle" className="text-base">
               Show Title
@@ -1046,7 +1094,9 @@ export function WeeklyForm() {
             </div>
           )}
 
-          <div className="space-y-2">
+          {/* On the right at sm+: the overnight-location question beside
+              the deal, not under it (James). */}
+          <div className="space-y-2 sm:col-start-2 sm:row-start-1 sm:row-span-6 sm:self-start sm:rounded-md sm:border sm:border-border/60 sm:p-3">
             <div className="flex items-center gap-2">
               <Checkbox
                 id="distantLocation"
@@ -1096,7 +1146,12 @@ export function WeeklyForm() {
           </>)}
         </div>
       </CollapsibleSection>
+      <div className="flex justify-end">
+        <Button onClick={() => setStep(2)}>Next: which days?</Button>
+      </div>
+      </>)}
 
+      {step === 2 && (<>
       <CollapsibleSection
         title="Which days did you work?"
         defaultOpen
@@ -1211,6 +1266,19 @@ export function WeeklyForm() {
           )}
         </div>
       </CollapsibleSection>
+      <div className="flex flex-wrap justify-between gap-2">
+        <Button variant="outline" onClick={() => setStep(1)}>← Job details</Button>
+        <Button onClick={() => setStep(3)} disabled={picked.size === 0}>
+          {mode === "weekly" ? "Next: work the week out" : "Next: work it out"}
+        </Button>
+      </div>
+      </>)}
+
+      {step === 3 && (<>
+      <div className="flex flex-wrap gap-2">
+        <Button variant="outline" size="sm" onClick={() => setStep(1)}>Change the deal</Button>
+        <Button variant="outline" size="sm" onClick={() => setStep(2)}>Change the days</Button>
+      </div>
 
       {mode === "three_day" && threeDay && (
         <div className="rounded-lg border border-border p-4 space-y-3">
@@ -1598,6 +1666,7 @@ export function WeeklyForm() {
           </span>
         </div>
       )}
+      </>)}
     </div>
   );
 }
