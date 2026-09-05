@@ -819,6 +819,8 @@ export default function UploadGPage() {
           uploadId={attaching.upload._id}
           kind={attaching.kind}
           currentRecordId={attaching.upload.workRecordId ?? null}
+          imageSrc={attaching.upload.thumbPath ?? attaching.upload.path}
+          imageIsPdf={attaching.upload.contentType === "application/pdf"}
           onClose={() => setAttaching(null)}
           onDone={() => {
             setAttaching(null);

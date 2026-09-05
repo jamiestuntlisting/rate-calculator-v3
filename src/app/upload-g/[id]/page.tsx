@@ -76,6 +76,8 @@ interface GUpload {
   kind?: UploadKind;
   /** The day the upload opened (g-ingest), which an attachment may leave. */
   workRecordId?: string | null;
+  /** The small copy for lists, once a browser has made one. */
+  thumbPath?: string | null;
   /** Claude may read this card: the owning account is a test user. */
   readable?: boolean;
   /** Claude's reading of the card, for test users (src/lib/g-reader). */
@@ -1823,6 +1825,8 @@ export default function TranscribePage({
               uploadId={upload._id}
               kind={attaching}
               currentRecordId={upload.workRecordId ?? null}
+              imageSrc={displaySrc ?? upload.thumbPath ?? upload.path}
+              imageIsPdf={upload.contentType === "application/pdf"}
               onClose={() => setAttaching(null)}
               onDone={(workRecordId) => {
                 setAttaching(null);

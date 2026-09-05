@@ -468,6 +468,9 @@ export default function AdminTranscribePage() {
           uploadId={attaching.item._id}
           kind={attaching.kind}
           currentRecordId={attaching.item.workRecordId ?? null}
+          imageSrc={attaching.item.thumbPath ?? attaching.item.path ?? null}
+          imageIsPdf={attaching.item.contentType === "application/pdf"}
+          recordUrl={null}
           daysUrl={`/api/admin/users/${attaching.item.userId}/work-records`}
           patchUrl={`/api/admin/g-uploads/${attaching.item._id}`}
           onClose={() => setAttaching(null)}
