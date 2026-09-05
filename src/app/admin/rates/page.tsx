@@ -1,5 +1,7 @@
 "use client";
 
+import { useEffect, useRef } from "react";
+
 import Link from "next/link";
 import {
   Card,
@@ -50,6 +52,23 @@ const ROWS: Array<{
  */
 export default function AdminRatesPage() {
   const { user } = useAuth();
+  /** The schedule in force today — the column the table opens on. */
+  const currentFrom = (() => {
+    const today = new Date().toISOString().slice(0, 10);
+    const inForce = RATE_SCHEDULES.filter((sch) => sch.effectiveFrom <= today);
+    return (inForce.length ? inForce[inForce.length - 1] : RATE_SCHEDULES[RATE_SCHEDULES.length - 1]).effectiveFrom;
+  })();
+  const scrollRef = useRef<HTMLDivElement>(null);
+  const currentRef = useRef<HTMLTableCellElement>(null);
+  useEffect(() => {
+    const box = scrollRef.current;
+    const col = currentRef.current;
+    if (!box || !col) return;
+    // Park the current column just right of the pinned label column.
+    const label = box.querySelector("th");
+    const labelWidth = label ? label.getBoundingClientRect().width : 0;
+    box.scrollLeft = Math.max(0, col.offsetLeft - labelWidth);
+  });
   if (!user || !(user.role === "admin" || isAdminEmail(user.email))) {
     return (
       <div className="max-w-3xl mx-auto px-4 py-10 text-sm text-muted-foreground">
@@ -80,13 +99,23 @@ export default function AdminRatesPage() {
           </CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="overflow-x-auto">
+          {/* The label column is pinned so a row's name stays in view
+              while the years scroll, and the table opens scrolled to
+              the schedule in force today (highlighted) rather than to
+              2014 at the far left. */}
+          <div className="overflow-x-auto" ref={scrollRef}>
             <table className="min-w-max text-sm">
               <thead>
                 <tr className="text-left text-[11px] uppercase tracking-wide text-muted-foreground border-b border-border">
-                  <th className="py-2 pr-4 font-medium">Rate</th>
+                  <th className="sticky left-0 z-10 bg-card py-2 pr-4 font-medium">Rate</th>
                   {RATE_SCHEDULES.map((s) => (
-                    <th key={s.effectiveFrom} className="py-2 px-3 font-medium">
+                    <th
+                      key={s.effectiveFrom}
+                      ref={s.effectiveFrom === currentFrom ? currentRef : undefined}
+                      className={`py-2 px-3 font-medium ${
+                        s.effectiveFrom === currentFrom ? "bg-primary/10 text-foreground" : ""
+                      }`}
+                    >
                       <span className="block">
                         From {fromLabel(s.effectiveFrom)}
                       </span>
@@ -112,11 +141,18 @@ export default function AdminRatesPage() {
               <tbody>
                 {ROWS.map((row) => (
                   <tr key={row.label} className="border-b border-border/40">
-                    <td className="py-2 pr-4">{row.label}</td>
+                    <td className="sticky left-0 z-10 bg-card py-2 pr-4">
+                      {/* Capped on a phone so the years still have room beside it. */}
+                      <div className="max-w-[40vw] truncate sm:max-w-none" title={row.label}>
+                        {row.label}
+                      </div>
+                    </td>
                     {RATE_SCHEDULES.map((s) => (
                       <td
                         key={s.effectiveFrom}
-                        className="py-2 px-3 tabular-nums"
+                        className={`py-2 px-3 tabular-nums ${
+                          s.effectiveFrom === currentFrom ? "bg-primary/10" : ""
+                        }`}
                       >
                         {fmt(row.cell(s.cells))}
                       </td>

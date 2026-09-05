@@ -20,7 +20,6 @@ const GROUPS: Array<{ title: string; items: Array<{ href: string; label: string 
       { href: "/admin/tasks", label: "Tasks" },
       { href: "/admin/members", label: "Members" },
       { href: "/admin/names", label: "Names" },
-      { href: "/admin/upcoming", label: "Upcoming" },
     ],
   },
   {

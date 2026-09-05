@@ -302,9 +302,13 @@ state stays in step.
   the exact match (~6 engine runs a shape, ~15k in all). **Adjustments
   come in $100 intervals** (James): a check that needs $245 to land is
   a near miss with its gap, never a match. A $50 grid to $1,000 missed
-  a plain day with $1,100 — James's check — which is why it is solved. Near misses are always reported, closest
-  first, however far; `commonPayments` is the whole-hours grid the page
-  shows under the results with the check's nearest cell marked.
+  a plain day with $1,100 — James's check — which is why it is solved.
+  The page is a table for admins — rate, call→lunch, lunch, lunch→wrap
+  (split at a second meal), worked, adjustment, penalties (count · $),
+  total, gap on near misses; the "obvious checks" list and the
+  whole-hours grid are gone (James: less prose, $250 is not an
+  adjustment). Near misses are always reported, closest
+  first, however far.
 - **Non-SAG work** — commercials, music videos, low budget and anything
   else go through `/other-work`, and carry the same times as a SAG day:
   call, both meals, dismissal and wrap. They are deliberately **not** run

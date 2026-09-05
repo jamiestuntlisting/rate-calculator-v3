@@ -2,7 +2,6 @@ import { describe, expect, it } from "vitest";
 import { calculateRate } from "@/lib/rate-engine";
 import { ratesForDate } from "@/lib/rate-constants";
 import {
-  commonPayments,
   reverseDaily,
   searchedRates,
   REVERSE_DEFAULTS,
@@ -159,15 +158,6 @@ describe("reverseDaily", () => {
     expect(richer.grandTotal - base.grandTotal).toBeGreaterThan(100);
   });
 
-  it("names the obvious shapes with their engine totals at the current rate", () => {
-    const result = reverseDaily(5000, STATUS, { today: TODAY });
-    expect(result.obvious.length).toBeGreaterThanOrEqual(3);
-    const plain = result.obvious[0];
-    const plainEngine = priced(8.5, 0).grandTotal;
-    expect(plain.total).toBeCloseTo(plainEngine, 2);
-    expect(plain.diff).toBeCloseTo(plain.total - 5000, 2);
-  });
-
   it("near misses come back closest first, with a signed difference, however far", () => {
     const seeded = priced(11.2, 200);
     // $37 short of the real day: no exact match, the real shape nearby.
@@ -194,21 +184,5 @@ describe("reverseDaily", () => {
     // And no story describes a day under eight worked hours: lunch is
     // not work time, and a shorter day is paid as eight.
     for (const c of [...result.exact, ...result.close]) expect(c.workedHours).toBeGreaterThanOrEqual(8);
-  });
-});
-
-describe("commonPayments", () => {
-  it("is the engine's own grid of whole-hour days, and points at the nearest cell", () => {
-    const [rate] = searchedRates(STATUS, TODAY);
-    const twelve = priced(12.5, 100).grandTotal;
-    const grid = commonPayments(rate, STATUS, twelve + 3);
-    expect(grid.rows.map((r) => r.workedHours)).toEqual([8, 9, 10, 11, 12, 13, 14, 15, 16]);
-    const row12 = grid.rows.find((r) => r.workedHours === 12)!;
-    expect(row12.totals[grid.adjustments.indexOf(100)]).toBeCloseTo(twelve, 2);
-    expect(grid.nearest).toEqual({ workedHours: 12, adjustment: 100, total: row12.totals[1] });
-    // Past twelve hours the day took its second meal, so no penalties.
-    const fourteen = priced(15, 0, { secondMeal: true }).grandTotal;
-    const row14 = grid.rows.find((r) => r.workedHours === 14)!;
-    expect(row14.totals[0]).toBeCloseTo(fourteen, 2);
   });
 });

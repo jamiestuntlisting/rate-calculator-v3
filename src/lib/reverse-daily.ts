@@ -135,6 +135,8 @@ export interface ReverseCandidate {
   adjustment: number;
   secondMeal: boolean;
   penalties: number;
+  /** How many meal penalties (half hours late) the total carries. */
+  penaltyCount: number;
   dismissTime: string;
   /** Lunch, as the shape took it. */
   lunchStart: string;
@@ -150,23 +152,6 @@ export interface ReverseCandidate {
   baseDaily: number;
 }
 
-export interface ObviousCheck {
-  label: string;
-  total: number;
-  diff: number;
-}
-
-/** A grid of the payments a normal day produces at one rate. */
-export interface CommonPayments {
-  rate: SearchedRate;
-  /** Column headings: stunt adjustments. */
-  adjustments: number[];
-  /** One row per whole hour worked; cells follow `adjustments`. */
-  rows: Array<{ workedHours: number; totals: number[] }>;
-  /** The cell nearest the check, or null with no check. */
-  nearest: { workedHours: number; adjustment: number; total: number } | null;
-}
-
 export interface ReverseResult {
   target: number;
   /** The schedules searched, newest first. */
@@ -175,10 +160,6 @@ export interface ReverseResult {
   exact: ReverseCandidate[];
   /** The nearest misses, closest first — always some, however far. */
   close: ReverseCandidate[];
-  /** The shapes to rule out before anything clever, at the current rate. */
-  obvious: ObviousCheck[];
-  /** The common-payments grid for each rate searched. */
-  common: CommonPayments[];
 }
 
 interface Shape {
@@ -251,6 +232,7 @@ function priceShape(
       adjustment: shape.adjustment,
       secondMeal: shape.secondMeal,
       penalties: round2(calculation.penalties?.totalPenalties ?? 0),
+      penaltyCount: calculation.penalties?.mealPenalties?.length ?? 0,
       dismissTime: input.dismissOnSet,
       lunchStart: input.firstMealStart!,
       lunchFinish: input.firstMealFinish!,
@@ -318,46 +300,6 @@ function solveShape(
 const storyKey = (c: ReverseCandidate) =>
   [c.total, c.adjustment, c.penalties, c.secondMeal, c.rateDate].join("|");
 
-/**
- * The common payments at one rate: whole hours worked against a few
- * usual adjustments, meals on time (a second meal taken once the day
- * runs past twelve worked hours), no penalties. The finite table of
- * what a normal day pays — most checks are on it somewhere.
- */
-export function commonPayments(
-  rate: SearchedRate,
-  workStatus: string,
-  target: number | null
-): CommonPayments {
-  const adjustments = [0, 100, 250, 500];
-  const rows: CommonPayments["rows"] = [];
-  let nearest: CommonPayments["nearest"] = null;
-  for (let worked = 8; worked <= 16; worked++) {
-    const secondMeal = worked > 12;
-    const spanHours = worked + MEAL_HOURS + (secondMeal ? MEAL_HOURS : 0);
-    const totals: number[] = [];
-    for (const adjustment of adjustments) {
-      const shape = priceShape(
-        rate,
-        workStatus,
-        { spanHours, adjustment, lunchLateHours: 0, secondMeal },
-        target ?? 0
-      );
-      const total = shape ? shape.total : NaN;
-      totals.push(total);
-      if (
-        target !== null &&
-        shape &&
-        (!nearest || Math.abs(total - target) < Math.abs(nearest.total - target))
-      ) {
-        nearest = { workedHours: worked, adjustment, total };
-      }
-    }
-    rows.push({ workedHours: worked, totals });
-  }
-  return { rate, adjustments, rows, nearest };
-}
-
 export function reverseDaily(
   target: number,
   workStatus: string,
@@ -415,30 +357,5 @@ export function reverseDaily(
     if (close.length >= CLOSE_COUNT) break;
   }
 
-  // The obvious shapes first, at the current rate — rule these out
-  // before anything clever.
-  const current = rates[0];
-  const obvious: ObviousCheck[] = [];
-  const addObvious = (label: string, spanHours: number, adjustment: number) => {
-    const shape = priceShape(
-      current,
-      workStatus,
-      { spanHours, adjustment, lunchLateHours: 0, secondMeal: false },
-      target
-    );
-    if (shape) obvious.push({ label, total: shape.total, diff: shape.diff });
-  };
-  // 8.5h span = exactly 8 worked with the half-hour lunch out.
-  addObvious("A plain 8-hour day at scale — no adjustment, no penalties", 8.5, 0);
-  addObvious("The same 8-hour day with a $100 stunt adjustment", 8.5, 100);
-  addObvious(
-    "The starting-point day: 6h to lunch, half-hour lunch, 6h to wrap, $100 adjustment",
-    12.5,
-    REVERSE_DEFAULTS.defaultAdjustment
-  );
-  addObvious("That same 12-hour day with no stunt adjustment", 12.5, 0);
-
-  const common = rates.map((rate) => commonPayments(rate, workStatus, target));
-
-  return { target: round2(target), rates, exact, close, obvious, common };
+  return { target: round2(target), rates, exact, close };
 }

@@ -2,12 +2,7 @@
 
 import { useMemo, useState } from "react";
 import Link from "next/link";
-import {
-  Card,
-  CardContent,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -25,130 +20,122 @@ import { formatCurrency } from "@/lib/time-utils";
 import { toDisplay } from "@/components/calculator/time-select";
 import {
   reverseDaily,
-  type CommonPayments,
   type ReverseCandidate,
   type ReverseResult,
   type SearchedRate,
 } from "@/lib/reverse-daily";
 
 /**
- * The reverse calculator: paste in what a check paid, and the search
- * runs normal day shapes through the real engine until some of them land
- * on that figure — the fastest way to see how a rate was probably worked
- * out, and therefore where it was worked out wrong. No date is asked:
- * every rate in force in the last two years is searched, and a match
- * names its rate.
+ * The reverse calculator, for admins: what a check paid, worked back to
+ * the day. Each story is a row — the stretches of the day, the
+ * adjustment, the penalties, the rate — so the whole picture is read
+ * across one line; near misses carry their gap.
  */
 
 const fromLabel = (ymd: string) => {
   const [y, m, d] = ymd.split("-").map(Number);
   return new Date(Date.UTC(y, m - 1, d)).toLocaleDateString("en-US", {
     month: "short",
-    day: "numeric",
     year: "numeric",
     timeZone: "UTC",
   });
 };
 
-const rateLabel = (rate: SearchedRate) =>
-  `${dayRate(rate.daily)} from ${fromLabel(rate.effectiveFrom)}`;
+const rateLabel = (rate: SearchedRate) => `${dayRate(rate.daily)} ${fromLabel(rate.effectiveFrom)}`;
 
-/** Whole dollars where the figure has none — the grid is dense. */
-const gridMoney = (n: number) =>
-  Number.isFinite(n)
-    ? `$${n.toLocaleString("en-US", {
-        minimumFractionDigits: Math.round(n * 100) % 100 === 0 ? 0 : 2,
-        maximumFractionDigits: 2,
-      })}`
-    : "—";
+/** "6h", "6.5h", "1.2h". */
+const hours = (h: number) => `${Number(h.toFixed(1))}h`;
 
-/** One candidate day, told as a sentence. */
-function shapeStory(candidate: ReverseCandidate): string {
-  const pieces = [
-    `${candidate.workedHours}h worked`,
-    `call 6:00 AM`,
-    `lunch ${toDisplay(candidate.lunchStart)}–${toDisplay(candidate.lunchFinish)}${
-      candidate.lunchLateHours
-        ? ` (${candidate.lunchLateHours}h late)`
-        : ""
-    }`,
-  ];
-  if (candidate.secondMeal && candidate.secondMealStart && candidate.secondMealFinish) {
-    pieces.push(
-      `2nd meal ${toDisplay(candidate.secondMealStart)}–${toDisplay(candidate.secondMealFinish)}`
-    );
-  }
-  pieces.push(`dismissed ${toDisplay(candidate.dismissTime)}`);
-  pieces.push(
-    candidate.adjustment
-      ? `$${candidate.adjustment} stunt adjustment`
-      : "no stunt adjustment"
-  );
-  pieces.push(
-    candidate.penalties
-      ? `${formatCurrency(candidate.penalties)} meal penalties`
-      : "no meal penalties"
-  );
-  pieces.push(`at the ${dayRate(candidate.baseDaily)} rate (${fromLabel(candidate.rateDate)})`);
-  return pieces.join(", ");
+/** The half-hour meal, as the search takes it. */
+const MEAL_HOURS = 0.5;
+/** Lunch is due six hours after call. */
+const LUNCH_DUE_HOURS = 6;
+
+/**
+ * The stretches of a candidate day: call to lunch, then lunch to wrap —
+ * split around the second meal when the day took one.
+ */
+function stretches(c: ReverseCandidate) {
+  const toLunch = LUNCH_DUE_HOURS + c.lunchLateHours;
+  const afterLunch = c.spanHours - toLunch - MEAL_HOURS;
+  if (!c.secondMeal) return { toLunch, afterLunch, toWrap: null as number | null };
+  // The second meal is taken six hours after lunch ends.
+  const toSecond = 6;
+  return { toLunch, afterLunch: toSecond, toWrap: afterLunch - toSecond - MEAL_HOURS };
 }
 
-function CommonGrid({ grid, target }: { grid: CommonPayments; target: number }) {
+const gap = (diff: number) =>
+  Math.abs(diff) < 0.005
+    ? "exact"
+    : `${diff > 0 ? "+" : "−"}${formatCurrency(Math.abs(diff))}`;
+
+function StoryTable({ rows, withGap }: { rows: ReverseCandidate[]; withGap: boolean }) {
   return (
-    <div className="space-y-1">
-      <p className="text-sm font-medium">{rateLabel(grid.rate)}</p>
-      <div className="overflow-x-auto">
-        {/* Five columns fit a 390px phone at the small size; the wrapper
-            scrolls sideways rather than the page if a figure runs long. */}
-        <table className="min-w-full text-xs sm:text-sm tabular-nums">
-          <thead>
-            <tr className="text-left text-[10px] sm:text-[11px] uppercase tracking-wide text-muted-foreground border-b border-border">
-              <th className="py-1 pr-2 font-medium">Worked</th>
-              {grid.adjustments.map((adj, i) => (
-                <th
-                  key={adj}
-                  className={`py-1 px-1.5 sm:px-2 text-right font-medium whitespace-nowrap${
-                    i === grid.adjustments.length - 1 ? " hidden sm:table-cell" : ""
-                  }`}
-                >
-                  {adj ? `+$${adj}` : "scale"}
-                </th>
-              ))}
-            </tr>
-          </thead>
-          <tbody>
-            {grid.rows.map((row) => (
-              <tr key={row.workedHours} className="border-b border-border/30">
-                <td className="py-1 pr-2 text-muted-foreground">{row.workedHours}h</td>
-                {row.totals.map((total, i) => {
-                  const exact = Math.abs(total - target) < 0.005;
-                  const nearest =
-                    grid.nearest &&
-                    grid.nearest.workedHours === row.workedHours &&
-                    grid.nearest.adjustment === grid.adjustments[i];
-                  return (
-                    <td
-                      key={grid.adjustments[i]}
-                      // The widest adjustment column waits for a wider screen.
-                      className={`py-1 px-1.5 sm:px-2 text-right whitespace-nowrap ${
-                        i === row.totals.length - 1 ? "hidden sm:table-cell " : ""
-                      }${
-                        exact
-                          ? "rounded bg-green-900/40 font-semibold text-green-300"
-                          : nearest
-                            ? "rounded bg-amber-900/30 font-medium text-amber-200"
-                            : ""
-                      }`}
-                    >
-                      {gridMoney(total)}
-                    </td>
-                  );
-                })}
+    <div className="overflow-x-auto -mx-4 px-4 sm:mx-0 sm:px-0">
+      <table className="w-full text-sm tabular-nums">
+        <thead>
+          <tr className="border-b border-border text-left text-xs uppercase tracking-wide text-muted-foreground">
+            <th className="py-2 pr-3 font-medium">Rate</th>
+            <th className="py-2 pr-3 font-medium">Call→lunch</th>
+            <th className="py-2 pr-3 font-medium">Lunch</th>
+            <th className="py-2 pr-3 font-medium">Lunch→wrap</th>
+            <th className="py-2 pr-3 font-medium text-right">Worked</th>
+            <th className="py-2 pr-3 font-medium text-right">Adjust.</th>
+            <th className="py-2 pr-3 font-medium text-right">Penalties</th>
+            <th className="py-2 pr-3 font-medium text-right">Total</th>
+            {withGap && <th className="py-2 font-medium text-right">Gap</th>}
+          </tr>
+        </thead>
+        <tbody>
+          {rows.map((c, i) => {
+            const s = stretches(c);
+            return (
+              <tr
+                key={`${c.rateDate}-${c.dismissTime}-${c.adjustment}-${c.secondMeal}-${i}`}
+                className="border-b border-border/40"
+              >
+                <td className="py-2 pr-3 whitespace-nowrap">{dayRate(c.baseDaily)} · {fromLabel(c.rateDate)}</td>
+                <td className="py-2 pr-3 whitespace-nowrap">
+                  {hours(s.toLunch)}
+                  {c.lunchLateHours ? (
+                    <span className="text-amber-300"> ({hours(c.lunchLateHours)} late)</span>
+                  ) : null}
+                </td>
+                <td className="py-2 pr-3 whitespace-nowrap">
+                  {toDisplay(c.lunchStart)}–{toDisplay(c.lunchFinish)}
+                </td>
+                <td className="py-2 pr-3 whitespace-nowrap">
+                  {s.toWrap === null ? (
+                    hours(s.afterLunch)
+                  ) : (
+                    <>
+                      {hours(s.afterLunch)} · 2nd meal · {hours(s.toWrap)}
+                    </>
+                  )}
+                  <span className="text-muted-foreground"> → {toDisplay(c.dismissTime)}</span>
+                </td>
+                <td className="py-2 pr-3 text-right whitespace-nowrap">{hours(c.workedHours)}</td>
+                <td className="py-2 pr-3 text-right whitespace-nowrap">
+                  {c.adjustment ? `$${c.adjustment.toLocaleString("en-US")}` : "—"}
+                </td>
+                <td className="py-2 pr-3 text-right whitespace-nowrap">
+                  {c.penaltyCount ? `${c.penaltyCount} · ${formatCurrency(c.penalties)}` : "—"}
+                </td>
+                <td className="py-2 pr-3 text-right whitespace-nowrap font-medium">{formatCurrency(c.total)}</td>
+                {withGap && (
+                  <td
+                    className={`py-2 text-right whitespace-nowrap ${
+                      c.diff > 0 ? "text-blue-300" : "text-amber-300"
+                    }`}
+                  >
+                    {gap(c.diff)}
+                  </td>
+                )}
               </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
+            );
+          })}
+        </tbody>
+      </table>
     </div>
   );
 }
@@ -187,19 +174,12 @@ export default function AdminReversePage() {
   };
 
   return (
-    <div className="max-w-3xl mx-auto space-y-6 px-4">
+    <div className="max-w-4xl mx-auto space-y-6 px-4">
       <div>
         <h1 className="text-2xl font-bold">Reverse calculator</h1>
         <p className="text-sm text-muted-foreground">
-          Start from what a check paid and work backwards to the day. The
-          search runs normal dailies through the engine at every rate in
-          force in the last two years — call at 6:00 AM, lunch six hours in
-          or late by each half hour up to two, the day running eight to
-          sixteen hours in six-minute steps, with and without a second meal —
-          solves the stunt adjustment that would land each day on the number
-          (any whole-dollar amount, not a grid) — and reports the
-          shapes that land on the number, or the closest ones when nothing
-          does.
+          What a check paid, worked back to the day. Call 6:00 AM; every rate of
+          the last two years; adjustments in $100s.
         </p>
       </div>
 
@@ -243,19 +223,12 @@ export default function AdminReversePage() {
                 </SelectTrigger>
                 <SelectContent>
                   {agreements.map((agreement) => (
-                    <SelectItem
-                      key={agreement.id}
-                      value={agreement.id}
-                      className="text-base"
-                    >
+                    <SelectItem key={agreement.id} value={agreement.id} className="text-base">
                       {agreementLabel(agreement.id)}
                     </SelectItem>
                   ))}
                 </SelectContent>
               </Select>
-              <p className="text-xs text-muted-foreground">
-                Today&rsquo;s rate; every rate of the last two years is searched.
-              </p>
             </div>
           </div>
           <Button onClick={run} className="w-full sm:w-auto">
@@ -269,134 +242,36 @@ export default function AdminReversePage() {
           <Card>
             <CardHeader>
               <CardTitle className="text-lg">
-                The obvious checks first
+                {result.exact.length
+                  ? `Lands on ${formatCurrency(result.target)}`
+                  : `Nothing lands on ${formatCurrency(result.target)}`}
               </CardTitle>
               <p className="text-xs text-muted-foreground">
-                At the current rate, {rateLabel(result.rates[0])}. Rates
-                searched:{" "}
-                {result.rates.map((r) => rateLabel(r)).join("; ")}.
+                Rates searched: {result.rates.map(rateLabel).join(" · ")}.
               </p>
             </CardHeader>
-            <CardContent className="space-y-2">
-              {result.obvious.map((check) => (
-                <div
-                  key={check.label}
-                  className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-0.5 border-b border-border/30 pb-2 text-sm"
-                >
-                  {/* The sentence takes the whole line on a phone and the
-                      money sits under it; side by side once there is room. */}
-                  <span className="basis-full sm:basis-auto sm:min-w-0 sm:flex-1">
-                    {check.label}
-                  </span>
-                  <span className="tabular-nums font-medium">
-                    {formatCurrency(check.total)}
-                  </span>
-                  <span
-                    className={`w-28 text-right tabular-nums text-xs ${
-                      Math.abs(check.diff) < 0.005
-                        ? "text-green-400"
-                        : "text-muted-foreground"
-                    }`}
-                  >
-                    {Math.abs(check.diff) < 0.005
-                      ? "the check exactly"
-                      : check.diff > 0
-                        ? `${formatCurrency(check.diff)} over`
-                        : `${formatCurrency(-check.diff)} under`}
-                  </span>
-                </div>
-              ))}
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-lg">
-                {result.exact.length
-                  ? `Days that pay ${formatCurrency(result.target)} exactly`
-                  : `Nothing lands on ${formatCurrency(result.target)} exactly`}
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-2">
-              {result.exact.length === 0 && (
+            <CardContent>
+              {result.exact.length ? (
+                <StoryTable rows={result.exact} withGap={false} />
+              ) : (
                 <p className="text-sm text-muted-foreground">
-                  No normal day shape at any of the rates searched produces
-                  that figure to the cent — the near misses below say how far
-                  off the closest ones are, and the gap itself is often the
-                  finding (a missing adjustment, a penalty paid or skipped, a
-                  day paid at last year&rsquo;s rate).
+                  No normal day at any of these rates pays that to the cent. The
+                  nearest ones are below with their gap.
                 </p>
               )}
-              {result.exact.map((candidate, i) => (
-                <div
-                  key={`${candidate.rateDate}-${candidate.dismissTime}-${candidate.adjustment}-${i}`}
-                  className="rounded-lg border border-green-700/50 bg-green-900/20 p-3 text-sm"
-                >
-                  <p className="font-medium text-green-300">
-                    {formatCurrency(candidate.total)} — the check exactly
-                  </p>
-                  <p className="text-muted-foreground">{shapeStory(candidate)}</p>
-                  {candidate.workedHours <= 8 && (
-                    <p className="mt-1 text-xs text-muted-foreground">
-                      Any day up to eight worked hours pays this same
-                      guarantee minimum, so the hours here are one example.
-                    </p>
-                  )}
-                </div>
-              ))}
             </CardContent>
           </Card>
 
           {result.close.length > 0 && (
             <Card>
               <CardHeader>
-                <CardTitle className="text-lg">
-                  {result.exact.length ? "Near misses" : "The closest days"}
-                </CardTitle>
+                <CardTitle className="text-lg">Near misses</CardTitle>
               </CardHeader>
-              <CardContent className="space-y-2">
-                {result.close.map((candidate, i) => (
-                  <div
-                    key={`${candidate.rateDate}-${candidate.dismissTime}-${candidate.adjustment}-${candidate.secondMeal}-${i}`}
-                    className="rounded-lg border border-border p-3 text-sm"
-                  >
-                    <p className="font-medium">
-                      {formatCurrency(candidate.total)}{" "}
-                      <span
-                        className={
-                          candidate.diff > 0 ? "text-blue-300" : "text-amber-300"
-                        }
-                      >
-                        — {formatCurrency(Math.abs(candidate.diff))}{" "}
-                        {candidate.diff > 0 ? "more than" : "less than"} the
-                        check
-                      </span>
-                    </p>
-                    <p className="text-muted-foreground">
-                      {shapeStory(candidate)}
-                    </p>
-                  </div>
-                ))}
+              <CardContent>
+                <StoryTable rows={result.close} withGap />
               </CardContent>
             </Card>
           )}
-
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-lg">What a normal day pays</CardTitle>
-              <p className="text-xs text-muted-foreground">
-                The finite table most checks are on somewhere: whole hours
-                worked, meals on time, no penalties, the usual stunt
-                adjustments across the top. Green is the check exactly;
-                amber is the nearest cell at that rate.
-              </p>
-            </CardHeader>
-            <CardContent className="space-y-5">
-              {result.common.map((grid) => (
-                <CommonGrid key={grid.rate.effectiveFrom} grid={grid} target={result.target} />
-              ))}
-            </CardContent>
-          </Card>
         </>
       )}
     </div>
