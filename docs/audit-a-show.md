@@ -1,5 +1,9 @@
 # Audit a show — the outline
 
+**Status (09/2026):** built as a stepped flow at `/admin/audits` with real
+details, uploads and transcription, and placeholders for pricing,
+matching and the package (a sample PDF). See CLAUDE.md for the pieces.
+
 An uncommon service, for when a production has not paid correctly: take
 every Exhibit G from a run, transcribe every performer's row, price what
 each of them should have been paid, and set that against what they were

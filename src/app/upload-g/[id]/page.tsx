@@ -208,6 +208,16 @@ export default function TranscribePage({
 
   const [upload, setUpload] = useState<GUpload | null>(null);
   const [reclassifying, setReclassifying] = useState(false);
+  /**
+   * Where the back arrow goes: the pile, unless the page was opened
+   * with ?back= (an audit's card returns to its audit). Read after
+   * mount; the server render has no query string to disagree with.
+   */
+  const [backHref, setBackHref] = useState("/upload-g");
+  useEffect(() => {
+    const back = new URLSearchParams(window.location.search).get("back");
+    if (back && back.startsWith("/")) setBackHref(back);
+  }, []);
   /** The kind being chosen while the "which day?" dialog is up. */
   const [attaching, setAttaching] = useState<UploadKind | null>(null);
   /**
@@ -807,7 +817,7 @@ export default function TranscribePage({
         }
         if (done === true) {
           toast.success("Done — transcribed");
-          router.push("/upload-g");
+          router.push(backHref);
         } else if (done === false) {
           setDoneAt(null);
           toast.success("Reopened — save again when it's right");
@@ -822,7 +832,7 @@ export default function TranscribePage({
         setSaving(false);
       }
     },
-    [id, row, details, zoom, lockedY, performerName, paneEl, router]
+    [id, row, details, zoom, lockedY, performerName, paneEl, router, backHref]
   );
 
   const rotate = async () => {
@@ -1859,7 +1869,7 @@ export default function TranscribePage({
           <div className="flex flex-wrap items-center justify-between gap-3">
             <div className="flex items-center gap-2 min-w-0">
               <Link
-                href="/upload-g"
+                href={backHref}
                 className="p-2 rounded hover:bg-accent shrink-0"
                 aria-label="Back to uploads"
               >

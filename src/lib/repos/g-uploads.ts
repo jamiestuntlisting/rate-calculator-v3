@@ -20,6 +20,8 @@ export interface GUploadRow {
   kind: string;
   /** R2 key of the small copy for lists (thumbs/<filename>); NULL until made. */
   thumbnail: string | null;
+  /** The audit this card belongs to (migration 0032); NULL for a member's own pile. */
+  auditId: string | null;
   createdAt: string;
   updatedAt: string;
 }
@@ -38,6 +40,11 @@ export function thumbnailKey(filename: string): string {
   return `thumbs/${filename}`;
 }
 
+/** The row as the app sees it (exported for the audits repo). */
+export function toGUpload(row: GUploadRow): GUpload {
+  return toDoc(row);
+}
+
 function toDoc(row: GUploadRow): GUpload {
   return {
     ...row,
@@ -45,6 +52,7 @@ function toDoc(row: GUploadRow): GUpload {
     path: `/api/uploads/${row.filename}`,
     thumbPath: row.thumbnail ? `/api/uploads/${row.filename}?thumb=1` : null,
     thumbnail: row.thumbnail ?? null,
+    auditId: row.auditId ?? null,
     transcription: row.transcription ? JSON.parse(row.transcription) : null,
     transcriptionRequested: row.transcriptionRequested ?? 0,
     kind: row.kind || "exhibit_g",
@@ -55,7 +63,7 @@ export async function listGUploads(userId: string): Promise<GUpload[]> {
   const db = await getDb();
   const { results } = await db
     .prepare(
-      "SELECT * FROM g_uploads WHERE userId = ?1 ORDER BY createdAt DESC"
+      "SELECT * FROM g_uploads WHERE userId = ?1 AND auditId IS NULL ORDER BY createdAt DESC"
     )
     .bind(userId)
     .all<GUploadRow>();
@@ -73,7 +81,7 @@ export async function listTranscriptionQueue(): Promise<
   const db = await getDb();
   const { results } = await db
     .prepare(
-      `SELECT * FROM g_uploads WHERE transcribedAt IS NULL AND kind = 'exhibit_g'
+      `SELECT * FROM g_uploads WHERE transcribedAt IS NULL AND kind = 'exhibit_g' AND auditId IS NULL
        ORDER BY transcriptionRequested DESC, createdAt ASC LIMIT 100`
     )
     .all<GUploadRow>();
@@ -116,6 +124,8 @@ export interface CreateGUploadInput {
   workRecordId?: string | null;
   /** exhibit_g (default) | call_sheet | other. */
   kind?: string;
+  /** The audit the card belongs to; none for a member's own pile. */
+  auditId?: string | null;
 }
 
 export async function createGUpload(
@@ -126,8 +136,8 @@ export async function createGUpload(
   const row = await db
     .prepare(
       `INSERT INTO g_uploads
-        (_id, userId, title, filename, originalName, contentType, size, sha256, rotation, transcription, workRecordId, kind, createdAt, updatedAt)
-       VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, 0, NULL, ?9, ?10, ?11, ?11)
+        (_id, userId, title, filename, originalName, contentType, size, sha256, rotation, transcription, workRecordId, kind, auditId, createdAt, updatedAt)
+       VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, 0, NULL, ?9, ?10, ?11, ?12, ?12)
        RETURNING *`
     )
     .bind(
@@ -141,6 +151,7 @@ export async function createGUpload(
       input.sha256,
       input.workRecordId ?? null,
       input.kind ?? "exhibit_g",
+      input.auditId ?? null,
       now
     )
     .first<GUploadRow>();

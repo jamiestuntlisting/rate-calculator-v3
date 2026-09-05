@@ -82,7 +82,13 @@ export async function ingestGUploads(
   userId: string,
   files: IngestFile[],
   /** A note on where the G came from, kept on the day (see originNote). */
-  origin?: string
+  origin?: string,
+  /**
+   * The audit the cards belong to. An audit's cards are the audit's,
+   * not the member's: no work day opens for them, Claude does not read
+   * them as they land, and they never join the pile or the queue.
+   */
+  options: { auditId?: string | null } = {}
 ): Promise<IngestResult> {
   const bucket = await getUploadsBucket();
   const created: GUpload[] = [];
@@ -131,6 +137,23 @@ export async function ingestGUploads(
     // Several arriving together share that date, so each carries a
     // numbered placeholder title until transcription gives it a real
     // one — otherwise the tracker shows indistinguishable rows.
+    if (options.auditId) {
+      const upload = await createGUpload({
+        userId,
+        title: "",
+        filename,
+        originalName: file.name,
+        contentType,
+        size: file.bytes.byteLength,
+        sha256: hash,
+        workRecordId: null,
+        kind,
+        auditId: options.auditId,
+      });
+      created.push(upload);
+      continue;
+    }
+
     untranscribedCount += 1;
     const uploadedOn = new Date().toISOString();
     const workRecord = await createWorkRecord(

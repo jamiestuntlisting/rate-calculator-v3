@@ -587,8 +587,21 @@ session's `/api/auth/me` carries `tester: true` for them.
   (`src/lib/google-calendar.ts`; `users.calendarId`,
   `work_records.googleEventId`, migration 0029). Needs
   `GOOGLE_SERVICE_ACCOUNT_JSON`; docs/google-calendar-work-log.md.
-- **Audit a show** — an outline only: docs/audit-a-show.md and the
-  placeholder at `/admin/audits`. Nothing built.
+- **Audit a show** (`/admin/audits`) — real, in steps, with
+  placeholders where the work is not built: open an audit (show,
+  performers, note — `audits` table, migration 0032), upload the run's
+  Exhibit Gs (`POST /api/admin/audits/[id]/uploads` → `ingestGUploads`
+  with `{ auditId }`: the cards are g_uploads rows owned by the admin
+  with `auditId` set and **no work day**, kept out of the pile, the
+  queue and Claude's reading), transcribe each card in the ordinary
+  transcription view (`/upload-g/[id]?back=/admin/audits/<id>?step=3`
+  — the back arrow and Done return there) with a done/to-do review
+  that forks to transcribing or to matching, then Price every day and
+  Match paychecks (placeholders with the table shape), and the package:
+  `GET /api/admin/audits/[id]/package` is a sample PDF
+  (`src/lib/audit-package.ts`, one page per performer, dashes for
+  owed/paid). Still to build: multi-row transcription (every performer
+  on a card, not one line), pricing, matching. docs/audit-a-show.md.
 - **Bank deposits via Plaid** (`/bank`, testers) — connect a bank
   account view-only, pull deposits (`bank_connections`,
   `bank_deposits`, migration 0028), and match each to the pay the
