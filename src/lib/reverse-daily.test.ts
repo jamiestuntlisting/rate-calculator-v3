@@ -122,6 +122,31 @@ describe("reverseDaily", () => {
     expect(match!.secondMealStart).toBe("18:30");
   });
 
+  it("solves an adjustment off the grid: scale plus $1,100 on a plain day", () => {
+    // James's check: $2,383 = $1,283 + $1,100 at the 07/01/2026 rate.
+    const total = priced(8.5, 1100).grandTotal;
+    const result = reverseDaily(total, STATUS, { today: TODAY });
+    const first = result.exact[0];
+    expect(first.adjustment).toBe(1100);
+    expect(first.penalties).toBe(0);
+    expect(first.workedHours).toBeLessThanOrEqual(8);
+    expect(first.rateDate).toBe("2026-07-01");
+  });
+
+  it("solves past the knee: an adjustment bigger than scale changes the tiers, and is still found", () => {
+    const total = priced(13.4, 2150).grandTotal;
+    const result = reverseDaily(total, STATUS, { today: TODAY });
+    expect(result.exact.some((c) => c.adjustment === 2150 && c.spanHours === 13.4)).toBe(true);
+  });
+
+  it("an odd whole-dollar adjustment is found too, but a round one on another day sorts first", () => {
+    const total = priced(9.7, 613).grandTotal;
+    const result = reverseDaily(total, STATUS, { today: TODAY });
+    expect(result.exact.some((c) => c.adjustment === 613 && c.spanHours === 9.7)).toBe(true);
+    const idx = result.exact.findIndex((c) => c.adjustment === 613);
+    for (const c of result.exact.slice(0, idx)) expect(c.adjustment % 5).toBe(0);
+  });
+
   it("an adjustment feeds the overtime rate, so candidates re-run the engine", () => {
     // The same day $100 richer in adjustment pays MORE than $100 more on
     // a day with overtime — pinning that the search cannot shortcut by

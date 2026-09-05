@@ -294,8 +294,15 @@ state stays in step.
   is found on last year's column. The shapes are the finite set of
   normal payments — 6:00 AM call, lunch on time or late by each half
   hour up to two (each a distinct penalty), 8–16 hour days in 6-minute
-  steps, adjustments to $1,000 in $50s, with and without a second meal
-  (~50k engine runs, ~0.3 s). Near misses are always reported, closest
+  steps, with and without a second meal. The **adjustment is solved,
+  not searched**: for a fixed day the gross is a straight line in the
+  adjustment with one knee where it passes scale (the engine's
+  high-stunt tiers), so `solveShape` prices the ends of each piece,
+  divides, and re-prices the whole dollars around the answer for the
+  exact match (~7 engine runs a shape, ~17k in all). A $50 grid to
+  $1,000 missed a plain day with $1,100 — James's check — which is why.
+  Exact matches sort by `adjustmentRoundness` (multiples of $50 first),
+  then fewest penalties. Near misses are always reported, closest
   first, however far; `commonPayments` is the whole-hours grid the page
   shows under the results with the check's nearest cell marked.
 - **Non-SAG work** — commercials, music videos, low budget and anything

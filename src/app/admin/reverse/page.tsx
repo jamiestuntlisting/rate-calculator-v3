@@ -195,8 +195,9 @@ export default function AdminReversePage() {
           search runs normal dailies through the engine at every rate in
           force in the last two years — call at 6:00 AM, lunch six hours in
           or late by each half hour up to two, the day running eight to
-          sixteen hours in six-minute steps, a stunt adjustment up to $1,000
-          in $50 steps, with and without a second meal — and reports the
+          sixteen hours in six-minute steps, with and without a second meal —
+          solves the stunt adjustment that would land each day on the number
+          (any whole-dollar amount, not a grid) — and reports the
           shapes that land on the number, or the closest ones when nothing
           does.
         </p>

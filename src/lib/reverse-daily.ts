@@ -19,13 +19,25 @@ import type { CalculationBreakdown, ExhibitGInput } from "@/types";
  * years and tags each candidate with the schedule it matched — the
  * match names the rate as well as the day.
  *
- * The shapes searched are the finite set of payments a normal daily can
- * produce: a 6:00 AM call; lunch six hours in, or late by each half hour
- * up to two (each half hour a distinct meal penalty); the day running
- * eight to sixteen hours in 6-minute steps; a stunt adjustment from
- * nothing to $1,000 in $50 steps; and — past the second meal window —
- * both the day that took a second meal and the day that ran through it
- * into penalties. Sixth/seventh days and holidays are out of scope here.
+ * The shapes searched are the finite set of days a normal daily can
+ * be: a 6:00 AM call; lunch six hours in, or late by each half hour up
+ * to two (each half hour a distinct meal penalty); the day running
+ * eight to sixteen hours in 6-minute steps; and — past the second meal
+ * window — both the day that took a second meal and the day that ran
+ * through it into penalties. Sixth/seventh days and holidays are out of
+ * scope here.
+ *
+ * The stunt adjustment is not searched, it is solved. For a fixed day
+ * the gross is a straight line in the adjustment — every wage segment
+ * is hours × (scale + adjustment) / 8 × tier, and the penalties are
+ * statutory dollars on top — with one knee where the adjustment passes
+ * scale and the tiers change (straight time to twelve hours, then
+ * double). So each shape is priced at the ends of each straight piece,
+ * the slope read off the engine's own figures, the adjustment that
+ * would land on the check computed by division, and the whole-dollar
+ * candidates around it re-priced by the engine for the exact match.
+ * Seven engine runs a shape find any adjustment at all, where a grid
+ * of $50 steps to $1,000 took twenty-one and missed $1,100.
  */
 
 /** The starting-point day: 6h to lunch, half-hour lunch, 6h to wrap. */
@@ -42,8 +54,10 @@ const SPAN_MIN_HOURS = 8;
 const SPAN_MAX_HOURS = 16;
 /** 6 minutes — a tenth of an hour, how payroll rounds. */
 const SPAN_STEP_HOURS = 0.1;
-const ADJUSTMENT_MAX = 1000;
-const ADJUSTMENT_STEP = 50;
+/** No stunt adjustment on a daily is this big; past it the check is something else. */
+const ADJUSTMENT_MAX = 25000;
+/** Rounding inside the engine (per segment, to the cent) moves a solved adjustment by less than this. */
+const SOLVE_SLACK = 2;
 /** Lunch on time, then late by each half hour up to two hours. */
 const LUNCH_LATE_HOURS = [0, 0.5, 1, 1.5, 2] as const;
 /** Half an hour: a meal, as the engine assumes one. */
@@ -245,6 +259,67 @@ function priceShape(
   }
 }
 
+/**
+ * How "normal" a solved adjustment looks: 0 for a multiple of $50, 1 of
+ * $25, 2 of $5, 3 for any other whole dollar. A check that lands on a
+ * plain day with a $1,100 adjustment is a better story than one that
+ * lands on a 13.7-hour day with $613, so the round ones sort first.
+ */
+export function adjustmentRoundness(adjustment: number): number {
+  if (adjustment % 50 === 0) return 0;
+  if (adjustment % 25 === 0) return 1;
+  if (adjustment % 5 === 0) return 2;
+  return 3;
+}
+
+/**
+ * The adjustment that lands a day shape on the target, solved from the
+ * engine's own line. Returns the engine-priced candidate at the nearest
+ * whole dollar (the closest of a few around the solution, since the
+ * engine rounds each segment to the cent), or at $0 when the shape
+ * already pays more than the check with no adjustment — that day is
+ * then a near miss whose gap says so.
+ */
+function solveShape(
+  rate: SearchedRate,
+  workStatus: string,
+  shape: Omit<Shape, "adjustment">,
+  target: number
+): ReverseCandidate | null {
+  const at = (adjustment: number) => priceShape(rate, workStatus, { ...shape, adjustment }, target);
+  const scale = rate.daily;
+  // The low piece: adjustments up to scale, normal overtime tiers.
+  const g0 = at(0);
+  if (!g0) return null;
+  if (g0.diff >= 0) return g0;
+  const gLow = at(scale);
+  if (!gLow) return null;
+  const slopeLow = (gLow.total - g0.total) / scale;
+  let guess: number;
+  if (slopeLow > 0 && gLow.total >= target - EXACT_WITHIN) {
+    guess = (target - g0.total) / slopeLow;
+  } else {
+    // The high piece: past scale, straight time runs to twelve hours
+    // and double time follows; a different slope.
+    const lo = scale + 1;
+    const gHi0 = at(lo);
+    const gHi1 = at(lo + 1000);
+    if (!gHi0 || !gHi1) return null;
+    const slopeHigh = (gHi1.total - gHi0.total) / 1000;
+    if (slopeHigh <= 0) return null;
+    guess = lo + (target - gHi0.total) / slopeHigh;
+  }
+  if (!Number.isFinite(guess) || guess > ADJUSTMENT_MAX) return null;
+  const centre = Math.max(0, Math.round(guess));
+  let best: ReverseCandidate | null = null;
+  for (let a = centre - SOLVE_SLACK; a <= centre + SOLVE_SLACK; a++) {
+    if (a < 0) continue;
+    const c = at(a);
+    if (c && (!best || Math.abs(c.diff) < Math.abs(best.diff))) best = c;
+  }
+  return best;
+}
+
 /** What distinguishes one story from another. */
 const storyKey = (c: ReverseCandidate) =>
   [c.total, c.adjustment, c.penalties, c.secondMeal, c.rateDate].join("|");
@@ -300,20 +375,13 @@ export function reverseDaily(
   for (const rate of rates) {
     for (let i = 0; i <= steps; i++) {
       const spanHours = SPAN_MIN_HOURS + i * SPAN_STEP_HOURS;
-      for (let adjustment = 0; adjustment <= ADJUSTMENT_MAX; adjustment += ADJUSTMENT_STEP) {
-        for (const lunchLateHours of LUNCH_LATE_HOURS) {
-          const shape = { spanHours, adjustment, lunchLateHours, secondMeal: false };
-          const noSecond = priceShape(rate, workStatus, shape, target);
-          if (noSecond) candidates.push(noSecond);
-          if (secondMealFits(spanHours, lunchLateHours)) {
-            const withSecond = priceShape(
-              rate,
-              workStatus,
-              { ...shape, secondMeal: true },
-              target
-            );
-            if (withSecond) candidates.push(withSecond);
-          }
+      for (const lunchLateHours of LUNCH_LATE_HOURS) {
+        const shape = { spanHours, lunchLateHours, secondMeal: false };
+        const noSecond = solveShape(rate, workStatus, shape, target);
+        if (noSecond) candidates.push(noSecond);
+        if (secondMealFits(spanHours, lunchLateHours)) {
+          const withSecond = solveShape(rate, workStatus, { ...shape, secondMeal: true }, target);
+          if (withSecond) candidates.push(withSecond);
         }
       }
     }
@@ -331,9 +399,11 @@ export function reverseDaily(
     seen.add(key);
     exact.push(candidate);
   }
-  // Simplest story first: fewest penalties, then shortest day.
+  // Simplest story first: the roundest adjustment, then fewest
+  // penalties, then the shortest day.
   exact.sort(
     (a, b) =>
+      adjustmentRoundness(a.adjustment) - adjustmentRoundness(b.adjustment) ||
       a.penalties - b.penalties ||
       a.spanHours - b.spanHours ||
       b.rateDate.localeCompare(a.rateDate)
@@ -344,7 +414,10 @@ export function reverseDaily(
   const close: ReverseCandidate[] = [];
   const seenClose = new Set<string>();
   for (const candidate of [...candidates].sort(
-    (a, b) => Math.abs(a.diff) - Math.abs(b.diff) || a.penalties - b.penalties
+    (a, b) =>
+      Math.abs(a.diff) - Math.abs(b.diff) ||
+      adjustmentRoundness(a.adjustment) - adjustmentRoundness(b.adjustment) ||
+      a.penalties - b.penalties
   )) {
     if (Math.abs(candidate.diff) <= EXACT_WITHIN) continue;
     const key = storyKey(candidate);
