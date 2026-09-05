@@ -114,10 +114,14 @@ export function ReminderBanners({ records }: ReminderBannersProps) {
           <AlertTriangle className="h-4 w-4 shrink-0" />
           {/* One line, and it stays one line: a date list here was five rows
               of links deep on a phone before the tracker itself started. */}
-          <p className="flex-1 min-w-0 text-sm truncate">
+          {/* The line is the link: it opens the pile, where they sit. */}
+          <Link
+            href="/upload-g"
+            className="flex-1 min-w-0 text-sm truncate underline underline-offset-2 hover:text-yellow-200"
+          >
             {incompleteRecords.length} Exhibit G
             {incompleteRecords.length !== 1 ? "s" : ""} left to finish
-          </p>
+          </Link>
           <Button
             variant="ghost"
             size="sm"
