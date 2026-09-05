@@ -371,7 +371,7 @@ export default function AuditPage({ params }: { params: Promise<{ id: string }> 
             )}
             <Placeholder>
               Placeholder: each row will run through the rate engine by its date and the agreement the audit
-              names, the way a member's day does, and the total lands in the Owed column.
+              names, the way a member&rsquo;s day does, and the total lands in the Owed column.
             </Placeholder>
             <div className="flex justify-end"><Button onClick={() => go(5)}>Next: match paychecks</Button></div>
           </CardContent>
