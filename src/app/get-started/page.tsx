@@ -6,7 +6,8 @@ import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 import { toUploadableImage } from "@/lib/heic-to-jpeg";
 import { isUploadable } from "@/lib/uploadable";
-import { Check, Loader2, Upload } from "lucide-react";
+import { Check, FileText, Loader2, Upload } from "lucide-react";
+import { useThumbnails } from "@/lib/use-thumbnails";
 
 /**
  * The first-visit page: get the backlog in.
@@ -29,6 +30,21 @@ interface Summary {
   requested: number;
 }
 
+/** One file in the pile, as the gallery under the uploader shows it. */
+interface PileItem {
+  _id: string;
+  displayTitle: string;
+  path: string;
+  thumbPath?: string | null;
+  contentType: string;
+  kind?: string;
+  transcribedAt?: string | null;
+  createdAt: string;
+}
+
+/** How many of the pile the gallery shows before pointing at the pile page. */
+const GALLERY_MAX = 48;
+
 export default function GetStartedPage() {
   const [uploading, setUploading] = useState(false);
   /** The bar: how many of the batch have landed, the one in flight, the last few done. */
@@ -41,16 +57,35 @@ export default function GetStartedPage() {
   const [requesting, setRequesting] = useState(false);
   const [requested, setRequested] = useState(false);
   const [summary, setSummary] = useState<Summary | null>(null);
+  /**
+   * The pile itself, newest first: what has been uploaded, shown under
+   * the uploader so a batch can be watched arriving. Each file that
+   * lands is added the moment its request returns; the thumbnails are
+   * made here in the browser (useThumbnails), one at a time.
+   */
+  const [pile, setPile] = useState<PileItem[]>([]);
+  useThumbnails(pile, (id, thumbPath) =>
+    setPile((prev) => prev.map((u) => (u._id === id ? { ...u, thumbPath } : u)))
+  );
   const fileRef = useRef<HTMLInputElement>(null);
 
   const refresh = useCallback(async () => {
     try {
       const res = await fetch("/api/g-uploads");
       const data = await res.json();
-      const uploads = (data.uploads ?? data ?? []) as Array<{
-        transcription: unknown | null;
-        transcriptionRequested?: number;
-      }>;
+      const uploads = (data.uploads ?? data ?? []) as Array<
+        PileItem & {
+          transcription: unknown | null;
+          transcriptionRequested?: number;
+        }
+      >;
+      setPile(
+        [...uploads]
+          .sort((a, b) => (a.createdAt < b.createdAt ? 1 : a.createdAt > b.createdAt ? -1 : 0))
+          .map(({ _id, displayTitle, path, thumbPath, contentType, kind, transcribedAt, createdAt }) => ({
+            _id, displayTitle, path, thumbPath, contentType, kind, transcribedAt, createdAt,
+          }))
+      );
       const untranscribed = uploads.filter((u) => !u.transcription);
       setSummary({
         uploads: uploads.length,
@@ -103,13 +138,18 @@ export default function GetStartedPage() {
           form.append("file", file);
           const res = await fetch("/api/g-uploads", { method: "POST", body: form });
           const data = (await res.json().catch(() => ({}))) as {
-            created?: unknown[];
+            created?: PileItem[];
             duplicates?: unknown[];
             error?: string;
           };
           if (!res.ok) throw new Error(data.error || `HTTP ${res.status}`);
           added += data.created?.length ?? 0;
           dupes += data.duplicates?.length ?? 0;
+          // Into the gallery the moment it lands, ahead of the rest.
+          if (data.created?.length) {
+            const fresh = data.created;
+            setPile((prev) => [...fresh, ...prev.filter((u) => !fresh.some((f) => f._id === u._id))]);
+          }
           setProgress((p) =>
             p ? { ...p, done: i + 1, landed: [...p.landed, original.name].slice(-6) } : p
           );
@@ -244,6 +284,60 @@ export default function GetStartedPage() {
           </p>
         )}
       </div>
+
+      {/* The pile, newest first: a batch can be watched arriving, and the
+          count says how much of it is done. */}
+      {(pile.length > 0 || progress) && (
+        <div className="rounded-lg border border-border p-5 space-y-3" data-testid="pile-gallery">
+          <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
+            <h2 className="text-lg font-semibold">Your pile</h2>
+            <p className="text-sm text-muted-foreground tabular-nums">
+              <span className="font-semibold text-foreground">{pile.length}</span> uploaded ·{" "}
+              {pile.filter((u) => u.transcribedAt).length} transcribed ·{" "}
+              {pile.filter((u) => !u.transcribedAt && (u.kind ?? "exhibit_g") === "exhibit_g").length} to go
+            </p>
+          </div>
+          <div className="grid grid-cols-4 gap-2 sm:grid-cols-6 md:grid-cols-8">
+            {pile.slice(0, GALLERY_MAX).map((u) => (
+              <Link
+                key={u._id}
+                href={`/upload-g/${u._id}`}
+                className="relative aspect-[3/4] overflow-hidden rounded-md border border-border bg-muted/40"
+                title={u.displayTitle}
+              >
+                {u.contentType === "application/pdf" ? (
+                  <span className="flex h-full w-full items-center justify-center text-muted-foreground">
+                    <FileText className="h-6 w-6" />
+                  </span>
+                ) : (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img
+                    src={u.thumbPath ?? u.path}
+                    alt=""
+                    loading="lazy"
+                    decoding="async"
+                    className="h-full w-full object-cover"
+                  />
+                )}
+                {u.transcribedAt && (
+                  <span className="absolute right-1 top-1 rounded-full bg-emerald-600 p-0.5 text-white">
+                    <Check className="h-3 w-3" />
+                  </span>
+                )}
+              </Link>
+            ))}
+          </div>
+          {pile.length > GALLERY_MAX && (
+            <p className="text-xs text-muted-foreground">
+              Showing the newest {GALLERY_MAX}.{" "}
+              <Link href="/upload-g" className="underline underline-offset-2">
+                The whole pile
+              </Link>
+              .
+            </p>
+          )}
+        </div>
+      )}
 
       {/* Step two: transcription help. */}
       <div className="rounded-lg border border-border p-5 space-y-4">

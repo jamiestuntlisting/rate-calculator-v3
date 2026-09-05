@@ -213,6 +213,11 @@ state stays in step.
   ?thumb=1` serves the copy when it exists and the original otherwise,
   so nothing waits on a thumbnail. Files that arrived by text or email
   get theirs the first time someone lists them.
+- **The bulk page shows the pile arriving** — `/get-started` lists the
+  pile under the uploader as a thumbnail grid, newest first, with
+  "N uploaded · M transcribed · K to go"; each file is added the moment
+  its request returns, so a batch can be watched landing (James asked
+  to see them appear and a counter of what is done).
 - **The pile's Transcribed section is a table** — finished Gs on
   `/upload-g` render tracker-style (`Table`, a 40px thumbnail, the show
   with the character under it, the work date from the transcription's
