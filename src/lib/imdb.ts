@@ -23,6 +23,67 @@ export function normalizeImdbId(raw: string | null | undefined): string | null {
   return m ? m[0].toLowerCase() : null;
 }
 
+/** "tt1234567" from whatever was typed or pasted — an id, or a title URL. */
+export function normalizeImdbTitleId(raw: string | null | undefined): string | null {
+  const m = /tt\d{5,9}/i.exec(raw ?? "");
+  return m ? m[0].toLowerCase() : null;
+}
+
+/** The title's IMDb page. */
+export function imdbTitleUrl(tt: string): string {
+  return `https://www.imdb.com/title/${tt}/`;
+}
+
+/** One hit from IMDb's suggestion service, for a title or a name. */
+export interface ImdbSuggestion {
+  id: string;
+  label: string;
+  /** "TV series · 2003–", or a person's known-for line. */
+  detail: string;
+  imageUrl: string | null;
+  url: string;
+}
+
+/**
+ * IMDb's suggestion endpoint — the one its own search box uses, not a
+ * documented API: /suggestion/{titles|names}/{first letter}/{query}.json.
+ * The proxy route fetches it; this is the URL, kept here so it is one
+ * line to fix if IMDb moves it.
+ */
+export function imdbSuggestionUrl(type: "title" | "name", query: string): string {
+  const q = query.trim().toLowerCase().replace(/\s+/g, "_");
+  const letter = /^[a-z]/.test(q) ? q[0] : "x";
+  return `https://v3.sg.media-imdb.com/suggestion/${type === "title" ? "titles" : "names"}/${letter}/${encodeURIComponent(q)}.json`;
+}
+
+/**
+ * The suggestion payload, reduced to what the pages show. Titles carry
+ * a kind (q) and a year or span; names carry a known-for line (s).
+ * Anything without an id of the right shape is dropped.
+ */
+export function parseImdbSuggestions(payload: unknown, type: "title" | "name"): ImdbSuggestion[] {
+  const d = (payload as { d?: unknown[] } | null)?.d;
+  if (!Array.isArray(d)) return [];
+  const out: ImdbSuggestion[] = [];
+  for (const raw of d) {
+    const r = raw as { id?: string; l?: string; q?: string; y?: number; yr?: string; s?: string; i?: { imageUrl?: string } };
+    const id = type === "title" ? normalizeImdbTitleId(r.id) : normalizeImdbId(r.id);
+    if (!id || !r.l) continue;
+    const detail =
+      type === "title"
+        ? [r.q, r.yr || (r.y ? String(r.y) : "")].filter(Boolean).join(" · ")
+        : r.s ?? "";
+    out.push({
+      id,
+      label: r.l,
+      detail,
+      imageUrl: r.i?.imageUrl ?? null,
+      url: type === "title" ? imdbTitleUrl(id) : imdbPersonUrl(id),
+    });
+  }
+  return out;
+}
+
 /** The person's IMDb page. */
 export function imdbPersonUrl(nm: string): string {
   return `https://www.imdb.com/name/${nm}/`;

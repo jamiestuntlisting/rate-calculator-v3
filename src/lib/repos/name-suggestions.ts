@@ -166,3 +166,50 @@ export async function backfillSuggestions(): Promise<number> {
   ]);
   return (shows.meta.changes ?? 0) + (characters.meta.changes ?? 0);
 }
+
+/** A show as the IMDb titles page lists it: the name, how much work sits under it, and its IMDb id when looked up. */
+export interface ShowWithImdb {
+  name: string;
+  days: number;
+  members: number;
+  lastDate: string;
+  imdbId: string | null;
+}
+
+/**
+ * Every show that has work logged under it, most recent first, with
+ * the IMDb title id kept on its name row. Placeholder days and
+ * non-union work are not shows in this sense.
+ */
+export async function listShowsWithImdb(): Promise<ShowWithImdb[]> {
+  const db = await getDb();
+  const { results } = await db
+    .prepare(
+      `SELECT w.showName AS name, COUNT(*) AS days, COUNT(DISTINCT w.userId) AS members,
+              MAX(w.workDate) AS lastDate, s.imdbId AS imdbId
+       FROM work_records w
+       LEFT JOIN name_suggestions s ON s.kind = 'show' AND s.name = w.showName
+       WHERE w.showName <> '' AND w.showName NOT LIKE 'Untranscribed Exhibit G%'
+         AND (w.workType IS NULL OR w.workType <> 'other')
+       GROUP BY w.showName
+       ORDER BY lastDate DESC, name`
+    )
+    .all<ShowWithImdb>();
+  return (results ?? []).map((r) => ({ ...r, imdbId: r.imdbId || null }));
+}
+
+/** Keep (or clear) a show's IMDb title id on its name row, creating the row if the show was never recorded. */
+export async function setShowImdbId(name: string, imdbId: string | null): Promise<void> {
+  const trimmed = name.trim();
+  if (!trimmed) return;
+  const db = await getDb();
+  const now = nowIso();
+  await db
+    .prepare(
+      `INSERT INTO name_suggestions (kind, name, blocked, replacement, createdAt, updatedAt, imdbId)
+       VALUES ('show', ?1, 0, NULL, ?2, ?2, ?3)
+       ON CONFLICT(kind, name) DO UPDATE SET imdbId = excluded.imdbId, updatedAt = excluded.updatedAt`
+    )
+    .bind(trimmed, now, imdbId)
+    .run();
+}

@@ -42,6 +42,8 @@ const GROUPS: Array<{ title: string; items: Array<{ href: string; label: string 
     items: [
       { href: "/admin/readings", label: "Claude reads the G" },
       { href: "/admin/imdb", label: "IMDb credits" },
+      { href: "/admin/imdb/people", label: "IMDb people" },
+      { href: "/admin/imdb/titles", label: "IMDb titles" },
       { href: "/admin/audits", label: "Audit a show" },
     ],
   },

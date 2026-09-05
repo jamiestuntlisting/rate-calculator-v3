@@ -34,6 +34,7 @@ import {
   imdbPersonSearchUrl,
   imdbPersonUrl,
   imdbTitleSearchUrl,
+  imdbTitleUrl,
   normalizeImdbId,
   showCredits,
   type ShowCredit,
@@ -73,6 +74,18 @@ export default function AdminImdbPage() {
   const [users, setUsers] = useState<AdminUser[]>([]);
   const [selected, setSelected] = useState<string>("");
   const [records, setRecords] = useState<RecordLite[] | null>(null);
+  /** Show name (lower-cased) → IMDb title id, from Admin → IMDb titles. */
+  const [titleIds, setTitleIds] = useState<Record<string, string>>({});
+  useEffect(() => {
+    fetch("/api/admin/imdb/titles")
+      .then((r) => r.json())
+      .then((d: { shows?: Array<{ name: string; imdbId: string | null }> }) => {
+        const map: Record<string, string> = {};
+        for (const sh of d.shows ?? []) if (sh.imdbId) map[sh.name.toLowerCase()] = sh.imdbId;
+        setTitleIds(map);
+      })
+      .catch(() => {});
+  }, []);
   const [imdbInput, setImdbInput] = useState("");
   const [saving, setSaving] = useState(false);
 
@@ -301,14 +314,25 @@ export default function AdminImdbPage() {
                           {` · ${c.days} day${c.days === 1 ? "" : "s"}`}
                         </TableCell>
                         <TableCell className="text-right whitespace-nowrap">
-                          <a
-                            href={imdbTitleSearchUrl(c.showName)}
-                            target="_blank"
-                            rel="noreferrer"
-                            className="underline underline-offset-2"
-                          >
-                            find title ↗
-                          </a>
+                          {titleIds[c.showName.toLowerCase()] ? (
+                            <a
+                              href={imdbTitleUrl(titleIds[c.showName.toLowerCase()])}
+                              target="_blank"
+                              rel="noreferrer"
+                              className="underline underline-offset-2"
+                            >
+                              {titleIds[c.showName.toLowerCase()]} ↗
+                            </a>
+                          ) : (
+                            <a
+                              href={imdbTitleSearchUrl(c.showName)}
+                              target="_blank"
+                              rel="noreferrer"
+                              className="underline underline-offset-2 text-amber-300"
+                            >
+                              find title ↗
+                            </a>
+                          )}
                         </TableCell>
                       </TableRow>
                     ))}

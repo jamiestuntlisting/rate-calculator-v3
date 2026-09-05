@@ -558,7 +558,16 @@ session's `/api/auth/me` carries `tester: true` for them.
   `PATCH /api/admin/users/[userId]/imdb`), and lists their SAG shows
   as credits (`src/lib/imdb.ts` `showCredits`: one per show, every
   character and actor doubled) beside that link and an IMDb title
-  search per show. Matching shows to tt ids is a separate feature.
+  search per show. **Looking ids up** is two more pages: `/admin/imdb/
+  people` (members → `prefs.imdbId`) and `/admin/imdb/titles` (shows →
+  `name_suggestions.imdbId`, migration 0031; `listShowsWithImdb`,
+  `setShowImdbId`, `/api/admin/imdb/titles`). A row tap opens
+  `ImdbLookupDialog`, which searches IMDb's suggestion service (its
+  search box's endpoint, not a documented API: `imdbSuggestionUrl`,
+  proxied by `/api/admin/imdb/search` since the browser cannot call it)
+  and keeps the id in one tap; an id or page URL can be pasted, and
+  IMDb's own search is the fallback. The credits page links the title
+  when its id is known.
 - **Members** (`/admin/members`) — who uses the service and how much,
   with the switch that makes a member a test user (`users.tester`,
   migration 0027; the seed list in `test-users.ts` stays on and shows
