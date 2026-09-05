@@ -129,7 +129,7 @@ describe("reverseDaily", () => {
     const first = result.exact[0];
     expect(first.adjustment).toBe(1100);
     expect(first.penalties).toBe(0);
-    expect(first.workedHours).toBeLessThanOrEqual(8);
+    expect(first.workedHours).toBe(8);
     expect(first.rateDate).toBe("2026-07-01");
   });
 
@@ -188,6 +188,9 @@ describe("reverseDaily", () => {
         c.adjustment === 0 && c.penalties === 0 && !c.secondMeal && c.rateDate === "2026-07-01"
     );
     expect(zeroAdj.length).toBe(1);
+    // And no story describes a day under eight worked hours: lunch is
+    // not work time, and a shorter day is paid as eight.
+    for (const c of [...result.exact, ...result.close]) expect(c.workedHours).toBeGreaterThanOrEqual(8);
   });
 });
 

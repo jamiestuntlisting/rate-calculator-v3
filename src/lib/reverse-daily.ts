@@ -50,7 +50,12 @@ export const REVERSE_DEFAULTS = {
   defaultAdjustment: 100,
 } as const;
 
-const SPAN_MIN_HOURS = 8;
+/**
+ * The shortest day: eight hours worked plus the half-hour lunch, which
+ * is not work time. A shorter day is paid as eight, so there is no such
+ * shape to search — describing a check as "7.5h worked" is wrong.
+ */
+const SPAN_MIN_HOURS = 8.5;
 const SPAN_MAX_HOURS = 16;
 /** 6 minutes — a tenth of an hour, how payroll rounds. */
 const SPAN_STEP_HOURS = 0.1;
@@ -387,8 +392,7 @@ export function reverseDaily(
     }
   }
 
-  // Inside the 8-hour guarantee every short day pays the same minimum,
-  // so exact matches are deduped by what actually distinguishes a story:
+  // Exact matches are deduped by what actually distinguishes a story:
   // the money, the adjustment, the penalties, the second meal, the rate.
   const exact: ReverseCandidate[] = [];
   const seen = new Set<string>();
